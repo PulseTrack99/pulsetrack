@@ -71,17 +71,22 @@ export async function POST(req: Request) {
         const priceId = subscription.items.data[0]?.price?.id;
         const plan = priceId ? PRICE_TO_PLAN[priceId] || "starter" : "starter";
 
+        // Get period dates from the first subscription item
+        const item = subscription.items.data[0];
+        const periodStart = item?.current_period_start;
+        const periodEnd = item?.current_period_end;
+
         await supabase
           .from("subscriptions")
           .update({
             plan,
             status: subscription.status === "active" ? "active" : subscription.status,
-            current_period_start: new Date(
-              subscription.current_period_start * 1000
-            ).toISOString(),
-            current_period_end: new Date(
-              subscription.current_period_end * 1000
-            ).toISOString(),
+            ...(periodStart && {
+              current_period_start: new Date(periodStart * 1000).toISOString(),
+            }),
+            ...(periodEnd && {
+              current_period_end: new Date(periodEnd * 1000).toISOString(),
+            }),
             updated_at: new Date().toISOString(),
           })
           .eq("stripe_customer_id", customerId);
