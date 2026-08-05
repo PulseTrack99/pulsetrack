@@ -30,7 +30,7 @@ function StatCard({
 }: {
   label: string;
   value: string;
-  icon: React.ElementType;
+  icon: React.ComponentType<{ className?: string }>;
 }) {
   return (
     <div className="rounded-xl border border-border bg-background p-5">
