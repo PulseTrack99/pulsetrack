@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
-import { SettingsPanel } from "@/components/settings-panel";
+import { PricingCards } from "@/components/pricing-cards";
 
-export default async function SettingsPage() {
+export default async function UpgradePage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -10,13 +10,7 @@ export default async function SettingsPage() {
 
   if (!user) return null;
 
-  // Get user's sites
-  const { data: sites } = await supabase
-    .from("sites")
-    .select("id, name, domain, created_at, public_share_id")
-    .order("created_at", { ascending: false });
-
-  // Get current plan
+  // Get current subscription
   const serviceSupabase = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -24,17 +18,11 @@ export default async function SettingsPage() {
 
   const { data: sub } = await serviceSupabase
     .from("subscriptions")
-    .select("plan")
+    .select("plan, status")
     .eq("user_id", user.id)
     .single();
 
   const currentPlan = sub?.plan || "free";
 
-  return (
-    <SettingsPanel
-      user={user}
-      sites={sites || []}
-      currentPlan={currentPlan}
-    />
-  );
+  return <PricingCards currentPlan={currentPlan} />;
 }

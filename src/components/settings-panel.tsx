@@ -27,9 +27,11 @@ interface Site {
 export function SettingsPanel({
   user,
   sites: initialSites,
+  currentPlan = "free",
 }: {
   user: SupabaseUser;
   sites: Site[];
+  currentPlan?: string;
 }) {
   const [sites, setSites] = useState(initialSites);
 
@@ -43,7 +45,7 @@ export function SettingsPanel({
       </div>
 
       {/* Account info */}
-      <AccountSection user={user} />
+      <AccountSection user={user} plan={currentPlan} />
 
       {/* Change password */}
       <PasswordSection />
@@ -63,7 +65,8 @@ export function SettingsPanel({
 }
 
 /* ─────────── ACCOUNT INFO ─────────── */
-function AccountSection({ user }: { user: SupabaseUser }) {
+function AccountSection({ user, plan }: { user: SupabaseUser; plan: string }) {
+  const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
   return (
     <section className="rounded-xl border border-border bg-background p-6">
       <div className="flex items-center gap-3 mb-4">
@@ -78,9 +81,19 @@ function AccountSection({ user }: { user: SupabaseUser }) {
         </div>
         <div className="flex items-center justify-between rounded-lg bg-surface px-4 py-3">
           <span className="text-sm text-muted">Plan</span>
-          <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-            Free
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              {planLabel}
+            </span>
+            {plan === "free" && (
+              <a
+                href="/dashboard/upgrade"
+                className="text-xs text-primary font-medium hover:underline"
+              >
+                Upgrader →
+              </a>
+            )}
+          </div>
         </div>
         <div className="flex items-center justify-between rounded-lg bg-surface px-4 py-3">
           <span className="text-sm text-muted">Membre depuis</span>
