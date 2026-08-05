@@ -10,6 +10,9 @@ import {
   Loader2,
   Check,
   Copy,
+  Share2,
+  Link,
+  ExternalLink,
 } from "lucide-react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
@@ -18,6 +21,7 @@ interface Site {
   name: string;
   domain: string;
   created_at: string;
+  public_share_id: string | null;
 }
 
 export function SettingsPanel({
@@ -222,9 +226,14 @@ function SitesSection({
   sites: Site[];
   onSiteDeleted: (siteId: string) => void;
 }) {
+  const [siteShareIds, setSiteShareIds] = useState<Record<string, string | null>>(
+    Object.fromEntries(sites.map((s) => [s.id, s.public_share_id]))
+  );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedShareId, setCopiedShareId] = useState<string | null>(null);
+  const [togglingShareId, setTogglingShareId] = useState<string | null>(null);
 
   async function handleDeleteSite(siteId: string) {
     setDeletingId(siteId);
@@ -239,6 +248,38 @@ function SitesSection({
     } finally {
       setDeletingId(null);
     }
+  }
+
+  async function toggleShare(siteId: string) {
+    setTogglingShareId(siteId);
+    try {
+      const currentShareId = siteShareIds[siteId];
+      if (currentShareId) {
+        // Disable sharing
+        const res = await fetch(`/api/sites/${siteId}/share`, { method: "DELETE" });
+        if (res.ok) {
+          setSiteShareIds({ ...siteShareIds, [siteId]: null });
+        }
+      } else {
+        // Enable sharing
+        const res = await fetch(`/api/sites/${siteId}/share`, { method: "POST" });
+        if (res.ok) {
+          const data = await res.json();
+          setSiteShareIds({ ...siteShareIds, [siteId]: data.share_id });
+        }
+      }
+    } catch {
+      // silent
+    } finally {
+      setTogglingShareId(null);
+    }
+  }
+
+  function copyShareLink(shareId: string) {
+    const url = `${window.location.origin}/public/${shareId}`;
+    navigator.clipboard.writeText(url);
+    setCopiedShareId(shareId);
+    setTimeout(() => setCopiedShareId(null), 2000);
   }
 
   function copyScript(siteId: string, domain: string) {
@@ -330,6 +371,62 @@ function SitesSection({
                   )}
                 </div>
               </div>
+              {/* Public share section */}
+              <div className="mt-3 pt-3 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Share2 className="h-3.5 w-3.5 text-muted" />
+                    <span className="text-xs text-muted">Dashboard public</span>
+                  </div>
+                  <button
+                    onClick={() => toggleShare(site.id)}
+                    disabled={togglingShareId === site.id}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                      siteShareIds[site.id]
+                        ? "bg-primary"
+                        : "bg-gray-300 dark:bg-gray-600"
+                    }`}
+                  >
+                    {togglingShareId === site.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin mx-auto text-white" />
+                    ) : (
+                      <span
+                        className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                          siteShareIds[site.id]
+                            ? "translate-x-[18px]"
+                            : "translate-x-[3px]"
+                        }`}
+                      />
+                    )}
+                  </button>
+                </div>
+                {siteShareIds[site.id] && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="flex-1 rounded-md bg-background border border-border px-2.5 py-1.5 text-xs text-muted truncate font-mono">
+                      {window.location.origin}/public/{siteShareIds[site.id]}
+                    </div>
+                    <button
+                      onClick={() => copyShareLink(siteShareIds[site.id]!)}
+                      className="flex items-center gap-1 rounded-md border border-border px-2 py-1.5 text-xs font-medium hover:bg-surface-hover transition-colors"
+                    >
+                      {copiedShareId === siteShareIds[site.id] ? (
+                        <Check className="h-3 w-3 text-emerald-500" />
+                      ) : (
+                        <Link className="h-3 w-3" />
+                      )}
+                    </button>
+                    <a
+                      href={`/public/${siteShareIds[site.id]}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center rounded-md border border-border px-2 py-1.5 text-xs hover:bg-surface-hover transition-colors"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                )}
+              </div>
+
               <p className="mt-2 text-xs text-muted">
                 Ajouté le{" "}
                 {new Date(site.created_at).toLocaleDateString("fr-FR", {

@@ -12,7 +12,7 @@ export default async function SettingsPage() {
   // Get user's sites
   const { data: sites } = await supabase
     .from("sites")
-    .select("id, name, domain, created_at")
+    .select("id, name, domain, created_at, public_share_id")
     .order("created_at", { ascending: false });
 
   return <SettingsPanel user={user} sites={sites || []} />;
