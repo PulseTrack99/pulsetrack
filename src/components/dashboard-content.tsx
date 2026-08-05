@@ -16,6 +16,7 @@ import {
   ArrowRight,
   Plus,
 } from "lucide-react";
+import { RealtimePanel } from "@/components/realtime-panel";
 
 interface Site {
   id: string;
@@ -257,6 +258,9 @@ export function DashboardContent({ sites }: { sites: Site[] }) {
           ))}
         </div>
       </div>
+
+      {/* Realtime panel */}
+      {selectedSite && <RealtimePanel siteId={selectedSite} />}
 
       {/* Stats cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
