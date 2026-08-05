@@ -128,9 +128,17 @@
 
   window.addEventListener("popstate", handleNavigation);
 
-  // Expose global function for custom events
+  // Expose global API
   window.pulsetrack = function (eventName, props) {
     send("event", { event_name: eventName, event_props: props || {} });
+  };
+
+  // Identify visitor by email — links this session to a customer
+  // Usage: pulsetrack.identify("customer@example.com")
+  window.pulsetrack.identify = function (email) {
+    if (email && typeof email === "string") {
+      send("identify", { email: email.trim().toLowerCase() });
+    }
   };
 
   // Fire initial pageview

@@ -127,6 +127,7 @@ export async function POST(req: NextRequest) {
       duration,
       event_name,
       event_props,
+      email,
     } = body;
 
     // Validate required fields
@@ -148,6 +149,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Invalid site_id" },
         { status: 404, headers: { "Access-Control-Allow-Origin": "*" } }
+      );
+    }
+
+    // Handle identify events — link session to email for revenue attribution
+    if (type === "identify" && email && session_id) {
+      await supabase.from("session_identities").upsert(
+        {
+          site_id,
+          session_id,
+          email: email.trim().toLowerCase(),
+          identified_at: new Date().toISOString(),
+        },
+        { onConflict: "site_id,session_id" }
+      );
+
+      return NextResponse.json(
+        { ok: true },
+        { headers: { "Access-Control-Allow-Origin": "*" } }
       );
     }
 
