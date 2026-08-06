@@ -357,6 +357,6 @@ export const dictionaries = {
       contact: "Contact",
     },
   },
-} as const;
+};
 
 export type Dictionary = (typeof dictionaries)["en"];
