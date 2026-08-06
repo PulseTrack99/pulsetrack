@@ -15,9 +15,12 @@ import {
   Sparkles,
 } from "lucide-react";
 import { GlobeLoader } from "@/components/globe-loader";
+import { LocaleSwitch } from "@/components/locale-switch";
+import { getLocale } from "@/i18n/get-locale";
+import { dictionaries, type Dictionary } from "@/i18n/dictionaries";
 
 /* ─────────────────────── NAVBAR ─────────────────────── */
-function Navbar() {
+function Navbar({ t, locale }: { t: Dictionary; locale: "en" | "fr" }) {
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-border/40 bg-background/60 backdrop-blur-2xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
@@ -29,27 +32,28 @@ function Navbar() {
         </a>
         <div className="hidden items-center gap-8 md:flex">
           <a href="#features" className="text-[13px] text-muted hover:text-foreground transition-colors">
-            Features
+            {t.nav.features}
           </a>
           <a href="#how-it-works" className="text-[13px] text-muted hover:text-foreground transition-colors">
-            How it works
+            {t.nav.howItWorks}
           </a>
           <a href="#pricing" className="text-[13px] text-muted hover:text-foreground transition-colors">
-            Pricing
+            {t.nav.pricing}
           </a>
         </div>
         <div className="flex items-center gap-3">
+          <LocaleSwitch locale={locale} />
           <a
             href="/login"
             className="hidden text-[13px] font-medium text-muted-light hover:text-foreground transition-colors sm:block"
           >
-            Log in
+            {t.nav.login}
           </a>
           <a
             href="/signup"
             className="rounded-lg bg-primary px-4 py-2 text-[13px] font-semibold text-background transition-all hover:bg-primary-light hover:shadow-lg hover:shadow-primary/20"
           >
-            Start free
+            {t.nav.startFree}
           </a>
         </div>
       </div>
@@ -58,7 +62,7 @@ function Navbar() {
 }
 
 /* ─────────────────────── HERO ─────────────────────── */
-function Hero() {
+function Hero({ t }: { t: Dictionary }) {
   return (
     <section className="relative overflow-hidden pt-28 pb-4 md:pt-36 md:pb-8">
       {/* Background gradient orbs */}
@@ -77,18 +81,17 @@ function Hero() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
               </span>
-              Now tracking 12M+ events
+              {t.hero.badge}
             </div>
 
             <h1 className="text-[2.75rem] font-bold leading-[1.1] tracking-tight md:text-[3.5rem] lg:text-[3.75rem]">
-              Know where your{" "}
-              <span className="text-primary">revenue</span>{" "}
-              comes from.
+              {t.hero.titleStart}{" "}
+              <span className="text-primary">{t.hero.titleHighlight}</span>{" "}
+              {t.hero.titleEnd}
             </h1>
 
             <p className="mt-5 text-base leading-relaxed text-muted-light md:text-lg">
-              The analytics platform that connects traffic sources to actual payments.
-              See which channels drive revenue, not just clicks.
+              {t.hero.subtitle}
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -96,7 +99,7 @@ function Hero() {
                 href="/signup"
                 className="group flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-background transition-all hover:bg-primary-light hover:shadow-xl hover:shadow-primary/20"
               >
-                Start for free
+                {t.hero.cta}
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </a>
               <a
@@ -104,22 +107,22 @@ function Hero() {
                 className="flex items-center justify-center gap-2 rounded-lg border border-border px-6 py-3 text-sm font-medium text-muted-light transition-all hover:border-muted hover:text-foreground hover:bg-surface-hover"
               >
                 <Code className="h-4 w-4" />
-                View demo
+                {t.hero.demo}
               </a>
             </div>
 
             <div className="mt-6 flex items-center gap-5 text-xs text-muted">
               <span className="flex items-center gap-1.5">
                 <Check className="h-3.5 w-3.5 text-success" />
-                No credit card
+                {t.hero.noCreditCard}
               </span>
               <span className="flex items-center gap-1.5">
                 <Check className="h-3.5 w-3.5 text-success" />
-                GDPR compliant
+                {t.hero.gdpr}
               </span>
               <span className="flex items-center gap-1.5">
                 <Check className="h-3.5 w-3.5 text-success" />
-                1-min setup
+                {t.hero.quickSetup}
               </span>
             </div>
           </div>
@@ -129,11 +132,11 @@ function Hero() {
             <GlobeLoader className="h-full w-full" />
             {/* Floating stat cards */}
             <div className="absolute left-4 top-8 animate-float glass rounded-xl px-4 py-3 shadow-xl" style={{ animationDelay: "0s" }}>
-              <p className="text-[10px] text-muted uppercase tracking-wider">Live visitors</p>
+              <p className="text-[10px] text-muted uppercase tracking-wider">{t.hero.liveVisitors}</p>
               <p className="text-xl font-bold text-primary">847</p>
             </div>
             <div className="absolute right-4 bottom-16 animate-float glass rounded-xl px-4 py-3 shadow-xl" style={{ animationDelay: "2s" }}>
-              <p className="text-[10px] text-muted uppercase tracking-wider">Revenue today</p>
+              <p className="text-[10px] text-muted uppercase tracking-wider">{t.hero.revenueToday}</p>
               <p className="text-xl font-bold text-success">€12,430</p>
             </div>
           </div>
@@ -144,12 +147,12 @@ function Hero() {
 }
 
 /* ──────────────── SOCIAL PROOF BAR ──────────────── */
-function SocialProof() {
+function SocialProof({ t }: { t: Dictionary }) {
   const stats = [
-    { value: "12M+", label: "Events tracked" },
-    { value: "2,400+", label: "Websites" },
-    { value: "38", label: "Countries" },
-    { value: "99.9%", label: "Uptime" },
+    { value: "12M+", label: t.social.eventsTracked },
+    { value: "2,400+", label: t.social.websites },
+    { value: "38", label: t.social.countries },
+    { value: "99.9%", label: t.social.uptime },
   ];
 
   return (
@@ -169,47 +172,47 @@ function SocialProof() {
 }
 
 /* ─────────────────────── FEATURES ─────────────────────── */
-function Features() {
+function Features({ t }: { t: Dictionary }) {
   const features = [
     {
       icon: TrendingUp,
-      title: "Revenue Attribution",
-      description: "Connect Stripe. See exactly which traffic sources drive actual paying customers — not just visits.",
+      title: t.features.revenueAttribution,
+      description: t.features.revenueAttributionDesc,
       color: "text-emerald-400",
       bg: "bg-emerald-400/10",
     },
     {
       icon: Users,
-      title: "Real-time Dashboard",
-      description: "Live visitors on a 3D globe, active pages, sparkline metrics. Everything updates every 5 seconds.",
+      title: t.features.realtimeDashboard,
+      description: t.features.realtimeDashboardDesc,
       color: "text-primary",
       bg: "bg-primary/10",
     },
     {
       icon: MousePointerClick,
-      title: "Conversion Funnels",
-      description: "Build multi-step funnels. See where visitors drop off and optimize your conversion flow.",
+      title: t.features.conversionFunnels,
+      description: t.features.conversionFunnelsDesc,
       color: "text-amber-400",
       bg: "bg-amber-400/10",
     },
     {
       icon: Shield,
-      title: "GDPR Native",
-      description: "No cookies. No consent banner needed. Fully compliant with European privacy regulations by design.",
+      title: t.features.gdprNative,
+      description: t.features.gdprNativeDesc,
       color: "text-violet-400",
       bg: "bg-violet-400/10",
     },
     {
       icon: Zap,
-      title: "< 3KB Script",
-      description: "Lighter than a favicon. Zero impact on your site speed. Your visitors won't notice a thing.",
+      title: t.features.lightScript,
+      description: t.features.lightScriptDesc,
       color: "text-orange-400",
       bg: "bg-orange-400/10",
     },
     {
       icon: GlobeIcon,
-      title: "Public Dashboards",
-      description: "Share your analytics with stakeholders. One-click public dashboard with your branding.",
+      title: t.features.publicDashboards,
+      description: t.features.publicDashboardsDesc,
       color: "text-sky-400",
       bg: "bg-sky-400/10",
     },
@@ -219,14 +222,13 @@ function Features() {
     <section id="features" className="relative py-24">
       <div className="mx-auto max-w-6xl px-6">
         <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Features</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">{t.features.label}</p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
-            Everything you need.
-            <span className="text-muted"> Nothing you don&apos;t.</span>
+            {t.features.title}
+            <span className="text-muted"> {t.features.titleMuted}</span>
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-sm text-muted leading-relaxed">
-            PulseTrack replaces Google Analytics with a tool that&apos;s 10× simpler,
-            privacy-first, and focused on what matters: your revenue.
+            {t.features.subtitle}
           </p>
         </div>
 
@@ -252,7 +254,7 @@ function Features() {
 }
 
 /* ──────────────── REVENUE FEATURE HIGHLIGHT ──────────────── */
-function RevenueFeature() {
+function RevenueFeature({ t }: { t: Dictionary }) {
   return (
     <section className="py-24 bg-surface/30">
       <div className="mx-auto max-w-6xl px-6">
@@ -263,7 +265,7 @@ function RevenueFeature() {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-400/10">
                 <DollarSign className="h-4 w-4 text-emerald-400" />
               </div>
-              <h4 className="text-sm font-semibold">Revenue by Source</h4>
+              <h4 className="text-sm font-semibold">{t.revenue.revenueBySource}</h4>
             </div>
 
             <div className="space-y-4">
@@ -290,30 +292,28 @@ function RevenueFeature() {
             </div>
 
             <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
-              <span className="text-xs text-muted">Last 30 days</span>
-              <span className="text-sm font-bold">€10,430 total</span>
+              <span className="text-xs text-muted">{t.revenue.last30days}</span>
+              <span className="text-sm font-bold">€10,430 {t.revenue.total}</span>
             </div>
           </div>
 
           {/* Right — copy */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">Revenue Tracking</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">{t.revenue.label}</p>
             <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
-              Stop guessing.
+              {t.revenue.titleStart}
               <br />
-              <span className="text-emerald-400">Start measuring.</span>
+              <span className="text-emerald-400">{t.revenue.titleHighlight}</span>
             </h2>
             <p className="mt-4 text-sm text-muted leading-relaxed">
-              Connect your Stripe account and instantly see which traffic sources
-              generate real revenue. Not just pageviews. Not just clicks.
-              Actual money in your bank account, attributed to every channel.
+              {t.revenue.description}
             </p>
             <ul className="mt-6 space-y-3">
               {[
-                "Revenue per traffic source",
-                "Best-converting landing pages",
-                "Customer attribution via email matching",
-                "Daily/weekly/monthly revenue charts",
+                t.revenue.feature1,
+                t.revenue.feature2,
+                t.revenue.feature3,
+                t.revenue.feature4,
               ].map((item) => (
                 <li key={item} className="flex items-center gap-2.5 text-sm text-muted-light">
                   <Check className="h-4 w-4 text-emerald-400 flex-shrink-0" />
@@ -329,25 +329,25 @@ function RevenueFeature() {
 }
 
 /* ──────────────── HOW IT WORKS ──────────────── */
-function HowItWorks() {
+function HowItWorks({ t }: { t: Dictionary }) {
   const steps = [
     {
       step: "01",
-      title: "Add the script",
-      description: "One line of code. Works with any framework, CMS, or static site.",
+      title: t.howItWorks.step1Title,
+      description: t.howItWorks.step1Desc,
       code: `<script src="https://pulsetrack.io/t.js"\n  data-site="YOUR_ID" defer></script>`,
       icon: Code,
     },
     {
       step: "02",
-      title: "Data flows in",
-      description: "Within minutes: live visitors, traffic sources, top pages, device breakdown.",
+      title: t.howItWorks.step2Title,
+      description: t.howItWorks.step2Desc,
       icon: BarChart3,
     },
     {
       step: "03",
-      title: "Connect Stripe",
-      description: "Link your payment processor and see which channels actually make you money.",
+      title: t.howItWorks.step3Title,
+      description: t.howItWorks.step3Desc,
       icon: DollarSign,
     },
   ];
@@ -356,12 +356,12 @@ function HowItWorks() {
     <section id="how-it-works" className="py-24">
       <div className="mx-auto max-w-6xl px-6">
         <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Setup</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">{t.howItWorks.label}</p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
-            Live in 60 seconds
+            {t.howItWorks.title}
           </h2>
           <p className="mx-auto mt-4 max-w-lg text-sm text-muted">
-            No developer needed. If you can copy-paste, you can install PulseTrack.
+            {t.howItWorks.subtitle}
           </p>
         </div>
 
@@ -397,61 +397,24 @@ function HowItWorks() {
 }
 
 /* ─────────────────────── PRICING ─────────────────────── */
-function Pricing() {
+function Pricing({ t }: { t: Dictionary }) {
   const plans = [
-    {
-      name: "Free",
-      price: "0",
-      description: "For side projects",
-      features: ["1 website", "5K events/mo", "1 funnel", "30-day retention", "Public dashboard"],
-      cta: "Start free",
-      highlighted: false,
-    },
-    {
-      name: "Starter",
-      price: "9",
-      description: "For creators & freelancers",
-      features: [
-        "3 websites", "50K events/mo", "5 funnels", "90-day retention",
-        "Public dashboard", "Email support",
-      ],
-      cta: "Start free trial",
-      highlighted: false,
-    },
-    {
-      name: "Growth",
-      price: "29",
-      description: "For growing businesses",
-      features: [
-        "10 websites", "200K events/mo", "20 funnels", "6-month retention",
-        "Revenue tracking", "API access", "Priority support",
-      ],
-      cta: "Start free trial",
-      highlighted: true,
-    },
-    {
-      name: "Business",
-      price: "79",
-      description: "For agencies & e-commerce",
-      features: [
-        "50 websites", "1M events/mo", "Unlimited funnels", "12-month retention",
-        "Revenue tracking", "API access", "Priority support", "CSV export",
-      ],
-      cta: "Contact us",
-      highlighted: false,
-    },
+    { ...t.pricing.free, price: "0", highlighted: false },
+    { ...t.pricing.starter, price: "9", highlighted: false },
+    { ...t.pricing.growth, price: "29", highlighted: true },
+    { ...t.pricing.business, price: "79", highlighted: false },
   ];
 
   return (
     <section id="pricing" className="py-24 bg-surface/30">
       <div className="mx-auto max-w-6xl px-6">
         <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Pricing</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">{t.pricing.label}</p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
-            Simple, transparent pricing
+            {t.pricing.title}
           </h2>
           <p className="mx-auto mt-4 max-w-lg text-sm text-muted">
-            Start free. Upgrade when you grow. Cancel anytime.
+            {t.pricing.subtitle}
           </p>
         </div>
 
@@ -468,7 +431,7 @@ function Pricing() {
               {plan.highlighted && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full bg-primary px-3 py-0.5 text-[10px] font-semibold text-background">
                   <Sparkles className="h-3 w-3" />
-                  Popular
+                  {t.pricing.popular}
                 </div>
               )}
 
@@ -478,7 +441,7 @@ function Pricing() {
               <div className="mt-4 flex items-baseline gap-0.5">
                 <span className="text-3xl font-bold">€{plan.price}</span>
                 {parseInt(plan.price) > 0 && (
-                  <span className="text-xs text-muted">/mo</span>
+                  <span className="text-xs text-muted">{t.pricing.mo}</span>
                 )}
               </div>
 
@@ -510,7 +473,7 @@ function Pricing() {
 }
 
 /* ─────────────────────── CTA FINAL ─────────────────────── */
-function CtaSection() {
+function CtaSection({ t }: { t: Dictionary }) {
   return (
     <section className="relative py-24 overflow-hidden">
       {/* Background glow */}
@@ -520,11 +483,10 @@ function CtaSection() {
 
       <div className="mx-auto max-w-2xl px-6 text-center">
         <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
-          Ready to see where your money comes from?
+          {t.cta.title}
         </h2>
         <p className="mx-auto mt-4 max-w-lg text-sm text-muted leading-relaxed">
-          Join thousands of businesses that replaced Google Analytics with a simpler,
-          faster, privacy-first alternative. Setup in under 60 seconds.
+          {t.cta.subtitle}
         </p>
 
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
@@ -532,20 +494,20 @@ function CtaSection() {
             href="/signup"
             className="group flex items-center gap-2 rounded-lg bg-primary px-8 py-3.5 text-sm font-semibold text-background transition-all hover:bg-primary-light hover:shadow-xl hover:shadow-primary/20"
           >
-            Create free account
+            {t.cta.button}
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </a>
         </div>
 
         <div className="mt-6 flex items-center justify-center gap-6 text-xs text-muted">
           <span className="flex items-center gap-1.5">
-            <Check className="h-3.5 w-3.5 text-success" /> Free forever tier
+            <Check className="h-3.5 w-3.5 text-success" /> {t.cta.freeForever}
           </span>
           <span className="flex items-center gap-1.5">
-            <Check className="h-3.5 w-3.5 text-success" /> No credit card
+            <Check className="h-3.5 w-3.5 text-success" /> {t.cta.noCreditCard}
           </span>
           <span className="flex items-center gap-1.5">
-            <Check className="h-3.5 w-3.5 text-success" /> GDPR compliant
+            <Check className="h-3.5 w-3.5 text-success" /> {t.cta.gdpr}
           </span>
         </div>
       </div>
@@ -554,7 +516,7 @@ function CtaSection() {
 }
 
 /* ─────────────────────── FOOTER ─────────────────────── */
-function Footer() {
+function Footer({ t }: { t: Dictionary }) {
   return (
     <footer className="border-t border-border/50 py-10">
       <div className="mx-auto max-w-6xl px-6">
@@ -566,10 +528,10 @@ function Footer() {
             <span className="text-sm font-semibold">PulseTrack</span>
           </div>
           <div className="flex gap-8 text-xs text-muted">
-            <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
-            <a href="#" className="hover:text-foreground transition-colors">Terms</a>
-            <a href="#" className="hover:text-foreground transition-colors">Docs</a>
-            <a href="#" className="hover:text-foreground transition-colors">Contact</a>
+            <a href="#" className="hover:text-foreground transition-colors">{t.footer.privacy}</a>
+            <a href="#" className="hover:text-foreground transition-colors">{t.footer.terms}</a>
+            <a href="#" className="hover:text-foreground transition-colors">{t.footer.docs}</a>
+            <a href="#" className="hover:text-foreground transition-colors">{t.footer.contact}</a>
           </div>
           <p className="text-xs text-muted">© 2026 PulseTrack</p>
         </div>
@@ -579,18 +541,21 @@ function Footer() {
 }
 
 /* ─────────────────────── PAGE ─────────────────────── */
-export default function Home() {
+export default async function Home() {
+  const locale = await getLocale();
+  const t = dictionaries[locale];
+
   return (
     <>
-      <Navbar />
-      <Hero />
-      <SocialProof />
-      <Features />
-      <RevenueFeature />
-      <HowItWorks />
-      <Pricing />
-      <CtaSection />
-      <Footer />
+      <Navbar t={t} locale={locale} />
+      <Hero t={t} />
+      <SocialProof t={t} />
+      <Features t={t} />
+      <RevenueFeature t={t} />
+      <HowItWorks t={t} />
+      <Pricing t={t} />
+      <CtaSection t={t} />
+      <Footer t={t} />
     </>
   );
 }
