@@ -12,19 +12,11 @@ import {
 } from "lucide-react";
 import { Reveal, RevealGroup } from "./reveal";
 import { LogoMark } from "@/components/brand/logo";
+import { INTEGRATIONS } from "@/components/brand/integration-logos";
 
 /* ══════════════════════════════════════════════════════════════
    Trust strip — every claim here is verifiable today
    ══════════════════════════════════════════════════════════════ */
-
-const WORKS_WITH = [
-  "Next.js",
-  "WordPress",
-  "Shopify",
-  "Webflow",
-  "Stripe",
-  "Framer",
-];
 
 export function TrustStrip({
   rating,
@@ -35,12 +27,15 @@ export function TrustStrip({
   reviews: string;
   worksWith: string;
 }) {
+  // Rendered twice so the -50% translate lands on an identical frame.
+  const lane = [...INTEGRATIONS, ...INTEGRATIONS];
+
   return (
     <section className="border-y border-border bg-surface">
       <div className="mx-auto grid max-w-6xl grid-cols-1 md:grid-cols-[auto_1fr]">
         <div className="flex items-center gap-3.5 border-b border-border px-6 py-6 md:border-b-0 md:border-r md:py-7">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-primary-pale">
-            <Sparkles className="h-4.5 w-4.5 text-primary" />
+            <Sparkles className="h-[18px] w-[18px] text-primary" />
           </div>
           <div>
             <p className="text-[15px] font-medium tracking-[-0.02em]">{rating}</p>
@@ -48,16 +43,26 @@ export function TrustStrip({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-8 gap-y-3 px-6 py-6 md:py-7">
-          <span className="text-[12px] text-muted-light">{worksWith}</span>
-          {WORKS_WITH.map((w) => (
-            <span
-              key={w}
-              className="text-[15px] font-medium tracking-[-0.02em] text-muted opacity-70 transition-opacity hover:opacity-100"
-            >
-              {w}
-            </span>
-          ))}
+        <div className="min-w-0 py-6 md:py-7">
+          <p className="px-6 text-[12px] text-muted-light">{worksWith}</p>
+
+          <div className="marquee mt-3.5" style={{ "--marquee-duration": "46s" } as React.CSSProperties}>
+            <div className="marquee-track">
+              {lane.map(({ name, Mark }, i) => (
+                <div
+                  key={`${name}-${i}`}
+                  className="flex shrink-0 items-center gap-2.5 px-6"
+                  // The second pass is decorative duplication.
+                  aria-hidden={i >= INTEGRATIONS.length}
+                >
+                  <Mark />
+                  <span className="whitespace-nowrap text-[16px] font-semibold tracking-[-0.025em] text-foreground/80">
+                    {name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>
