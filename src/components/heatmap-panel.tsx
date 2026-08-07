@@ -44,6 +44,8 @@ interface Stats {
   }[];
   rage_spots: { selector: string; text: string; count: number }[];
   scroll_bands: { depth: number; reached: number; pct: number }[];
+  sampled: boolean;
+  sample_size: number;
 }
 
 const DEVICES = [
@@ -318,11 +320,23 @@ export function HeatmapPanel({ sites }: { sites: Site[] }) {
             )}
           </div>
 
-          {overlay && (
-            <p className="border-t border-border px-4 py-2 text-[11px] text-muted-light">
-              Certains sites refusent d&apos;être affichés dans un cadre. Si la page
-              reste vide, décochez la superposition — la carte reste exacte.
-            </p>
+          {(overlay || s?.sampled) && (
+            <div className="space-y-1 border-t border-border px-4 py-2 text-[11px] text-muted-light">
+              {overlay && (
+                <p>
+                  Certains sites refusent d&apos;être affichés dans un cadre. Si la
+                  page reste vide, décochez la superposition — la carte reste
+                  exacte.
+                </p>
+              )}
+              {s?.sampled && (
+                <p>
+                  Carte et classement calculés sur les{" "}
+                  {s.sample_size.toLocaleString("fr-FR")} interactions les plus
+                  récentes. Les totaux ci-dessus portent sur la période entière.
+                </p>
+              )}
+            </div>
           )}
         </div>
 

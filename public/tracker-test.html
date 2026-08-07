@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>PulseTrack — page de test du tracker</title>
+<style>
+  :root { --ink:#1f2023; --muted:#62626a; --line:rgba(0,0,0,.1); --brand:#5b3df5; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font:16px/1.6 system-ui,-apple-system,sans-serif; color:var(--ink); background:#fafafa; }
+  .wrap { max-width:920px; margin:0 auto; padding:0 24px; }
+  header { border-bottom:1px solid var(--line); background:#fff; position:sticky; top:0; z-index:5; }
+  header .wrap { display:flex; align-items:center; justify-content:space-between; height:64px; }
+  nav { display:flex; gap:24px; }
+  nav a { color:var(--muted); text-decoration:none; font-size:14px; }
+  .btn { display:inline-block; border:0; border-radius:100px; padding:12px 24px;
+         font:500 15px system-ui; cursor:pointer; text-decoration:none; }
+  .btn-primary { background:var(--ink); color:#fff; }
+  .btn-brand { background:var(--brand); color:#fff; }
+  .btn-ghost { background:rgba(0,0,0,.05); color:var(--ink); }
+  /* Deliberately NOT a button: no handler, default cursor. Hammering this
+     is what should trip rage-click detection. */
+  .fake-btn { display:inline-block; border-radius:100px; padding:12px 24px;
+              background:#e8e8ea; color:#9a9aa0; font:500 15px system-ui; user-select:none; }
+  section { padding:72px 0; border-bottom:1px solid var(--line); }
+  h1 { font-size:44px; line-height:1.1; letter-spacing:-.022em; font-weight:500; }
+  h2 { font-size:30px; line-height:1.15; letter-spacing:-.022em; font-weight:500; margin-bottom:12px; }
+  p.lead { color:var(--muted); font-size:17px; margin-top:16px; max-width:38rem; }
+  .cta-row { display:flex; gap:12px; margin-top:28px; flex-wrap:wrap; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-top:32px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:20px; }
+  .card h3 { font-size:16px; font-weight:500; margin-bottom:6px; }
+  .card p { color:var(--muted); font-size:14px; }
+  .banner { background:#fff3cd; border:1px solid #f0d68a; border-radius:8px;
+            padding:14px 16px; margin:20px 0; font-size:14px; }
+  .banner code { background:rgba(0,0,0,.06); padding:2px 5px; border-radius:3px; }
+  .ok { background:#e8f7f0; border-color:#8fd6b4; }
+  .err { background:#fdeaea; border-color:#f0a0a0; }
+  footer { padding:48px 0; color:var(--muted); font-size:13px; }
+  .log { font:12px ui-monospace,Menlo,monospace; background:#17171b; color:#c8f5d8;
+         border-radius:8px; padding:14px; margin-top:16px; max-height:180px; overflow:auto; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <strong>Page de test</strong>
+    <nav>
+      <a href="#features">Fonctionnalités</a>
+      <a href="#pricing">Tarifs</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-brand" href="#pricing">Commencer</a>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="status" class="banner">Chargement…</div>
+</div>
+
+<section>
+  <div class="wrap">
+    <h1>Cliquez partout sur cette page</h1>
+    <p class="lead">
+      Chaque clic, la profondeur de scroll et les clics de rage sont envoyés à
+      votre instance PulseTrack. Descendez jusqu'en bas pour générer une mesure
+      de scroll complète, puis rechargez ou changez d'onglet — c'est à ce
+      moment-là que le lot est expédié.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="#pricing">Bouton principal</a>
+      <button class="btn btn-ghost" type="button">Bouton secondaire</button>
+      <span class="fake-btn" id="dead">Faux bouton — cliquez 4 fois vite</span>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <h2>Trois zones à cliquer</h2>
+    <div class="cards">
+      <div class="card"><h3>Carte A</h3><p>Cliquez ici plusieurs fois pour créer une zone chaude.</p></div>
+      <div class="card"><h3>Carte B</h3><p>Une zone tiède, quelques clics suffisent.</p></div>
+      <div class="card"><h3>Carte C</h3><p>Laissez celle-ci froide pour comparer.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="pricing">
+  <div class="wrap">
+    <h2>Zone basse</h2>
+    <p class="lead">
+      Cette section existe surtout pour allonger la page. Si vous arrivez
+      jusqu'ici, votre profondeur de scroll dépasse 60 %.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-brand" href="#">Convertir</a>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>Tout en bas</h2>
+    <p class="lead">Arriver ici enregistre un scroll proche de 100 %.</p>
+    <div class="log" id="log"></div>
+  </div>
+</section>
+
+<footer><div class="wrap">Page de test — non indexée, à ne pas partager publiquement.</div></footer>
+
+<script>
+  // Site id comes from the query string so this page works for any site:
+  //   /tracker-test.html?site=YOUR_SITE_ID
+  var siteId = new URLSearchParams(location.search).get("site");
+  var status = document.getElementById("status");
+  var log = document.getElementById("log");
+
+  function line(msg) {
+    log.textContent += msg + "\n";
+    log.scrollTop = log.scrollHeight;
+  }
+
+  if (!siteId) {
+    status.className = "banner err";
+    status.innerHTML =
+      'Ajoutez votre site id à l\'URL : <code>?site=VOTRE_SITE_ID</code>' +
+      ' — vous le trouvez dans le dashboard, sur la page du site.';
+  } else {
+    status.className = "banner ok";
+    status.innerHTML = 'Tracker actif pour le site <code>' + siteId + '</code>.' +
+      ' Les lots partent au changement d\'onglet, à la fermeture, ou tous les 24 événements.';
+
+    // Watch what actually leaves the page.
+    var beacon = navigator.sendBeacon && navigator.sendBeacon.bind(navigator);
+    if (beacon) {
+      navigator.sendBeacon = function (url, data) {
+        try {
+          var parsed = JSON.parse(data);
+          if (parsed.batch) line("→ " + parsed.batch.length + " interactions vers " + url.split("/api/")[1]);
+          else line("→ " + parsed.type + " vers " + url.split("/api/")[1]);
+        } catch (e) {}
+        return beacon(url, data);
+      };
+    }
+
+    var s = document.createElement("script");
+    s.src = "/t.js";
+    s.setAttribute("data-site", siteId);
+    s.defer = true;
+    document.head.appendChild(s);
+    line("tracker chargé");
+  }
+
+  // The fake button has no handler on purpose — that is the point.
+  document.getElementById("dead").addEventListener("mousedown", function () {});
+</script>
+
+</body>
+</html>
