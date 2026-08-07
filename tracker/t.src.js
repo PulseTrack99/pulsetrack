@@ -313,8 +313,21 @@
     if (!el || el.nodeType !== 1) return;
 
     var docW = document.documentElement.scrollWidth || window.innerWidth;
-    var x = e.pageX;
-    var y = e.pageY;
+
+    // pageX/pageY are absent or zero on some events — synthetic ones, and
+    // certain mobile browsers. clientX plus the scroll offset is always
+    // available and means the same thing, so derive rather than trust.
+    var x = e.pageX || (e.clientX || 0) + window.scrollX;
+    var y = e.pageY || (e.clientY || 0) + window.scrollY;
+
+    // A click whose coordinates resolve to the origin is almost certainly
+    // a programmatic dispatch, not a person. Recording it would put a hot
+    // spot in the top-left corner of every map.
+    if (x === 0 && y === 0) {
+      var box = el.getBoundingClientRect();
+      x = box.left + box.width / 2 + window.scrollX;
+      y = box.top + box.height / 2 + window.scrollY;
+    }
 
     var rec = {
       type: "click",
