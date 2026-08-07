@@ -138,6 +138,7 @@ export async function POST(req: NextRequest) {
           h: Math.max(0, Math.min(1, Number(e.h))),
           k: ["t", "b", "i", "f", "c"].includes(String(e.k)) ? e.k : "c",
           s: int(e.s, 0, 200) ?? 0,
+          l: e.l ? String(e.l).slice(0, 48) : "",
         }));
 
       const vw = int(snapshot.viewport_w, 1, 20_000);

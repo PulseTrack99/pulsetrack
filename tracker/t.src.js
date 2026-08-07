@@ -235,6 +235,19 @@
         } catch (e) {}
       }
 
+      // Labels for controls and headings only. These are the page's own
+      // public signposts, and without them the wireframe is a grid of
+      // grey rectangles nobody can recognise as their own page. Body
+      // copy and form fields are never labelled — a form's contents must
+      // not leave the page under any circumstance.
+      var label = "";
+      if (kind === "b" || (kind === "t" && size >= 20)) {
+        label = (el.innerText || el.textContent || "")
+          .trim()
+          .replace(/\s+/g, " ")
+          .slice(0, 48);
+      }
+
       out.push({
         x: +((r.left + scrollX) / docW).toFixed(4),
         y: +((r.top + scrollY) / docH).toFixed(4),
@@ -242,20 +255,36 @@
         h: +(r.height / docH).toFixed(4),
         k: kind,
         s: Math.round(size),
+        l: label,
       });
     }
 
     return { viewport_w: window.innerWidth, doc_h: docH, elements: out };
   }
 
-  function maybeSnapshot() {
-    if (snapshotSent) return null;
+  var pendingSnapshot = null;
+
+  // Taken shortly after load rather than at flush time, for two reasons.
+  // A sticky or fixed header reports its on-screen position, so capturing
+  // after the visitor has scrolled would pin the navigation halfway down
+  // the page. And walking the DOM as the page is being torn down would
+  // add work to the one moment that has to stay fast.
+  function scheduleSnapshot() {
+    if (!heatmapOn || snapshotSent) return;
+    setTimeout(function () {
+      if (snapshotSent) return;
+      try {
+        pendingSnapshot = captureSnapshot();
+      } catch (e) {}
+    }, 900);
+  }
+
+  function takeSnapshot() {
+    if (snapshotSent || !pendingSnapshot) return null;
     snapshotSent = true;
-    try {
-      return captureSnapshot();
-    } catch (e) {
-      return null;
-    }
+    var snap = pendingSnapshot;
+    pendingSnapshot = null;
+    return snap;
   }
 
   function push(rec) {
@@ -274,7 +303,7 @@
     };
     // Rides along on the first flush of the pageview only, so the extra
     // weight is paid once rather than on every batch.
-    var snap = maybeSnapshot();
+    var snap = takeSnapshot();
     if (snap) payload.snapshot = snap;
     post(hmEndpoint, JSON.stringify(payload));
   }
@@ -403,6 +432,8 @@
     // A client-side route change is a different page, so it needs its own
     // structure captured.
     snapshotSent = false;
+    pendingSnapshot = null;
+    scheduleSnapshot();
     trackPageview();
   }
 
@@ -439,5 +470,6 @@
 
   window.pulsetrack = api;
 
+  scheduleSnapshot();
   trackPageview();
 })();
