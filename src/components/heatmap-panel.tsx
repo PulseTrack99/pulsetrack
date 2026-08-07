@@ -15,6 +15,7 @@ import {
   Lock,
 } from "lucide-react";
 import { HeatmapCanvas, type Point } from "./heatmap-canvas";
+import { PageWireframe, type SnapshotElement } from "./page-wireframe";
 
 interface Site {
   id: string;
@@ -28,6 +29,7 @@ interface Stats {
   device: string;
   devices: { device: string; count: number }[];
   geometry: { viewport_w: number; doc_h: number };
+  snapshot: { elements: SnapshotElement[]; captured_at: string } | null;
   pages: { path: string; count: number }[];
   summary: {
     clicks: number;
@@ -185,6 +187,12 @@ export function HeatmapPanel({ sites }: { sites: Site[] }) {
   // pinpricks rather than zones.
   const radius = aspect > 0 ? Math.max(14, Math.round(22 / aspect / 8)) : 22;
 
+  // Density is what the colour ramp reads, so a page with ten clicks needs
+  // far more weight per point than one with four thousand — otherwise a
+  // small sample renders as invisible specks.
+  const n = s?.points.length ?? 0;
+  const intensity = n > 0 ? Math.min(0.5, Math.max(0.08, 2.2 / Math.sqrt(n))) : 0.2;
+
   return (
     <div className="space-y-5">
       {/* Controls */}
@@ -300,7 +308,7 @@ export function HeatmapPanel({ sites }: { sites: Site[] }) {
                   onChange={(e) => setOverlay(e.target.checked)}
                   className="accent-[var(--primary)]"
                 />
-                Superposer la page
+                Charger la page live
               </label>
               <div className="flex items-center gap-1.5 text-[10px] text-muted-light">
                 <span>Froid</span>
@@ -336,15 +344,20 @@ export function HeatmapPanel({ sites }: { sites: Site[] }) {
                 </div>
 
                 <div
-                  className="relative flex-1"
+                  className="relative flex-1 bg-white"
                   style={{ aspectRatio: `${aspect}` }}
                 >
+                  {/* Layout as it was when the clicks happened. */}
+                  {s.snapshot && <PageWireframe elements={s.snapshot.elements} />}
+
+                  {/* The live page, for anyone who wants the real thing and
+                      whose site permits framing. */}
                   {overlay && site && s.path && (
                     <iframe
                       key={`${site.domain}${s.path}`}
                       src={`https://${site.domain}${s.path}`}
                       title="Page"
-                      className="absolute inset-0 h-full w-full border-0 opacity-60"
+                      className="absolute inset-0 h-full w-full border-0 opacity-70"
                       sandbox="allow-same-origin"
                       loading="lazy"
                     />
@@ -362,6 +375,7 @@ export function HeatmapPanel({ sites }: { sites: Site[] }) {
                     points={s.points}
                     rage={s.rage_points}
                     radius={radius}
+                    intensity={intensity}
                   />
                 </div>
               </div>
@@ -389,16 +403,27 @@ export function HeatmapPanel({ sites }: { sites: Site[] }) {
             <div className="space-y-1 border-t border-border px-4 py-2 text-[11px] text-muted-light">
               {overlay && (
                 <p>
-                  Certains sites refusent d&apos;être affichés dans un cadre, et
-                  la page doit être en ligne. Si le cadre reste vide ou affiche
-                  une erreur, décochez — la carte, elle, reste exacte.
+                  La page live n&apos;apparaît que si le domaine est joignable et
+                  accepte d&apos;être affiché dans un cadre. Sinon, décochez : la
+                  structure ci-dessous vient de la capture, elle est toujours
+                  fidèle.
                 </p>
               )}
-              {s && aspect > 0 && (
+              {s?.snapshot ? (
                 <p>
-                  Carte au format réel de la page sur {s.device} :{" "}
-                  {s.geometry.viewport_w} × {s.geometry.doc_h} px.
+                  Structure de la page relevée le{" "}
+                  {new Date(s.snapshot.captured_at).toLocaleDateString("fr-FR")} sur{" "}
+                  {s.device} — {s.geometry.viewport_w} × {s.geometry.doc_h} px,{" "}
+                  {s.snapshot.elements.length} éléments.
                 </p>
+              ) : (
+                s &&
+                aspect > 0 && (
+                  <p>
+                    Aucune structure relevée pour cette page. Elle sera capturée
+                    au prochain passage d&apos;un visiteur avec le script à jour.
+                  </p>
+                )
               )}
               {s?.sampled && (
                 <p>

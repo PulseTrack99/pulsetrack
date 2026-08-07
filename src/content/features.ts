@@ -140,7 +140,7 @@ const en: Catalog = {
       },
       {
         q: "Will heatmaps slow down my site?",
-        a: "The whole PulseTrack script is 2 KB gzipped and loads with defer, so it never blocks rendering. Heatmap collection adds no additional request.",
+        a: "The whole PulseTrack script is 2.6 KB gzipped and loads with defer, so it never blocks rendering. Heatmap collection adds no additional request.",
       },
       {
         q: "How much traffic do I need before a heatmap is useful?",
@@ -396,10 +396,10 @@ const en: Catalog = {
     title: "No cookies. No banner.",
     titleAccent: "No lawyer.",
     subtitle:
-      "PulseTrack never sets a cookie and never stores personal data, so there is nothing to ask consent for — and 74× less weight on every page load.",
+      "PulseTrack never sets a cookie and never stores personal data, so there is nothing to ask consent for — and 55× less weight on every page load.",
     metaTitle: "Cookie-free, GDPR-native web analytics",
     metaDescription:
-      "Analytics with no cookies, no personal data and no consent banner. GDPR, ePrivacy and CCPA compliant by architecture, hosted in the EU, 2 KB script.",
+      "Analytics with no cookies, no personal data and no consent banner. GDPR, ePrivacy and CCPA compliant by architecture, hosted in the EU, 2.6 KB script.",
     highlights: [
       {
         title: "Cookie-free by architecture",
@@ -410,8 +410,8 @@ const en: Catalog = {
         body: "Because nothing personal is stored and nothing is read from the device, the ePrivacy consent requirement does not apply.",
       },
       {
-        title: "74× lighter",
-        body: "2 KB against 144 KB for GA4's gtag.js, both gzipped. That is a measurable Core Web Vitals difference on mobile.",
+        title: "55× lighter",
+        body: "2.6 KB against 144 KB for GA4's gtag.js, both gzipped. That is a measurable Core Web Vitals difference on mobile.",
       },
     ],
     steps: [
@@ -559,7 +559,7 @@ const fr: Catalog = {
       },
       {
         q: "Est-ce que ça ralentit mon site ?",
-        a: "L'ensemble du script PulseTrack pèse 2 Ko gzippé et se charge en defer : il ne bloque jamais le rendu. La collecte des heatmaps n'ajoute aucune requête.",
+        a: "L'ensemble du script PulseTrack pèse 2,6 Ko gzippé et se charge en defer : il ne bloque jamais le rendu. La collecte des heatmaps n'ajoute aucune requête.",
       },
       {
         q: "Combien de trafic faut-il pour qu'une heatmap soit utile ?",
@@ -815,10 +815,10 @@ const fr: Catalog = {
     title: "Aucun cookie. Aucune bannière.",
     titleAccent: "Aucun avocat.",
     subtitle:
-      "PulseTrack ne pose jamais de cookie et ne stocke aucune donnée personnelle : il n'y a rien à faire consentir — et 74× moins de poids sur chaque chargement.",
+      "PulseTrack ne pose jamais de cookie et ne stocke aucune donnée personnelle : il n'y a rien à faire consentir — et 55× moins de poids sur chaque chargement.",
     metaTitle: "Analytics web sans cookie et conforme RGPD",
     metaDescription:
-      "Un analytics sans cookie, sans donnée personnelle et sans bannière de consentement. Conforme RGPD, ePrivacy et CCPA par conception, hébergé en Europe, script de 2 Ko.",
+      "Un analytics sans cookie, sans donnée personnelle et sans bannière de consentement. Conforme RGPD, ePrivacy et CCPA par conception, hébergé en Europe, script de 2,6 Ko.",
     highlights: [
       {
         title: "Sans cookie par architecture",
@@ -829,8 +829,8 @@ const fr: Catalog = {
         body: "Puisque rien de personnel n'est stocké et que rien n'est lu sur l'appareil, l'obligation de consentement ePrivacy ne s'applique pas.",
       },
       {
-        title: "74× plus léger",
-        body: "2 Ko contre 144 Ko pour le gtag.js de GA4, tous deux gzippés. C'est une différence mesurable sur les Core Web Vitals en mobile.",
+        title: "55× plus léger",
+        body: "2,6 Ko contre 144 Ko pour le gtag.js de GA4, tous deux gzippés. C'est une différence mesurable sur les Core Web Vitals en mobile.",
       },
     ],
     steps: [

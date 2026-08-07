@@ -300,16 +300,29 @@ export async function GET(req: NextRequest) {
       ? clicks.filter((r) => !r.interactive).length / clicks.length
       : 0;
 
+    // ── Page structure, for the wireframe under the heat ──
+    const { data: snapshot } = await supabase
+      .from("page_snapshots")
+      .select("viewport_w, doc_h, elements, captured_at")
+      .eq("site_id", siteId)
+      .eq("path", path)
+      .eq("device", resolvedDevice)
+      .maybeSingle();
+
     // ── Page geometry ──
     // Drives the aspect ratio the map is drawn at, so a tall page renders
     // tall instead of being squashed into a fixed box. Median rather than
     // mean because one outlier page length would skew the whole frame.
-    const geometry = {
-      viewport_w: median(
-        clicks.map((r) => r.viewport_w ?? 0).filter((n) => n > 0)
-      ),
-      doc_h: median(clicks.map((r) => r.doc_h ?? 0).filter((n) => n > 0)),
-    };
+    // The snapshot wins when present: the wireframe and the heat must be
+    // drawn at the same proportions or they will not line up.
+    const geometry = snapshot
+      ? { viewport_w: snapshot.viewport_w, doc_h: snapshot.doc_h }
+      : {
+          viewport_w: median(
+            clicks.map((r) => r.viewport_w ?? 0).filter((n) => n > 0)
+          ),
+          doc_h: median(clicks.map((r) => r.doc_h ?? 0).filter((n) => n > 0)),
+        };
 
     return NextResponse.json({
       site: { domain: site.domain },
@@ -318,6 +331,9 @@ export async function GET(req: NextRequest) {
       device: resolvedDevice,
       devices: available,
       geometry,
+      snapshot: snapshot
+        ? { elements: snapshot.elements, captured_at: snapshot.captured_at }
+        : null,
       pages,
       summary: {
         clicks: clickTotal,

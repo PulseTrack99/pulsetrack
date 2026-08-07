@@ -351,7 +351,7 @@ export function IllustrationPrivacy({
   };
 }) {
   const rows = [
-    { icon: Gauge, label: l.weight, them: "144 KB", us: "2 KB" },
+    { icon: Gauge, label: l.weight, them: "144 KB", us: "2.6 KB" },
     { icon: Cookie, label: l.cookies, them: l.yes, us: l.no },
     { icon: Ban, label: l.banner, them: l.required, us: l.notRequired },
   ];

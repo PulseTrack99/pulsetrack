@@ -158,6 +158,106 @@
     }
   }
 
+  /* ── Page structure snapshot ──
+     Records where things are, so the dashboard can redraw the layout
+     under the heat instead of trying to frame the live page — which
+     fails whenever the site blocks framing, sits behind auth, or is not
+     reachable from the dashboard at all.
+
+     Geometry only: boxes and a one-letter kind. No text, no attributes,
+     no markup leaves the page. */
+
+  var SNAPSHOT_MAX = 320;
+  var snapshotSent = false;
+
+  function kindOf(el, hasText) {
+    var tag = el.tagName;
+    if (tag === "IMG" || tag === "SVG" || tag === "VIDEO" || tag === "CANVAS" || tag === "PICTURE")
+      return "i";
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return "f";
+    if (tag === "A" || tag === "BUTTON" || el.getAttribute("role") === "button") return "b";
+    return hasText ? "t" : "c";
+  }
+
+  function captureSnapshot() {
+    var docW = document.documentElement.scrollWidth || window.innerWidth;
+    var docH = docHeight();
+    if (!docW || !docH) return null;
+
+    var out = [];
+    var all = document.body.getElementsByTagName("*");
+    var scrollX = window.scrollX;
+    var scrollY = window.scrollY;
+
+    for (var i = 0; i < all.length && out.length < SNAPSHOT_MAX; i++) {
+      var el = all[i];
+      var tag = el.tagName;
+      if (tag === "SCRIPT" || tag === "STYLE" || tag === "NOSCRIPT" || tag === "LINK")
+        continue;
+
+      var r = el.getBoundingClientRect();
+      if (r.width < 10 || r.height < 6) continue;
+
+      // Wrappers that span most of the page add no information and would
+      // paint over everything beneath them.
+      if (r.width * r.height > docW * docH * 0.55) continue;
+
+      var hasText = false;
+      for (var n = 0; n < el.childNodes.length; n++) {
+        var node = el.childNodes[n];
+        if (node.nodeType === 3 && node.nodeValue && node.nodeValue.trim()) {
+          hasText = true;
+          break;
+        }
+      }
+      var isLeaf = el.children.length === 0;
+      var kind = kindOf(el, hasText);
+
+      var size = 0;
+      if (kind === "c" && !isLeaf) {
+        // A wrapper only earns a box if it is visually present — a card
+        // with a background or a border. Invisible layout divs would
+        // otherwise bury the real content under a pile of rectangles.
+        var visible = false;
+        try {
+          var cs = getComputedStyle(el);
+          var bg = cs.backgroundColor;
+          visible =
+            (bg && bg !== "transparent" && bg.indexOf("rgba(0, 0, 0, 0)") === -1) ||
+            parseFloat(cs.borderTopWidth) > 0 ||
+            parseFloat(cs.borderLeftWidth) > 0 ||
+            (cs.boxShadow && cs.boxShadow !== "none");
+        } catch (e) {}
+        if (!visible) continue;
+      } else if (kind === "t") {
+        try {
+          size = parseFloat(getComputedStyle(el).fontSize) || 0;
+        } catch (e) {}
+      }
+
+      out.push({
+        x: +((r.left + scrollX) / docW).toFixed(4),
+        y: +((r.top + scrollY) / docH).toFixed(4),
+        w: +(r.width / docW).toFixed(4),
+        h: +(r.height / docH).toFixed(4),
+        k: kind,
+        s: Math.round(size),
+      });
+    }
+
+    return { viewport_w: window.innerWidth, doc_h: docH, elements: out };
+  }
+
+  function maybeSnapshot() {
+    if (snapshotSent) return null;
+    snapshotSent = true;
+    try {
+      return captureSnapshot();
+    } catch (e) {
+      return null;
+    }
+  }
+
   function push(rec) {
     buf.push(rec);
     if (buf.length >= 24) flush();
@@ -167,10 +267,16 @@
     if (!buf.length) return;
     var batch = buf;
     buf = [];
-    post(
-      hmEndpoint,
-      JSON.stringify({ site_id: siteId, path: location.pathname, batch: batch })
-    );
+    var payload = {
+      site_id: siteId,
+      path: location.pathname,
+      batch: batch,
+    };
+    // Rides along on the first flush of the pageview only, so the extra
+    // weight is paid once rather than on every batch.
+    var snap = maybeSnapshot();
+    if (snap) payload.snapshot = snap;
+    post(hmEndpoint, JSON.stringify(payload));
   }
 
   function captureClick(e) {
@@ -294,6 +400,9 @@
     leaveSent = false;
     maxScroll = 0;
     recent = [];
+    // A client-side route change is a different page, so it needs its own
+    // structure captured.
+    snapshotSent = false;
     trackPageview();
   }
 

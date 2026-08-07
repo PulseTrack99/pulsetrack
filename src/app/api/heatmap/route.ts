@@ -55,12 +55,14 @@ export async function POST(req: NextRequest) {
     const ip = getClientIp(req.headers);
 
     const raw = await req.text();
-    if (raw.length > 64_000) {
+    // Roomier than a batch alone needs, because the first flush of a
+    // pageview carries the structure snapshot too.
+    if (raw.length > 200_000) {
       return NextResponse.json({ error: "Payload too large" }, { status: 413, headers: CORS });
     }
 
     const body = JSON.parse(raw);
-    const { site_id, path, batch } = body;
+    const { site_id, path, batch, snapshot } = body;
 
     if (!site_id || !path || !Array.isArray(batch) || batch.length === 0) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400, headers: CORS });
@@ -117,6 +119,45 @@ export async function POST(req: NextRequest) {
         interactive: Boolean(r.interactive),
         scroll_pct: int(r.scroll_pct, 0, 100),
       }));
+
+    // ── Page structure ──
+    // Kept as one current row per path and breakpoint: a newer capture
+    // replaces the old one, since a stale layout under fresh heat is
+    // worse than no layout at all.
+    if (snapshot && Array.isArray(snapshot.elements)) {
+      const elements = snapshot.elements
+        .slice(0, 400)
+        .filter(
+          (e: Record<string, unknown>) =>
+            typeof e.x === "number" && typeof e.y === "number"
+        )
+        .map((e: Record<string, number | string>) => ({
+          x: Math.max(0, Math.min(1, Number(e.x))),
+          y: Math.max(0, Math.min(1, Number(e.y))),
+          w: Math.max(0, Math.min(1, Number(e.w))),
+          h: Math.max(0, Math.min(1, Number(e.h))),
+          k: ["t", "b", "i", "f", "c"].includes(String(e.k)) ? e.k : "c",
+          s: int(e.s, 0, 200) ?? 0,
+        }));
+
+      const vw = int(snapshot.viewport_w, 1, 20_000);
+      const dh = int(snapshot.doc_h, 1, 200_000);
+
+      if (elements.length > 0 && vw && dh) {
+        await supabase.from("page_snapshots").upsert(
+          {
+            site_id,
+            path: String(path).slice(0, 512),
+            device,
+            viewport_w: vw,
+            doc_h: dh,
+            elements,
+            captured_at: new Date().toISOString(),
+          },
+          { onConflict: "site_id,path,device" }
+        );
+      }
+    }
 
     if (rows.length === 0) {
       return NextResponse.json({ ok: true, stored: 0 }, { headers: CORS });
