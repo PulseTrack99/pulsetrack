@@ -46,16 +46,25 @@ export function TrustStrip({
         <div className="min-w-0 py-6 md:py-7">
           <p className="px-6 text-[12px] text-muted-light">{worksWith}</p>
 
-          <div className="marquee mt-3.5" style={{ "--marquee-duration": "46s" } as React.CSSProperties}>
+          <div
+            className="marquee mt-3.5"
+            style={{ "--marquee-duration": "46s" } as React.CSSProperties}
+          >
             <div className="marquee-track">
-              {lane.map(({ name, Mark }, i) => (
+              {lane.map(({ name, hex, path }, i) => (
                 <div
                   key={`${name}-${i}`}
                   className="flex shrink-0 items-center gap-2.5 px-6"
-                  // The second pass is decorative duplication.
+                  // The second pass exists only to make the loop seamless.
                   aria-hidden={i >= INTEGRATIONS.length}
                 >
-                  <Mark />
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-[22px] w-[22px] shrink-0"
+                    aria-hidden="true"
+                  >
+                    <path d={path} fill={hex} />
+                  </svg>
                   <span className="whitespace-nowrap text-[16px] font-semibold tracking-[-0.025em] text-foreground/80">
                     {name}
                   </span>
