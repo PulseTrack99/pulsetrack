@@ -221,20 +221,29 @@
     }
   }
 
-  var scrollQueued = false;
+  function measureScroll() {
+    var h = docHeight();
+    if (h <= 0) return;
+    var pct = Math.round(((window.scrollY + window.innerHeight) / h) * 100);
+    if (pct > maxScroll) maxScroll = Math.min(100, pct);
+  }
+
+  // Throttled on a timestamp rather than requestAnimationFrame: rAF stops
+  // firing once a tab is hidden, which is exactly when the page is about
+  // to be left — so an rAF-gated reading loses the final scroll position
+  // of every visitor who switches tab or closes it.
+  var lastMeasure = 0;
   function onScroll() {
-    if (scrollQueued) return;
-    scrollQueued = true;
-    requestAnimationFrame(function () {
-      scrollQueued = false;
-      var h = docHeight();
-      if (h <= 0) return;
-      var pct = Math.round(((window.scrollY + window.innerHeight) / h) * 100);
-      if (pct > maxScroll) maxScroll = Math.min(100, pct);
-    });
+    var now = Date.now();
+    if (now - lastMeasure < 150) return;
+    lastMeasure = now;
+    measureScroll();
   }
 
   function flushScroll() {
+    // Take a final reading: the visitor may have scrolled since the last
+    // throttled sample, and this runs as the page is going away.
+    measureScroll();
     if (maxScroll <= 0) return;
     push({
       type: "scroll",

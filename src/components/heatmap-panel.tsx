@@ -25,6 +25,9 @@ interface Site {
 interface Stats {
   site: { domain: string };
   path: string;
+  device: string;
+  devices: { device: string; count: number }[];
+  geometry: { viewport_w: number; doc_h: number };
   pages: { path: string; count: number }[];
   summary: {
     clicks: number;
@@ -48,12 +51,17 @@ interface Stats {
   sample_size: number;
 }
 
-const DEVICES = [
-  { value: "all", label: "Tous", icon: Layers },
-  { value: "Desktop", label: "Desktop", icon: Monitor },
-  { value: "Mobile", label: "Mobile", icon: Smartphone },
-  { value: "Tablet", label: "Tablette", icon: Tablet },
-];
+// No "all" option on purpose. An x ratio locates a different place on a
+// 390px phone than on a 1440px desktop, so a map that stacks breakpoints
+// corresponds to no layout that ever existed.
+const DEVICE_META: Record<
+  string,
+  { label: string; icon: React.ComponentType<{ className?: string }> }
+> = {
+  Desktop: { label: "Desktop", icon: Monitor },
+  Mobile: { label: "Mobile", icon: Smartphone },
+  Tablet: { label: "Tablette", icon: Tablet },
+};
 
 function Metric({
   label,
@@ -86,9 +94,12 @@ function Metric({
 export function HeatmapPanel({ sites }: { sites: Site[] }) {
   const [siteId, setSiteId] = useState(sites[0]?.id ?? "");
   const [path, setPath] = useState<string | null>(null);
-  const [device, setDevice] = useState("all");
+  // null lets the server pick the breakpoint with the most data.
+  const [device, setDevice] = useState<string | null>(null);
   const [period, setPeriod] = useState("30d");
-  const [overlay, setOverlay] = useState(true);
+  // Off by default: it only works when the domain is reachable and allows
+  // framing, and a failed frame is more confusing than no frame.
+  const [overlay, setOverlay] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [locked, setLocked] = useState(false);
@@ -103,7 +114,8 @@ export function HeatmapPanel({ sites }: { sites: Site[] }) {
       setLoading(true);
       setLocked(false);
       try {
-        const params = new URLSearchParams({ site_id: siteId, device, period });
+        const params = new URLSearchParams({ site_id: siteId, period });
+        if (device) params.set("device", device);
         if (path) params.set("path", path);
 
         const res = await fetch(`/api/heatmap/stats?${params}`);
@@ -161,7 +173,17 @@ export function HeatmapPanel({ sites }: { sites: Site[] }) {
   }
 
   const s = stats;
-  const hasData = (s?.summary.clicks ?? 0) > 0;
+  const hasData = (s?.points.length ?? 0) > 0;
+
+  // Width-to-height ratio of the page this breakpoint was captured at.
+  const aspect =
+    s && s.geometry.doc_h > 0 && s.geometry.viewport_w > 0
+      ? s.geometry.viewport_w / s.geometry.doc_h
+      : 0;
+
+  // A tall sheet needs a wider brush, or the cloud reads as scattered
+  // pinpricks rather than zones.
+  const radius = aspect > 0 ? Math.max(14, Math.round(22 / aspect / 8)) : 22;
 
   return (
     <div className="space-y-5">
@@ -198,21 +220,30 @@ export function HeatmapPanel({ sites }: { sites: Site[] }) {
         </select>
 
         <div className="flex gap-0.5 rounded-sm border border-border bg-surface p-0.5">
-          {DEVICES.map((d) => (
-            <button
-              key={d.value}
-              onClick={() => setDevice(d.value)}
-              title={d.label}
-              className={`flex items-center gap-1.5 rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
-                device === d.value
-                  ? "bg-primary-pale text-primary"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              <d.icon className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{d.label}</span>
-            </button>
-          ))}
+          {(s?.devices ?? []).map((d) => {
+            const meta = DEVICE_META[d.device] ?? {
+              label: d.device,
+              icon: Layers,
+            };
+            const Icon = meta.icon;
+            const active = (s?.device ?? "") === d.device;
+            return (
+              <button
+                key={d.device}
+                onClick={() => setDevice(d.device)}
+                title={`${meta.label} — ${d.count.toLocaleString("fr-FR")} clics`}
+                className={`flex items-center gap-1.5 rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
+                  active ? "bg-primary-pale text-primary" : "text-muted hover:text-foreground"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{meta.label}</span>
+                <span className="tabular text-[10px] opacity-60">
+                  {d.count.toLocaleString("fr-FR")}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         <div className="flex gap-0.5 rounded-sm border border-border bg-surface p-0.5">
@@ -284,38 +315,72 @@ export function HeatmapPanel({ sites }: { sites: Site[] }) {
             </div>
           </div>
 
-          <div className="relative min-h-[520px] bg-surface-sunken">
-            {overlay && site && s?.path && (
-              <iframe
-                key={`${site.domain}${s.path}`}
-                src={`https://${site.domain}${s.path}`}
-                title="Page"
-                className="absolute inset-0 h-full w-full border-0 opacity-60"
-                sandbox="allow-same-origin"
-                loading="lazy"
-              />
-            )}
+          {/* The frame scrolls; the sheet inside carries the page's real
+              proportions, so a 1440x6800 page renders tall rather than
+              being squashed into a fixed box. */}
+          <div className="relative max-h-[620px] overflow-y-auto bg-surface-sunken">
+            {hasData && s && aspect > 0 ? (
+              <div className="flex">
+                {/* Depth ruler — makes a position readable without the
+                    page underneath it. */}
+                <div className="relative w-10 shrink-0 border-r border-border bg-surface">
+                  {[0, 25, 50, 75, 100].map((d) => (
+                    <span
+                      key={d}
+                      className="absolute right-1.5 -translate-y-1/2 text-[9px] tabular text-muted-light"
+                      style={{ top: `${d}%` }}
+                    >
+                      {d}%
+                    </span>
+                  ))}
+                </div>
 
-            {hasData && s && (
-              <HeatmapCanvas points={s.points} rage={s.rage_points} />
-            )}
+                <div
+                  className="relative flex-1"
+                  style={{ aspectRatio: `${aspect}` }}
+                >
+                  {overlay && site && s.path && (
+                    <iframe
+                      key={`${site.domain}${s.path}`}
+                      src={`https://${site.domain}${s.path}`}
+                      title="Page"
+                      className="absolute inset-0 h-full w-full border-0 opacity-60"
+                      sandbox="allow-same-origin"
+                      loading="lazy"
+                    />
+                  )}
 
-            {!loading && !hasData && (
-              <div className="absolute inset-0 flex items-center justify-center p-8 text-center">
-                <div>
-                  <MousePointerClick className="mx-auto h-7 w-7 text-muted-light" />
-                  <p className="mt-3 text-[14px] font-medium">Pas encore d&apos;interactions</p>
-                  <p className="mx-auto mt-1.5 max-w-xs text-[13px] text-muted">
-                    Les clics apparaissent ici dès que des visiteurs parcourent
-                    cette page avec le script installé.
-                  </p>
+                  {[25, 50, 75].map((d) => (
+                    <span
+                      key={d}
+                      className="pointer-events-none absolute inset-x-0 border-t border-dashed border-black/10"
+                      style={{ top: `${d}%` }}
+                    />
+                  ))}
+
+                  <HeatmapCanvas
+                    points={s.points}
+                    rage={s.rage_points}
+                    radius={radius}
+                  />
                 </div>
               </div>
-            )}
-
-            {loading && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="h-7 w-7 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+            ) : (
+              <div className="flex min-h-[420px] items-center justify-center p-8 text-center">
+                {loading ? (
+                  <div className="h-7 w-7 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+                ) : (
+                  <div>
+                    <MousePointerClick className="mx-auto h-7 w-7 text-muted-light" />
+                    <p className="mt-3 text-[14px] font-medium">
+                      Pas encore d&apos;interactions
+                    </p>
+                    <p className="mx-auto mt-1.5 max-w-xs text-[13px] text-muted">
+                      Les clics apparaissent ici dès que des visiteurs
+                      parcourent cette page avec le script installé.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -324,9 +389,15 @@ export function HeatmapPanel({ sites }: { sites: Site[] }) {
             <div className="space-y-1 border-t border-border px-4 py-2 text-[11px] text-muted-light">
               {overlay && (
                 <p>
-                  Certains sites refusent d&apos;être affichés dans un cadre. Si la
-                  page reste vide, décochez la superposition — la carte reste
-                  exacte.
+                  Certains sites refusent d&apos;être affichés dans un cadre, et
+                  la page doit être en ligne. Si le cadre reste vide ou affiche
+                  une erreur, décochez — la carte, elle, reste exacte.
+                </p>
+              )}
+              {s && aspect > 0 && (
+                <p>
+                  Carte au format réel de la page sur {s.device} :{" "}
+                  {s.geometry.viewport_w} × {s.geometry.doc_h} px.
                 </p>
               )}
               {s?.sampled && (

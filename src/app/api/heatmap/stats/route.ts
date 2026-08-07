@@ -22,6 +22,7 @@ const PERIODS: Record<string, number> = {
 };
 
 const PAGE = 1000;
+const PATH_SCAN = 5000;
 const CLICK_SAMPLE = 5000;
 const RAGE_SAMPLE = 2000;
 const SCROLL_SAMPLE = 5000;
@@ -31,11 +32,18 @@ interface Row {
   x_ratio: number | null;
   y_px: number | null;
   doc_h: number | null;
+  viewport_w: number | null;
   selector: string | null;
   elem_text: string | null;
   interactive: boolean | null;
   scroll_pct: number | null;
   session_id: string | null;
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
 }
 
 type Filters = {
@@ -136,21 +144,24 @@ export async function GET(req: NextRequest) {
     const since = new Date(Date.now() - days * 86_400_000).toISOString();
 
     // ── Pages with data, for the picker ──
-    // Counted per path with head-counts so a busy site does not truncate
-    // the list. Paths come from a recent sample, which is enough to
-    // surface the pages worth looking at.
-    const { data: pathRows } = await supabase
-      .from("interactions")
-      .select("path")
-      .eq("site_id", siteId)
-      .gte("created_at", since)
-      .order("created_at", { ascending: false })
-      .range(0, PAGE - 1);
-
+    // Walked over several ranges rather than one, so a page that is
+    // quieter than a busy neighbour still shows up in the list.
     const seen = new Map<string, number>();
-    (pathRows ?? []).forEach((r: { path: string }) =>
-      seen.set(r.path, (seen.get(r.path) ?? 0) + 1)
-    );
+    for (let from = 0; from < PATH_SCAN; from += PAGE) {
+      const { data, error } = await supabase
+        .from("interactions")
+        .select("path")
+        .eq("site_id", siteId)
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .range(from, from + PAGE - 1);
+
+      if (error || !data || data.length === 0) break;
+      (data as { path: string }[]).forEach((r) =>
+        seen.set(r.path, (seen.get(r.path) ?? 0) + 1)
+      );
+      if (data.length < PAGE) break;
+    }
 
     const pages = [...seen.entries()]
       .map(([p, count]) => ({ path: p, count }))
@@ -158,7 +169,35 @@ export async function GET(req: NextRequest) {
       .slice(0, 50);
 
     const path = requestedPath || pages[0]?.path || "/";
-    const f: Filters = { siteId, path, since, device };
+
+    // ── Which breakpoints this page was seen at ──
+    // A click map may only ever cover one breakpoint: an x ratio means a
+    // different place on a 390px phone than on a 1440px desktop, and
+    // stacking them produces a cloud that corresponds to no real layout.
+    const deviceCounts = await Promise.all(
+      (["Desktop", "Mobile", "Tablet"] as const).map(async (d) => {
+        const { count } = await supabase
+          .from("interactions")
+          .select("id", { count: "exact", head: true })
+          .eq("site_id", siteId)
+          .eq("path", path)
+          .eq("device", d)
+          .eq("type", "click")
+          .gte("created_at", since);
+        return { device: d, count: count ?? 0 };
+      })
+    );
+
+    const available = deviceCounts.filter((d) => d.count > 0);
+    const dominant = available.sort((a, b) => b.count - a.count)[0]?.device;
+
+    // Fall back to the breakpoint with the most data rather than mixing.
+    const resolvedDevice =
+      device !== "all" && available.some((d) => d.device === device)
+        ? device
+        : (dominant ?? "Desktop");
+
+    const f: Filters = { siteId, path, since, device: resolvedDevice };
 
     // ── Exact totals ──
     const [clickTotal, rageTotal] = await Promise.all([
@@ -172,7 +211,7 @@ export async function GET(req: NextRequest) {
         supabase,
         f,
         "click",
-        "x_ratio, y_px, doc_h, selector, elem_text, interactive, session_id",
+        "x_ratio, y_px, doc_h, viewport_w, selector, elem_text, interactive, session_id",
         CLICK_SAMPLE
       ),
       sample(supabase, f, "rage", "x_ratio, y_px, doc_h, selector, elem_text", RAGE_SAMPLE),
@@ -261,11 +300,24 @@ export async function GET(req: NextRequest) {
       ? clicks.filter((r) => !r.interactive).length / clicks.length
       : 0;
 
+    // ── Page geometry ──
+    // Drives the aspect ratio the map is drawn at, so a tall page renders
+    // tall instead of being squashed into a fixed box. Median rather than
+    // mean because one outlier page length would skew the whole frame.
+    const geometry = {
+      viewport_w: median(
+        clicks.map((r) => r.viewport_w ?? 0).filter((n) => n > 0)
+      ),
+      doc_h: median(clicks.map((r) => r.doc_h ?? 0).filter((n) => n > 0)),
+    };
+
     return NextResponse.json({
       site: { domain: site.domain },
       path,
       period,
-      device,
+      device: resolvedDevice,
+      devices: available,
+      geometry,
       pages,
       summary: {
         clicks: clickTotal,
