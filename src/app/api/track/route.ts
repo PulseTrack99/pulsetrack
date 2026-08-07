@@ -6,6 +6,7 @@ import {
   resolveSessionId,
   getClientIp,
 } from "@/lib/visitor";
+import { getSiteOwner, getUserPlan, recordEvent } from "@/lib/plan";
 
 // Use service-level client for ingestion (no auth needed — events come from visitors)
 const supabase = createClient(
@@ -153,6 +154,24 @@ export async function POST(req: NextRequest) {
         { error: "Invalid site_id" },
         { status: 404, headers: { "Access-Control-Allow-Origin": "*" } }
       );
+    }
+
+    // Monthly event allowance. Checked before any write: an account past
+    // its quota should not silently keep growing usage_counters is the
+    // one thing it does still record, so the dashboard can tell the
+    // owner how far over they are once they look.
+    const ownerId = await getSiteOwner(supabase, site_id);
+    if (ownerId) {
+      const plan = await getUserPlan(supabase, ownerId);
+      const { withinQuota } = await recordEvent(supabase, ownerId, plan);
+      if (!withinQuota) {
+        // Not an error: the script should not treat this as a failure
+        // worth retrying or logging. It simply stops being recorded.
+        return NextResponse.json(
+          { ok: true, recorded: false, reason: "quota" },
+          { headers: { "Access-Control-Allow-Origin": "*" } }
+        );
+      }
     }
 
     const ua = req.headers.get("user-agent") || "";

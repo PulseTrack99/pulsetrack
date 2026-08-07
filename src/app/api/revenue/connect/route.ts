@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
+import { getUserPlan, planHas } from "@/lib/plan";
 
 // POST — Connect user's Stripe account (save restricted key)
 export async function POST(req: NextRequest) {
@@ -32,6 +33,17 @@ export async function POST(req: NextRequest) {
 
     if (!site) {
       return NextResponse.json({ error: "Site not found" }, { status: 404 });
+    }
+
+    // Revenue attribution is a Growth-and-above capability. The stats and
+    // sync routes are already scoped to this connection, so refusing it
+    // here is what actually keeps a Free account off the feature.
+    const plan = await getUserPlan(supabase, user.id);
+    if (!planHas(plan, "revenue")) {
+      return NextResponse.json(
+        { error: "upgrade_required", plan, feature: "revenue" },
+        { status: 402 }
+      );
     }
 
     // Validate the Stripe key by trying to fetch balance

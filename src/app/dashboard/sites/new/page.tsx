@@ -2,12 +2,25 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { ArrowRight, Globe, Loader2, Copy, Check } from "lucide-react";
+import { ArrowRight, Globe, Loader2, Copy, Check, Lock } from "lucide-react";
+
+/**
+ * The site-count cap lives in a database trigger (supabase/quotas.sql),
+ * not in application code — sites are inserted straight from the browser
+ * with the user's own token, so a check here alone would be advisory
+ * only. The trigger raises `site_limit_reached:<n>`, which this turns
+ * into copy someone can act on.
+ */
+function readLimitError(message: string): number | null {
+  const m = message.match(/site_limit_reached:(\d+)/);
+  return m ? Number(m[1]) : null;
+}
 
 export default function NewSitePage() {
   const [name, setName] = useState("");
   const [domain, setDomain] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [limitReached, setLimitReached] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState<{ id: string; domain: string } | null>(
     null
@@ -18,6 +31,7 @@ export default function NewSitePage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setLimitReached(null);
 
     const supabase = createClient();
     const {
@@ -47,7 +61,12 @@ export default function NewSitePage() {
       .single();
 
     if (insertError) {
-      setError(insertError.message);
+      const limit = readLimitError(insertError.message);
+      if (limit !== null) {
+        setLimitReached(limit);
+      } else {
+        setError(insertError.message);
+      }
       setLoading(false);
     } else {
       setCreated({ id: data.id, domain: cleanDomain });
@@ -114,6 +133,39 @@ export default function NewSitePage() {
           >
             Aller au Dashboard
             <ArrowRight className="h-4 w-4" />
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // Plan limit reached — this is not something retrying the form fixes.
+  if (limitReached !== null) {
+    return (
+      <div className="mx-auto max-w-lg py-8 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+          <Lock className="h-7 w-7 text-primary" />
+        </div>
+        <h1 className="mt-4 text-2xl font-bold">
+          Limite de {limitReached} site{limitReached > 1 ? "s" : ""} atteinte
+        </h1>
+        <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
+          Votre offre actuelle permet {limitReached} site
+          {limitReached > 1 ? "s" : ""}. Passez à une offre supérieure pour en
+          ajouter un nouveau.
+        </p>
+        <div className="mt-8 flex justify-center gap-3">
+          <a
+            href="/dashboard/upgrade"
+            className="flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
+          >
+            Voir les offres
+          </a>
+          <a
+            href="/dashboard"
+            className="flex items-center justify-center gap-2 rounded-lg border border-border px-5 py-2.5 text-sm font-medium transition-colors hover:bg-surface-hover"
+          >
+            Retour au dashboard
           </a>
         </div>
       </div>

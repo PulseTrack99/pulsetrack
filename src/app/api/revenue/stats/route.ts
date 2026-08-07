@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { getUserPlan, planHas } from "@/lib/plan";
 
 export async function GET(req: NextRequest) {
   try {
@@ -32,6 +33,16 @@ export async function GET(req: NextRequest) {
 
     if (!site) {
       return NextResponse.json({ error: "Site not found" }, { status: 404 });
+    }
+
+    // A lapsed subscription should not keep showing revenue figures —
+    // the data stays connected underneath, but stops being served.
+    const plan = await getUserPlan(supabase, user.id);
+    if (!planHas(plan, "revenue")) {
+      return NextResponse.json(
+        { error: "upgrade_required", plan, feature: "revenue" },
+        { status: 402 }
+      );
     }
 
     const serviceSupabase = createServiceClient(

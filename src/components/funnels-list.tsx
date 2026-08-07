@@ -283,6 +283,11 @@ function CreateFunnelForm({
 
       if (!res.ok) {
         const data = await res.json();
+        if (data.error === "upgrade_required") {
+          throw new Error(
+            `Votre offre permet ${data.limit} funnel${data.limit > 1 ? "s" : ""}. Passez à une offre supérieure pour en créer un nouveau.`
+          );
+        }
         throw new Error(data.error || "Erreur lors de la création");
       }
 

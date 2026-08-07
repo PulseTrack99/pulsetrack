@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
+import { getUserPlan, planHas } from "@/lib/plan";
 
 // POST — Sync recent charges from connected Stripe and attribute to sessions
 export async function POST(req: NextRequest) {
@@ -25,6 +26,14 @@ export async function POST(req: NextRequest) {
 
     if (!site) {
       return NextResponse.json({ error: "Site not found" }, { status: 404 });
+    }
+
+    const plan = await getUserPlan(supabase, user.id);
+    if (!planHas(plan, "revenue")) {
+      return NextResponse.json(
+        { error: "upgrade_required", plan, feature: "revenue" },
+        { status: 402 }
+      );
     }
 
     const serviceSupabase = createServiceClient(

@@ -42,6 +42,17 @@ export async function POST(req: Request) {
       .single();
 
     if (funnelError) {
+      // The cap lives in a database trigger (supabase/quotas.sql) rather
+      // than here, since it must hold regardless of which code path
+      // inserts a row. It raises funnel_limit_reached:<n>.
+      const limitMatch = funnelError.message.match(/funnel_limit_reached:(\d+)/);
+      if (limitMatch) {
+        return NextResponse.json(
+          { error: "upgrade_required", feature: "funnels", limit: Number(limitMatch[1]) },
+          { status: 402 }
+        );
+      }
+
       console.error("Failed to create funnel:", funnelError);
       return NextResponse.json({ error: "Failed to create funnel" }, { status: 500 });
     }
