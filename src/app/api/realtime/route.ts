@@ -3,6 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
+const ACTIVE_MINUTES = 5;
+const SPARKLINE_MINUTES = 30;
+
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -18,75 +21,71 @@ export async function GET(req: NextRequest) {
     const siteId = searchParams.get("site_id");
 
     if (!siteId) {
-      return NextResponse.json(
-        { error: "site_id is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "site_id is required" }, { status: 400 });
     }
 
-    // Verify user owns this site
     const { data: site } = await supabase
       .from("sites")
       .select("id")
       .eq("id", siteId)
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (!site) {
       return NextResponse.json({ error: "Site not found" }, { status: 404 });
     }
 
     const now = new Date();
-    const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
-    const thirtyMinAgo = new Date(
-      now.getTime() - 30 * 60 * 1000
+    const sparkSince = new Date(
+      now.getTime() - SPARKLINE_MINUTES * 60 * 1000
     ).toISOString();
 
-    // Active visitors = unique sessions in last 5 minutes
-    const { data: recentEvents } = await supabase
-      .from("events")
-      .select("session_id, path, title, country, device, browser, created_at")
-      .eq("site_id", siteId)
-      .gte("created_at", fiveMinAgo)
-      .order("created_at", { ascending: false });
+    // Counted in Postgres. Reading the window into Node capped the live
+    // figure at PostgREST's max-rows for any site busy enough to send
+    // more than that within the window.
+    const [activeRes, pagesRes, sparkRes, feedRes] = await Promise.all([
+      supabase.rpc("realtime_active", {
+        p_site: siteId,
+        p_minutes: ACTIVE_MINUTES,
+      }),
+      supabase.rpc("realtime_pages", {
+        p_site: siteId,
+        p_minutes: ACTIVE_MINUTES,
+        p_limit: 10,
+      }),
+      supabase.rpc("realtime_sparkline", {
+        p_site: siteId,
+        p_minutes: SPARKLINE_MINUTES,
+      }),
+      // The feed genuinely wants rows, and already asks for a bounded
+      // number of them.
+      supabase
+        .from("events")
+        .select("id, path, title, country, device, browser, created_at")
+        .eq("site_id", siteId)
+        .eq("type", "pageview")
+        .gte("created_at", sparkSince)
+        .order("created_at", { ascending: false })
+        .limit(20),
+    ]);
 
-    const events = recentEvents || [];
+    const activeVisitors = Number(activeRes.data ?? 0);
 
-    // Count unique sessions (active visitors)
-    const activeSessions = new Set(events.map((e) => e.session_id));
-    const activeVisitors = activeSessions.size;
+    const activePages = (
+      (pagesRes.data ?? []) as { path: string; visitors: number }[]
+    ).map((r) => ({ path: r.path, visitors: Number(r.visitors) }));
 
-    // Active pages — count unique sessions per page
-    const pageSessionMap = new Map<string, Set<string>>();
-    events.forEach((e) => {
-      const key = e.path || "/";
-      if (!pageSessionMap.has(key)) {
-        pageSessionMap.set(key, new Set());
-      }
-      pageSessionMap.get(key)!.add(e.session_id);
-    });
-
-    const activePages = Array.from(pageSessionMap.entries())
-      .map(([path, sessions]) => ({
-        path,
-        visitors: sessions.size,
-      }))
-      .sort((a, b) => b.visitors - a.visitors)
-      .slice(0, 10);
-
-    // Last 30 min events for the live feed (most recent 20)
-    const { data: feedEvents } = await supabase
-      .from("events")
-      .select(
-        "id, path, title, country, device, browser, session_id, created_at"
-      )
-      .eq("site_id", siteId)
-      .eq("type", "pageview")
-      .gte("created_at", thirtyMinAgo)
-      .order("created_at", { ascending: false })
-      .limit(20);
-
-    const liveFeed = (feedEvents || []).map((e) => ({
+    const liveFeed = (
+      (feedRes.data ?? []) as {
+        id: string;
+        path: string;
+        title: string;
+        country: string;
+        device: string;
+        browser: string;
+        created_at: string;
+      }[]
+    ).map((e) => ({
       id: e.id,
       path: e.path,
       title: e.title,
@@ -96,26 +95,23 @@ export async function GET(req: NextRequest) {
       time: e.created_at,
     }));
 
-    // Active visitors over last 30 min (per-minute buckets for sparkline)
-    const { data: sparklineEvents } = await supabase
-      .from("events")
-      .select("session_id, created_at")
-      .eq("site_id", siteId)
-      .gte("created_at", thirtyMinAgo);
+    // Quiet minutes are absent from the aggregate, so the series is
+    // padded to keep the sparkline a fixed width.
+    const byMinute = new Map<string, number>();
+    ((sparkRes.data ?? []) as { minute: string; visitors: number }[]).forEach(
+      (r) =>
+        byMinute.set(
+          new Date(r.minute).toISOString().slice(0, 16),
+          Number(r.visitors)
+        )
+    );
 
     const minuteBuckets: number[] = [];
-    for (let i = 29; i >= 0; i--) {
-      const bucketStart = new Date(now.getTime() - (i + 1) * 60 * 1000);
-      const bucketEnd = new Date(now.getTime() - i * 60 * 1000);
-      const sessionsInBucket = new Set(
-        (sparklineEvents || [])
-          .filter((e) => {
-            const t = new Date(e.created_at).getTime();
-            return t >= bucketStart.getTime() && t < bucketEnd.getTime();
-          })
-          .map((e) => e.session_id)
-      );
-      minuteBuckets.push(sessionsInBucket.size);
+    for (let i = SPARKLINE_MINUTES - 1; i >= 0; i--) {
+      const key = new Date(now.getTime() - i * 60 * 1000)
+        .toISOString()
+        .slice(0, 16);
+      minuteBuckets.push(byMinute.get(key) ?? 0);
     }
 
     return NextResponse.json({

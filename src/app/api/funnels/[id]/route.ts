@@ -72,84 +72,41 @@ export async function GET(
       (a, b) => a.step_order - b.step_order
     );
 
-    // Get all events for this site in the period
-    const { data: events } = await supabase
-      .from("events")
-      .select("session_id, path, type, event_name, created_at")
-      .eq("site_id", funnel.site_id)
-      .gte("created_at", periodStart)
-      .order("created_at", { ascending: true });
+    // Step matching runs in Postgres. Doing it here meant reading the
+    // period's whole event log, which PostgREST truncates at its max-rows
+    // setting — so every funnel on a site past a thousand events was
+    // computed from a fraction of the data, and silently under-reported.
+    const { data: matched, error: funnelError } = await supabase.rpc(
+      "funnel_results",
+      {
+        p_site: funnel.site_id,
+        p_since: periodStart,
+        p_steps: steps.map((s) => ({
+          match_type: s.match_type,
+          match_value: s.match_value,
+        })),
+      }
+    );
 
-    const allEvents = events || [];
+    if (funnelError) {
+      console.error("Funnel query error:", funnelError);
+      return NextResponse.json({ error: "Query failed" }, { status: 500 });
+    }
 
-    // Group events by session
-    const sessionEvents = new Map<string, typeof allEvents>();
-    allEvents.forEach((event) => {
-      const existing = sessionEvents.get(event.session_id) || [];
-      existing.push(event);
-      sessionEvents.set(event.session_id, existing);
-    });
+    // Steps nobody reached are absent from the result rather than zero.
+    const reached = new Map<number, number>();
+    ((matched ?? []) as { step_index: number; sessions: number }[]).forEach((r) =>
+      reached.set(Number(r.step_index), Number(r.sessions))
+    );
 
-    // For each step, count how many sessions match
-    // A session matches step N if it matched all previous steps (in order)
-    const stepResults = steps.map((step, stepIndex) => {
-      let matchingSessionCount = 0;
-
-      sessionEvents.forEach((sessionEvts) => {
-        // Check if this session passes through all steps up to and including this one
-        let lastMatchIndex = -1;
-        let passedAllPreviousSteps = true;
-
-        for (let s = 0; s <= stepIndex; s++) {
-          const currentStep = steps[s];
-          let foundMatch = false;
-
-          // Search for a matching event AFTER the last matched event
-          for (let e = lastMatchIndex + 1; e < sessionEvts.length; e++) {
-            const evt = sessionEvts[e];
-            let matches = false;
-
-            switch (currentStep.match_type) {
-              case "path":
-                matches = evt.path === currentStep.match_value;
-                break;
-              case "path_contains":
-                matches = evt.path?.includes(currentStep.match_value) || false;
-                break;
-              case "event":
-                matches =
-                  evt.type === "event" &&
-                  evt.event_name === currentStep.match_value;
-                break;
-            }
-
-            if (matches) {
-              lastMatchIndex = e;
-              foundMatch = true;
-              break;
-            }
-          }
-
-          if (!foundMatch) {
-            passedAllPreviousSteps = false;
-            break;
-          }
-        }
-
-        if (passedAllPreviousSteps) {
-          matchingSessionCount++;
-        }
-      });
-
-      return {
-        step_order: step.step_order,
-        name: step.name,
-        match_value: step.match_value,
-        visitors: matchingSessionCount,
-        conversion_rate: 0, // Calculated below
-        drop_off_rate: 0, // Calculated below
-      };
-    });
+    const stepResults = steps.map((step, stepIndex) => ({
+      step_order: step.step_order,
+      name: step.name,
+      match_value: step.match_value,
+      visitors: reached.get(stepIndex) ?? 0,
+      conversion_rate: 0, // Calculated below
+      drop_off_rate: 0, // Calculated below
+    }));
 
     // Calculate conversion and drop-off rates
     const totalStart = stepResults[0]?.visitors || 0;
