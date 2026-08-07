@@ -264,17 +264,72 @@
 
   var pendingSnapshot = null;
 
-  // Taken shortly after load rather than at flush time, for two reasons.
-  // A sticky or fixed header reports its on-screen position, so capturing
-  // after the visitor has scrolled would pin the navigation halfway down
-  // the page. And walking the DOM as the page is being torn down would
-  // add work to the one moment that has to stay fast.
+  /* ── Full DOM capture, loaded on demand ──
+     rrweb's serialiser is roughly ten times the weight of this entire
+     script, so it is a separate bundle that is fetched only when the
+     server says it has no recent capture of this page at this
+     breakpoint. In practice that is one visitor in a few hundred; the
+     rest never download it. */
+
+  function requestDomCapture() {
+    var url =
+      base +
+      "/api/heatmap/snapshot?s=" +
+      encodeURIComponent(siteId) +
+      "&p=" +
+      encodeURIComponent(location.pathname);
+
+    fetch(url, { credentials: "omit" })
+      .then(function (r) {
+        return r.ok ? r.json() : null;
+      })
+      .then(function (res) {
+        if (!res || !res.need) return;
+        loadSnapModule(function () {
+          if (!window.__ptSnap) return;
+          var snap = window.__ptSnap();
+          if (!snap || !snap.dom) return;
+          post(
+            base + "/api/heatmap/snapshot",
+            JSON.stringify({
+              site_id: siteId,
+              path: location.pathname,
+              dom: snap.dom,
+              viewport_w: snap.viewport_w,
+              doc_h: snap.doc_h,
+            })
+          );
+        });
+      })
+      .catch(function () {});
+  }
+
+  function loadSnapModule(done) {
+    if (window.__ptSnap) return done();
+    var s = document.createElement("script");
+    s.src = base + "/snap.js";
+    s.async = true;
+    s.onload = done;
+    s.onerror = function () {};
+    document.head.appendChild(s);
+  }
+
+  // The geometry fallback is still taken shortly after load rather than
+  // at flush time. A sticky or fixed header reports its on-screen
+  // position, so capturing after the visitor has scrolled would pin the
+  // navigation halfway down the page — and walking the DOM as the page is
+  // being torn down would add work to the one moment that has to be fast.
   function scheduleSnapshot() {
     if (!heatmapOn || snapshotSent) return;
     setTimeout(function () {
       if (snapshotSent) return;
       try {
         pendingSnapshot = captureSnapshot();
+      } catch (e) {}
+      // Ask about the full capture once the cheap one is safely in hand,
+      // so a slow or blocked request never costs us the fallback.
+      try {
+        requestDomCapture();
       } catch (e) {}
     }, 900);
   }

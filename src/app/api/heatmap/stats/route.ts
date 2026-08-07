@@ -300,10 +300,13 @@ export async function GET(req: NextRequest) {
       ? clicks.filter((r) => !r.interactive).length / clicks.length
       : 0;
 
-    // ── Page structure, for the wireframe under the heat ──
+    // ── Page structure, for the replay under the heat ──
+    // `dom` is the rrweb tree and is what the dashboard rebuilds when it
+    // exists; `elements` is the lightweight box fallback for pages
+    // captured before rrweb, or where serialising was refused.
     const { data: snapshot } = await supabase
       .from("page_snapshots")
-      .select("viewport_w, doc_h, elements, captured_at")
+      .select("viewport_w, doc_h, elements, dom, dom_bytes, captured_at")
       .eq("site_id", siteId)
       .eq("path", path)
       .eq("device", resolvedDevice)
@@ -332,7 +335,12 @@ export async function GET(req: NextRequest) {
       devices: available,
       geometry,
       snapshot: snapshot
-        ? { elements: snapshot.elements, captured_at: snapshot.captured_at }
+        ? {
+            elements: snapshot.elements ?? [],
+            dom: snapshot.dom ?? null,
+            dom_bytes: snapshot.dom_bytes ?? null,
+            captured_at: snapshot.captured_at,
+          }
         : null,
       pages,
       summary: {

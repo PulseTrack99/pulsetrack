@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { HeatmapCanvas, type Point } from "./heatmap-canvas";
 import { PageWireframe, type SnapshotElement } from "./page-wireframe";
+import { PageReplay } from "./page-replay";
 
 interface Site {
   id: string;
@@ -29,7 +30,14 @@ interface Stats {
   device: string;
   devices: { device: string; count: number }[];
   geometry: { viewport_w: number; doc_h: number };
-  snapshot: { elements: SnapshotElement[]; captured_at: string } | null;
+  snapshot: {
+    elements: SnapshotElement[];
+    // rrweb tree when the page has been captured in full.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    dom: any | null;
+    dom_bytes: number | null;
+    captured_at: string;
+  } | null;
   pages: { path: string; count: number }[];
   summary: {
     clicks: number;
@@ -347,8 +355,17 @@ export function HeatmapPanel({ sites }: { sites: Site[] }) {
                   className="relative flex-1 bg-white"
                   style={{ aspectRatio: `${aspect}` }}
                 >
-                  {/* Layout as it was when the clicks happened. */}
-                  {s.snapshot && <PageWireframe elements={s.snapshot.elements} />}
+                  {/* The page as it was when the clicks happened.
+                      rrweb replay when we have it, boxes otherwise. */}
+                  {s.snapshot?.dom ? (
+                    <PageReplay
+                      dom={s.snapshot.dom}
+                      viewportW={s.geometry.viewport_w}
+                      docH={s.geometry.doc_h}
+                    />
+                  ) : (
+                    s.snapshot && <PageWireframe elements={s.snapshot.elements} />
+                  )}
 
                   {/* The live page, for anyone who wants the real thing and
                       whose site permits framing. */}
