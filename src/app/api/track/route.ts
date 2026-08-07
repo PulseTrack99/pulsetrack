@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  getDailySalt,
+  computeVisitorId,
+  resolveSessionId,
+  getClientIp,
+} from "@/lib/visitor";
 
 // Use service-level client for ingestion (no auth needed — events come from visitors)
 const supabase = createClient(
@@ -90,11 +96,9 @@ export async function OPTIONS() {
 
 export async function POST(req: NextRequest) {
   try {
-    // Rate limiting
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      req.headers.get("x-real-ip") ||
-      "unknown";
+    // Held in memory only, for rate limiting and to derive the anonymous
+    // visitor id below. Never written to the database.
+    const ip = getClientIp(req.headers);
 
     if (isRateLimited(ip)) {
       return NextResponse.json(
@@ -122,7 +126,6 @@ export async function POST(req: NextRequest) {
       title,
       screen_width,
       language,
-      session_id,
       utm,
       duration,
       event_name,
@@ -152,8 +155,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const ua = req.headers.get("user-agent") || "";
+    const country = getCountry(req);
+
+    // Identify the visitor without touching their device: the id is a
+    // one-way hash of request attributes and a salt that rotates daily.
+    const salt = await getDailySalt(supabase);
+    const visitor_id = computeVisitorId(salt, site_id, ip, ua);
+    const session_id = await resolveSessionId(supabase, site_id, visitor_id);
+
     // Handle identify events — link session to email for revenue attribution
-    if (type === "identify" && email && session_id) {
+    if (type === "identify" && email) {
       await supabase.from("session_identities").upsert(
         {
           site_id,
@@ -169,9 +181,6 @@ export async function POST(req: NextRequest) {
         { headers: { "Access-Control-Allow-Origin": "*" } }
       );
     }
-
-    const ua = req.headers.get("user-agent") || "";
-    const country = getCountry(req);
 
     // Insert event
     const { error } = await supabase.from("events").insert({
@@ -190,10 +199,10 @@ export async function POST(req: NextRequest) {
       screen_width,
       language,
       session_id,
+      visitor_id,
       duration: duration || null,
       event_name: event_name || null,
       event_props: event_props || null,
-      ip_hash: ip ? Buffer.from(ip).toString("base64").slice(0, 16) : null,
     });
 
     if (error) {

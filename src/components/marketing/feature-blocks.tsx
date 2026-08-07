@@ -351,7 +351,7 @@ export function IllustrationPrivacy({
   };
 }) {
   const rows = [
-    { icon: Gauge, label: l.weight, them: "45.2 KB", us: "2.8 KB" },
+    { icon: Gauge, label: l.weight, them: "144 KB", us: "1.6 KB" },
     { icon: Cookie, label: l.cookies, them: l.yes, us: l.no },
     { icon: Ban, label: l.banner, them: l.required, us: l.notRequired },
   ];
@@ -390,10 +390,10 @@ export function IllustrationPrivacy({
       <div className="bg-surface-sunken/60 px-4 py-3">
         <div className="flex items-center gap-2">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/8">
-            <div className="h-full w-[6%] rounded-full bg-primary" />
+            <div className="h-full w-[1.1%] rounded-full bg-primary" />
           </div>
           <span className="tabular text-[11px] font-medium text-primary">
-            −94%
+            −99%
           </span>
         </div>
       </div>

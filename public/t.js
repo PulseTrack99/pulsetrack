@@ -1,146 +1,135 @@
-// PulseTrack — Lightweight analytics tracking script (~2KB)
-// Usage: <script defer src="https://pulsetrack.io/t.js" data-site="SITE_ID"></script>
+// PulseTrack — cookie-free analytics
+// <script defer src="https://pulsetrack.io/t.js" data-site="SITE_ID"></script>
+//
+// Writes nothing to the visitor's device: no cookie, no localStorage, no
+// sessionStorage. Visitors are identified server-side from a daily-rotating
+// salted hash, so there is nothing here that requires consent.
 (function () {
   "use strict";
 
-  // Get config from script tag
-  var script = document.currentScript;
+  // document.currentScript is null when a tag manager injects the tag, so
+  // fall back to locating our own tag by its data-site attribute.
+  var script =
+    document.currentScript ||
+    document.querySelector("script[data-site][src*='t.js']");
   if (!script) return;
 
   var siteId = script.getAttribute("data-site");
   if (!siteId) return;
 
-  // API endpoint — same origin as the script
   var endpoint = script.src.replace(/\/t\.js$/, "/api/track");
 
-  // Generate or retrieve session ID (expires after 30 min of inactivity)
-  var SESSION_KEY = "_pt_sid";
-  var SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
-
-  function getSessionId() {
-    var stored = sessionStorage.getItem(SESSION_KEY);
-    if (stored) {
-      var parsed = JSON.parse(stored);
-      if (Date.now() - parsed.t < SESSION_TIMEOUT) {
-        parsed.t = Date.now();
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify(parsed));
-        return parsed.id;
-      }
-    }
-    var id = Math.random().toString(36).substring(2) + Date.now().toString(36);
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ id: id, t: Date.now() }));
-    return id;
-  }
-
-  // Collect page data
   function getPageData() {
     return {
       site_id: siteId,
-      url: window.location.href,
-      path: window.location.pathname,
+      url: location.href,
+      path: location.pathname,
       referrer: document.referrer || null,
       title: document.title || null,
-      screen_width: window.screen.width,
-      screen_height: window.screen.height,
+      screen_width: screen.width,
+      screen_height: screen.height,
       language: navigator.language || null,
-      session_id: getSessionId(),
       timestamp: new Date().toISOString(),
     };
   }
 
-  // Extract UTM parameters
   function getUtmParams() {
-    var params = new URLSearchParams(window.location.search);
+    var params = new URLSearchParams(location.search);
     var utm = {};
-    ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"].forEach(function (key) {
-      var val = params.get(key);
-      if (val) utm[key] = val;
-    });
-    return Object.keys(utm).length > 0 ? utm : null;
+    ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"].forEach(
+      function (key) {
+        var val = params.get(key);
+        if (val) utm[key] = val;
+      }
+    );
+    return Object.keys(utm).length ? utm : null;
   }
 
-  // Send event to API
   function send(type, extra) {
     var data = getPageData();
     data.type = type;
     data.utm = getUtmParams();
     if (extra) {
-      for (var key in extra) {
-        data[key] = extra[key];
-      }
+      for (var key in extra) data[key] = extra[key];
     }
 
-    // Use sendBeacon for reliability (fires even on page close)
+    var payload = JSON.stringify(data);
+
+    // sendBeacon survives the page being closed mid-request.
     if (navigator.sendBeacon) {
-      navigator.sendBeacon(endpoint, JSON.stringify(data));
+      navigator.sendBeacon(endpoint, payload);
     } else {
       var xhr = new XMLHttpRequest();
       xhr.open("POST", endpoint, true);
       xhr.setRequestHeader("Content-Type", "application/json");
-      xhr.send(JSON.stringify(data));
+      xhr.send(payload);
     }
   }
 
-  // Track page view
   function trackPageview() {
     send("pageview");
   }
 
-  // Track page leave (duration)
-  var pageEnteredAt = Date.now();
+  // ── Time on page ──
+  var enteredAt = Date.now();
+  var leaveSent = false;
+
   function trackLeave() {
-    var duration = Math.round((Date.now() - pageEnteredAt) / 1000);
-    send("leave", { duration: duration });
+    if (leaveSent) return;
+    leaveSent = true;
+    send("leave", { duration: Math.round((Date.now() - enteredAt) / 1000) });
   }
 
-  // Listen for page visibility change and beforeunload
   document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "hidden") {
-      trackLeave();
-    }
+    if (document.visibilityState === "hidden") trackLeave();
   });
+  // pagehide covers the bfcache and iOS Safari, where visibilitychange
+  // is not guaranteed to fire before the page is frozen.
+  window.addEventListener("pagehide", trackLeave);
 
-  // Handle SPA navigation (pushState / popstate)
-  var lastPath = window.location.pathname;
+  // ── SPA navigation ──
+  var lastPath = location.pathname;
 
   function handleNavigation() {
-    var newPath = window.location.pathname;
-    if (newPath !== lastPath) {
-      trackLeave();
-      lastPath = newPath;
-      pageEnteredAt = Date.now();
-      trackPageview();
-    }
+    if (location.pathname === lastPath) return;
+    trackLeave();
+    lastPath = location.pathname;
+    enteredAt = Date.now();
+    leaveSent = false;
+    trackPageview();
   }
 
-  // Monkey-patch pushState and replaceState for SPA support
-  var originalPushState = history.pushState;
+  var pushState = history.pushState;
   history.pushState = function () {
-    originalPushState.apply(this, arguments);
+    pushState.apply(this, arguments);
     handleNavigation();
   };
 
-  var originalReplaceState = history.replaceState;
+  var replaceState = history.replaceState;
   history.replaceState = function () {
-    originalReplaceState.apply(this, arguments);
+    replaceState.apply(this, arguments);
     handleNavigation();
   };
 
   window.addEventListener("popstate", handleNavigation);
 
-  // Expose global API
-  window.pulsetrack = function (eventName, props) {
+  // ── Public API ──
+  // Callable directly, pulsetrack("signup", { plan: "growth" }),
+  // or via .track() for readability. Both do the same thing.
+  var api = function (eventName, props) {
     send("event", { event_name: eventName, event_props: props || {} });
   };
 
-  // Identify visitor by email — links this session to a customer
-  // Usage: pulsetrack.identify("customer@example.com")
-  window.pulsetrack.identify = function (email) {
+  api.track = api;
+
+  // Links this visitor to a customer so revenue can be attributed.
+  api.identify = function (email) {
     if (email && typeof email === "string") {
       send("identify", { email: email.trim().toLowerCase() });
     }
   };
 
-  // Fire initial pageview
+  window.pulsetrack = api;
+
   trackPageview();
 })();

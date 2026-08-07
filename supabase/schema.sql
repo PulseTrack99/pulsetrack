@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS events (
   duration INTEGER,                             -- in seconds (for leave events)
   event_name TEXT,                              -- custom event name
   event_props JSONB,                            -- custom event properties
-  ip_hash TEXT,                                 -- hashed IP for uniqueness (GDPR friendly)
+  visitor_id TEXT,                              -- anonymous, server-derived; see supabase/privacy.sql
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
