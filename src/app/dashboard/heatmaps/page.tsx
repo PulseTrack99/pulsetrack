@@ -1,0 +1,36 @@
+import { createClient } from "@/lib/supabase/server";
+import { HeatmapPanel } from "@/components/heatmap-panel";
+
+export const metadata = {
+  title: "Heatmaps",
+};
+
+export default async function HeatmapsPage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  const { data: sites } = await supabase
+    .from("sites")
+    .select("id, name, domain")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true });
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-medium tracking-[-0.02em]">Heatmaps</h1>
+        <p className="mt-1 text-[13.5px] text-muted">
+          Où vos visiteurs cliquent, jusqu&apos;où ils scrollent, et ce sur quoi
+          ils s&apos;acharnent sans résultat.
+        </p>
+      </div>
+
+      <HeatmapPanel sites={sites ?? []} />
+    </div>
+  );
+}

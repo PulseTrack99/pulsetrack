@@ -14,12 +14,14 @@ import {
   Filter,
   Crown,
   DollarSign,
+  MousePointerClick,
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 
 const navItems = [
   { href: "/dashboard", label: "Vue d'ensemble", icon: BarChart3 },
   { href: "/dashboard/revenue", label: "Revenue", icon: DollarSign },
+  { href: "/dashboard/heatmaps", label: "Heatmaps", icon: MousePointerClick },
   { href: "/dashboard/funnels", label: "Funnels", icon: Filter },
   { href: "/dashboard/sites", label: "Mes sites", icon: Globe },
   { href: "/dashboard/upgrade", label: "Upgrade", icon: Crown },

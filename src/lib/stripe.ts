@@ -5,7 +5,12 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   typescript: true,
 });
 
-// Plan definitions
+// Plan definitions.
+//
+// `limits` are numeric caps (-1 means unlimited); `capabilities` are the
+// on/off features the pricing table sells. Both are enforced in
+// src/lib/plan.ts — keep them in sync with the marketing copy in
+// src/i18n/dictionaries.ts.
 export const PLANS = {
   free: {
     name: "Free",
@@ -15,6 +20,12 @@ export const PLANS = {
       events_per_month: 5000,
       funnels: 1,
       retention_days: 30,
+    },
+    capabilities: {
+      heatmaps: false,
+      revenue: false,
+      api: false,
+      csv_export: false,
     },
     features: [
       "1 site",
@@ -33,6 +44,12 @@ export const PLANS = {
       events_per_month: 50000,
       funnels: 5,
       retention_days: 90,
+    },
+    capabilities: {
+      heatmaps: true,
+      revenue: false,
+      api: false,
+      csv_export: false,
     },
     features: [
       "3 sites",
@@ -53,6 +70,12 @@ export const PLANS = {
       funnels: 20,
       retention_days: 180,
     },
+    capabilities: {
+      heatmaps: true,
+      revenue: true,
+      api: true,
+      csv_export: false,
+    },
     features: [
       "10 sites",
       "200 000 events/mois",
@@ -72,6 +95,12 @@ export const PLANS = {
       events_per_month: 1000000,
       funnels: -1, // unlimited
       retention_days: 365,
+    },
+    capabilities: {
+      heatmaps: true,
+      revenue: true,
+      api: true,
+      csv_export: true,
     },
     features: [
       "50 sites",
