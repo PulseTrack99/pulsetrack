@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard-shell";
+import { getUserPlan } from "@/lib/plan";
+import { PLANS } from "@/lib/stripe";
 
 export default async function DashboardLayout({
   children,
@@ -16,5 +18,11 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  return <DashboardShell user={user}>{children}</DashboardShell>;
+  const plan = await getUserPlan(supabase, user.id);
+
+  return (
+    <DashboardShell user={user} planName={PLANS[plan].name}>
+      {children}
+    </DashboardShell>
+  );
 }

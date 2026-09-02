@@ -32,9 +32,11 @@ const navItems = [
 
 export function DashboardShell({
   user,
+  planName,
   children,
 }: {
   user: User;
+  planName: string;
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -108,7 +110,7 @@ export function DashboardShell({
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{user.email}</p>
-              <p className="text-xs text-muted">Plan Free</p>
+              <p className="text-xs text-muted">Plan {planName}</p>
             </div>
             <button
               onClick={handleLogout}
