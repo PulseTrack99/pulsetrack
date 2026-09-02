@@ -81,8 +81,14 @@ AS $$
     );
 $$;
 
-REVOKE EXECUTE ON FUNCTION has_account_access(uuid) FROM anon;
-GRANT EXECUTE ON FUNCTION has_account_access(uuid) TO authenticated;
+-- CREATE FUNCTION grants EXECUTE to the PUBLIC pseudo-role by default
+-- in Postgres unless revoked immediately — anon is automatically a
+-- member of PUBLIC, so "REVOKE ... FROM anon" alone cannot remove
+-- privilege inherited through that PUBLIC grant. Found via the
+-- security advisor still flagging anon after the anon-only revoke;
+-- PUBLIC itself has to be revoked.
+REVOKE EXECUTE ON FUNCTION has_account_access(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION has_account_access(uuid) TO authenticated, service_role;
 
 -- ── sites: the root of every other table's access check ───────────
 DROP POLICY IF EXISTS "Users can view their own sites" ON sites;
