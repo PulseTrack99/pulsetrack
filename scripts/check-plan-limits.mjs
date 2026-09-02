@@ -46,6 +46,7 @@ function limitsFor(plan) {
     max_events_per_month: num("events_per_month"),
     max_funnels: num("funnels"),
     retention_days: num("retention_days"),
+    max_replays_per_month: num("replays_per_month"),
   };
 }
 
@@ -62,6 +63,7 @@ const FIELDS = [
   "max_events_per_month",
   "max_funnels",
   "retention_days",
+  "max_replays_per_month",
 ];
 
 let failed = 0;

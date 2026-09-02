@@ -22,6 +22,7 @@
   var base = script.src.replace(/\/t\.js$/, "");
   var endpoint = base + "/api/track";
   var hmEndpoint = base + "/api/heatmap";
+  var replayEndpoint = base + "/api/replay/ingest";
   var heatmapOn = script.getAttribute("data-heatmap") !== "off";
 
   function post(url, payload) {
@@ -475,6 +476,7 @@
     if (heatmapOn) {
       flushScroll();
       flush();
+      stopReplay(true);
     }
   }
 
@@ -502,6 +504,9 @@
     snapshotSent = false;
     pendingSnapshot = null;
     scheduleSnapshot();
+    // Same reasoning as pagehide: a route change is a new page, so it
+    // gets its own recording rather than one that silently spans both.
+    scheduleReplay();
     trackPageview();
   }
 
@@ -518,6 +523,158 @@
   };
 
   window.addEventListener("popstate", handleNavigation);
+
+  /* ── Session replay ──
+     A recording is one page load: rrweb cannot resume the same event
+     stream across a real navigation, since JavaScript execution restarts
+     from scratch (see supabase/session-replays.sql). Whether a given
+     page load gets recorded at all is decided server-side — /api/replay/gate
+     answers based on the site's plan and this month's remaining quota —
+     so a visitor whose recording will not be kept never downloads
+     rrweb's record module, which is by far the heaviest thing this
+     tracker can load. */
+
+  var replayId = null;
+  var replayStop = null;
+  var replayBuf = [];
+  var replayBytes = 0;
+  var replaySeq = 0;
+  var replayTimer = null;
+  var replayCapTimer = null;
+
+  function randomId() {
+    if (window.crypto && window.crypto.randomUUID) return crypto.randomUUID();
+    return (
+      Date.now().toString(36) + Math.random().toString(36).slice(2, 12)
+    );
+  }
+
+  function postReplay(payload) {
+    var body = JSON.stringify(payload);
+    // Segments can run larger than the click/scroll batches elsewhere in
+    // this file — a full-snapshot checkpoint on a heavy page can be
+    // sizeable — so this prefers fetch+keepalive, which browsers give a
+    // far larger allowance than sendBeacon's payload cap, falling back
+    // to the same beacon/XHR path everything else here uses.
+    if (window.fetch) {
+      fetch(replayEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: body,
+        keepalive: true,
+        credentials: "omit",
+      }).catch(function () {
+        post(replayEndpoint, body);
+      });
+    } else {
+      post(replayEndpoint, body);
+    }
+  }
+
+  function flushReplay(done) {
+    if (!replayBuf.length && !done) return;
+    if (!replayId) return;
+    var batch = replayBuf;
+    replayBuf = [];
+    replayBytes = 0;
+    var seq = replaySeq++;
+    postReplay({
+      site_id: siteId,
+      replay_id: replayId,
+      path: location.pathname,
+      seq: seq,
+      events: batch,
+      done: Boolean(done),
+    });
+  }
+
+  function onReplayEvent(event, isCheckout) {
+    // rrweb signals a fresh full snapshot with isCheckout — the natural
+    // place to close the current segment, so the checkout event opens
+    // the next one rather than landing mid-batch.
+    if (isCheckout && replayBuf.length) flushReplay(false);
+    replayBuf.push(event);
+    try {
+      replayBytes += JSON.stringify(event).length;
+    } catch (e) {}
+    if (replayBuf.length >= 150 || replayBytes > 40000) flushReplay(false);
+  }
+
+  function stopReplay(final) {
+    if (replayTimer) clearInterval(replayTimer);
+    if (replayCapTimer) clearTimeout(replayCapTimer);
+    replayTimer = null;
+    replayCapTimer = null;
+    if (replayStop) {
+      try {
+        replayStop();
+      } catch (e) {}
+      replayStop = null;
+    }
+    if (replayId) flushReplay(Boolean(final));
+    replayId = null;
+  }
+
+  function loadReplayModule(done) {
+    if (window.__ptStartRecording) return done();
+    var s = document.createElement("script");
+    s.src = base + "/replay.js";
+    s.async = true;
+    s.onload = done;
+    s.onerror = function () {};
+    document.head.appendChild(s);
+  }
+
+  // A tab left open all day should not accumulate one unbounded
+  // recording — thirty minutes is ample to see what happened and bounds
+  // the worst case for both storage and the player's own memory.
+  var MAX_REPLAY_MS = 30 * 60 * 1000;
+
+  // rrweb reads window.innerWidth/innerHeight once, at the moment
+  // record() is called, and bakes it into the Meta event the player
+  // later sizes its iframe from. A tab that has not finished laying out
+  // yet (or is momentarily hidden — some browsers report 0 there) hands
+  // back a 0×0 viewport, and every replay recorded in that instant is
+  // permanently unplayable: there is no later event that corrects it.
+  // A few short retries costs nothing against a 30-minute recording and
+  // means that never happens.
+  function whenViewportReady(cb, triesLeft) {
+    if (window.innerWidth > 0 && window.innerHeight > 0) return cb();
+    if (triesLeft <= 0) return; // never became ready — skip this recording
+    setTimeout(function () {
+      whenViewportReady(cb, triesLeft - 1);
+    }, 200);
+  }
+
+  function scheduleReplay() {
+    if (!heatmapOn) return;
+    fetch(base + "/api/replay/gate?s=" + encodeURIComponent(siteId), {
+      credentials: "omit",
+    })
+      .then(function (r) {
+        return r.ok ? r.json() : null;
+      })
+      .then(function (res) {
+        if (!res || !res.record) return;
+        loadReplayModule(function () {
+          if (!window.__ptStartRecording) return;
+          whenViewportReady(function () {
+            replayId = randomId();
+            replaySeq = 0;
+            replayBuf = [];
+            replayBytes = 0;
+            replayStop = window.__ptStartRecording(onReplayEvent);
+            replayTimer = setInterval(function () {
+              flushReplay(false);
+            }, 6000);
+            replayCapTimer = setTimeout(function () {
+              stopReplay(true);
+            }, MAX_REPLAY_MS);
+          }, 10);
+        });
+      })
+      .catch(function () {});
+  }
 
   /* ── Public API ─────────────────────────────────────────────── */
 
@@ -539,5 +696,6 @@
   window.pulsetrack = api;
 
   scheduleSnapshot();
+  scheduleReplay();
   trackPageview();
 })();

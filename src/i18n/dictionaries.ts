@@ -137,7 +137,7 @@ const en: Dictionary = {
   meta: {
     title: "PulseTrack — Analytics that follows the money",
     description:
-      "See which traffic sources turn into paying customers, not just pageviews. Privacy-first web analytics with revenue attribution, heatmaps and funnels. Cookie-free, GDPR-native, 2.6 KB script.",
+      "See which traffic sources turn into paying customers, not just pageviews. Privacy-first web analytics with revenue attribution, heatmaps and funnels. Cookie-free, GDPR-native, 3.4 KB script.",
     keywords: [
       "web analytics",
       "revenue attribution",
@@ -205,7 +205,7 @@ const en: Dictionary = {
       "See which traffic sources turn into paying customers — not just pageviews. Privacy-first, cookie-free, and installed in under a minute.",
     primary: "Start for free",
     secondary: "See how it works",
-    notes: ["No credit card", "GDPR-native", "2.6 KB script"],
+    notes: ["No credit card", "GDPR-native", "3.4 KB script"],
   },
 
   showcase: {
@@ -362,7 +362,7 @@ const en: Dictionary = {
       "Cookie-free by architecture, not by setting",
       "Data hosted in the EU",
       "GDPR, ePrivacy and CCPA compliant out of the box",
-      "55× lighter than Google Analytics",
+      "42× lighter than Google Analytics",
     ],
     link: "Read the privacy approach",
     art: {
@@ -586,7 +586,7 @@ const fr: Dictionary = {
   meta: {
     title: "PulseTrack — L'analytics qui suit l'argent",
     description:
-      "Découvrez quelles sources de trafic deviennent des clients payants, pas juste des pages vues. Analytics respectueux de la vie privée avec attribution du revenu, heatmaps et funnels. Sans cookie, conforme RGPD, script de 2,6 Ko.",
+      "Découvrez quelles sources de trafic deviennent des clients payants, pas juste des pages vues. Analytics respectueux de la vie privée avec attribution du revenu, heatmaps et funnels. Sans cookie, conforme RGPD, script de 3,4 Ko.",
     keywords: [
       "analytics web",
       "attribution du revenu",
@@ -654,7 +654,7 @@ const fr: Dictionary = {
       "Découvrez quelles sources de trafic deviennent des clients payants — pas juste des pages vues. Sans cookie, respectueux de la vie privée, installé en moins d'une minute.",
     primary: "Commencer gratuitement",
     secondary: "Voir comment ça marche",
-    notes: ["Sans carte bancaire", "RGPD natif", "Script de 2,6 Ko"],
+    notes: ["Sans carte bancaire", "RGPD natif", "Script de 3,4 Ko"],
   },
 
   showcase: {
@@ -811,7 +811,7 @@ const fr: Dictionary = {
       "Sans cookie par architecture, pas par réglage",
       "Données hébergées dans l'Union européenne",
       "Conforme RGPD, ePrivacy et CCPA dès l'installation",
-      "55× plus léger que Google Analytics",
+      "42× plus léger que Google Analytics",
     ],
     link: "Lire notre approche de la vie privée",
     art: {

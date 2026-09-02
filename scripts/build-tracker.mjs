@@ -1,13 +1,14 @@
 /**
- * Builds the two scripts that run on customer pages.
+ * Builds the scripts that run on customer pages.
  *
- *   tracker/t.src.js     -> public/t.js      core tracker, on every page
- *   tracker/snap.src.js  -> public/snap.js   rrweb DOM capture, on demand
+ *   tracker/t.src.js       -> public/t.js       core tracker, on every page
+ *   tracker/snap.src.js    -> public/snap.js    rrweb DOM capture, on demand
+ *   tracker/replay.src.js  -> public/replay.js  rrweb session recording, on demand
  *
  * They are deliberately separate bundles. The core sits on every page, so
  * its transfer size is a product claim rather than a build detail; the
- * snapshot module is roughly ten times its weight and is fetched only when
- * the server has no recent capture of the page being viewed.
+ * other two are roughly ten to twenty times its weight and are fetched
+ * only for the fraction of visitors the server decides to capture.
  *
  * Runs automatically via the `prebuild` npm hook.
  */
@@ -28,6 +29,12 @@ const TARGETS = [
     src: "tracker/snap.src.js",
     out: "public/snap.js",
     banner: "/* PulseTrack DOM capture (rrweb, MIT). Loaded on demand. */",
+  },
+  {
+    name: "replay",
+    src: "tracker/replay.src.js",
+    out: "public/replay.js",
+    banner: "/* PulseTrack session recording (rrweb, MIT). Loaded on demand. */",
   },
 ];
 

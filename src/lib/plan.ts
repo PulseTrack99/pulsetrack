@@ -104,6 +104,42 @@ export async function recordEvent(
   return { withinQuota: used <= limit, used, limit };
 }
 
+/**
+ * Whether a new session recording is allowed to start.
+ *
+ * Session replay has no per-event counter to increment (unlike page
+ * events) — a session either gets recorded from its first segment or it
+ * doesn't, so the decision is a single count against session_replays
+ * itself rather than a separate usage table. Counting the real rows
+ * this way means the number shown here can never disagree with what
+ * the replay list actually contains.
+ */
+export async function canRecordReplay(
+  supabase: SupabaseClient,
+  userId: string,
+  plan: PlanKey
+): Promise<{ allowed: boolean; used: number; limit: number }> {
+  const limit = PLANS[plan].limits.replays_per_month;
+
+  if (limit <= 0) {
+    return { allowed: false, used: 0, limit };
+  }
+
+  const { data, error } = await supabase.rpc("replays_this_month", {
+    p_user: userId,
+  });
+
+  // Same failure posture as recordEvent: an unreachable counter should
+  // not be what silently turns replay off for a paying customer.
+  if (error) {
+    console.error("replay quota check failed:", error.message);
+    return { allowed: true, used: 0, limit };
+  }
+
+  const used = Number(data ?? 0);
+  return { allowed: used < limit, used, limit };
+}
+
 /** Owner of a site, for ingest routes that have no session. */
 export async function getSiteOwner(
   supabase: SupabaseClient,
