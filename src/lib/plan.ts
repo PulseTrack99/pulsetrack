@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PLANS, type PlanKey } from "./stripe";
+import { resolveAccountOwner } from "./team";
 
 /**
  * Plan entitlement lookups.
@@ -15,15 +16,23 @@ function isPlanKey(v: string): v is PlanKey {
   return v in PLANS;
 }
 
-/** The plan a user is actually on. Anything not active falls back to free. */
+/**
+ * The plan a user is actually on. Anything not active falls back to
+ * free. Resolves team membership first — a team member has no
+ * subscription of their own, they always work inside the account
+ * that invited them (src/lib/team.ts) — so every existing caller of
+ * this function (quota checks, capability gates) already does the
+ * right thing for a member without needing to know teams exist.
+ */
 export async function getUserPlan(
   supabase: SupabaseClient,
   userId: string
 ): Promise<PlanKey> {
+  const ownerId = await resolveAccountOwner(supabase, userId);
   const { data } = await supabase
     .from("subscriptions")
     .select("plan, status")
-    .eq("user_id", userId)
+    .eq("user_id", ownerId)
     .maybeSingle();
 
   if (!data) return "free";
@@ -125,8 +134,13 @@ export async function canRecordReplay(
     return { allowed: false, used: 0, limit };
   }
 
+  // Replays are always stored under the account owner's id
+  // (src/app/api/replay/ingest resolves it via getSiteOwner), so the
+  // count has to be asked for under that same id — a team member's
+  // own id would always come back empty.
+  const ownerId = await resolveAccountOwner(supabase, userId);
   const { data, error } = await supabase.rpc("replays_this_month", {
-    p_user: userId,
+    p_user: ownerId,
   });
 
   // Same failure posture as recordEvent: an unreachable counter should
@@ -160,8 +174,11 @@ export async function canUseCopilot(
     return { allowed: false, used: 0, limit };
   }
 
+  // Same reasoning as canRecordReplay: copilot_queries rows are logged
+  // under the account owner's id, not whichever team member asked.
+  const ownerId = await resolveAccountOwner(supabase, userId);
   const { data, error } = await supabase.rpc("copilot_queries_this_month", {
-    p_user: userId,
+    p_user: ownerId,
   });
 
   // Same failure posture as the other quota checks: an unreachable

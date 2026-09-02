@@ -19,12 +19,13 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify ownership
+    // Verify ownership — no .eq("user_id", user.id), RLS already
+    // scopes this to sites the caller owns or was added to as a team
+    // member.
     const { data: site } = await supabase
       .from("sites")
       .select("id, public_share_id")
       .eq("id", siteId)
-      .eq("user_id", user.id)
       .single();
 
     if (!site) {
@@ -74,12 +75,13 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify ownership
+    // Verify ownership — no .eq("user_id", user.id), RLS already
+    // scopes this to sites the caller owns or was added to as a team
+    // member.
     const { data: site } = await supabase
       .from("sites")
       .select("id")
       .eq("id", siteId)
-      .eq("user_id", user.id)
       .single();
 
     if (!site) {

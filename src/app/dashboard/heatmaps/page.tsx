@@ -15,10 +15,11 @@ export default async function HeatmapsPage() {
 
   if (!user) return null;
 
+  // No .eq("user_id", user.id) — RLS already scopes this to sites the
+  // caller owns or was added to as a team member.
   const { data: sites } = await supabase
     .from("sites")
     .select("id, name, domain")
-    .eq("user_id", user.id)
     .order("created_at", { ascending: true });
 
   return (

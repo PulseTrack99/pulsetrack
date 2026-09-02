@@ -55,12 +55,12 @@ export async function GET(
       return NextResponse.json({ error: "Funnel not found" }, { status: 404 });
     }
 
-    // Verify user owns the site
+    // Verify access — no .eq("user_id", user.id), RLS already scopes
+    // this to sites the caller owns or was added to as a team member.
     const { data: site } = await supabase
       .from("sites")
       .select("id")
       .eq("id", funnel.site_id)
-      .eq("user_id", user.id)
       .single();
 
     if (!site) {

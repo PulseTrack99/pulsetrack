@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { PricingCards } from "@/components/pricing-cards";
 import { UsageSummary, type Usage } from "@/components/usage-summary";
+import { getUserPlan } from "@/lib/plan";
+import { resolveAccountOwner } from "@/lib/team";
 
 export default async function UpgradePage() {
   const supabase = await createClient();
@@ -11,23 +12,18 @@ export default async function UpgradePage() {
 
   if (!user) return null;
 
-  const serviceSupabase = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  // getUserPlan (not a raw subscriptions read) so a canceled/past_due
+  // subscription correctly falls back to free, and so a team member
+  // sees the account they were invited into rather than "free" for
+  // having no subscription of their own.
+  const currentPlan = await getUserPlan(supabase, user.id);
 
-  const { data: sub } = await serviceSupabase
-    .from("subscriptions")
-    .select("plan, status")
-    .eq("user_id", user.id)
-    .single();
-
-  const currentPlan = sub?.plan || "free";
-
-  // Reads the same usage_summary the quota triggers enforce against, so
-  // this can never disagree with what the limits actually do.
+  // usage_summary rows are keyed by the account owner's id, not
+  // whichever team member is looking — same reasoning as
+  // canRecordReplay/canUseCopilot in src/lib/plan.ts.
+  const accountOwnerId = await resolveAccountOwner(supabase, user.id);
   const { data: usageRows } = await supabase.rpc("usage_summary", {
-    p_user: user.id,
+    p_user: accountOwnerId,
   });
   const usage = (usageRows?.[0] ?? null) as Usage | null;
 

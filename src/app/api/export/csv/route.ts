@@ -53,11 +53,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "site_id and a valid period are required" }, { status: 400 });
     }
 
+    // No .eq("user_id", user.id) — RLS (has_account_access) already
+    // scopes this to the caller's own sites or an owner's sites they
+    // were added to as a team member.
     const { data: site } = await supabase
       .from("sites")
       .select("id, name, domain")
       .eq("id", siteId)
-      .eq("user_id", user.id)
       .maybeSingle();
 
     if (!site) {

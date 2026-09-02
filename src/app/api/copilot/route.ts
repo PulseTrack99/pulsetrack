@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getUserPlan, planHas, canUseCopilot } from "@/lib/plan";
+import { resolveAccountOwner } from "@/lib/team";
 
 /**
  * Translates a plain-language question into one of the behavioural
@@ -121,17 +122,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Question trop longue" }, { status: 400 });
     }
 
+    // No .eq("user_id", user.id) here — RLS (has_account_access) already
+    // scopes this to sites the caller owns or has been added to as a
+    // team member, and an app-level equality check on the raw caller id
+    // would incorrectly exclude a legitimate team member.
     const { data: site } = await supabase
       .from("sites")
       .select("id")
       .eq("id", siteId)
-      .eq("user_id", user.id)
       .maybeSingle();
 
     if (!site) {
       return NextResponse.json({ error: "Site not found" }, { status: 404 });
     }
 
+    const accountOwnerId = await resolveAccountOwner(supabase, user.id);
     const plan = await getUserPlan(supabase, user.id);
     if (!planHas(plan, "ai_copilot")) {
       return NextResponse.json(
@@ -268,7 +273,7 @@ export async function POST(req: NextRequest) {
     // actually asked.
     await supabase.from("copilot_queries").insert({
       site_id: siteId,
-      user_id: user.id,
+      user_id: accountOwnerId,
       question,
       resolved_filter: filter,
     });

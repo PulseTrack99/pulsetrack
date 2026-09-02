@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { resolveAccountOwner } from "@/lib/team";
 import { ArrowRight, Globe, Loader2, Copy, Check, Lock } from "lucide-react";
 
 /**
@@ -50,10 +51,16 @@ export default function NewSitePage() {
       .replace(/\/+$/, "")
       .toLowerCase();
 
+    // A team member's new site belongs to the account that invited
+    // them, not to their own otherwise-empty personal account — that
+    // is what keeps it visible to the rest of the team and counted
+    // against the right plan's site limit.
+    const accountOwnerId = await resolveAccountOwner(supabase, user.id);
+
     const { data, error: insertError } = await supabase
       .from("sites")
       .insert({
-        user_id: user.id,
+        user_id: accountOwnerId,
         name,
         domain: cleanDomain,
       })

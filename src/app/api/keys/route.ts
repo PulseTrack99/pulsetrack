@@ -19,7 +19,6 @@ export async function GET(req: NextRequest) {
     .from("sites")
     .select("id")
     .eq("id", siteId)
-    .eq("user_id", user.id)
     .maybeSingle();
   if (!site) return NextResponse.json({ error: "Site not found" }, { status: 404 });
 
@@ -52,7 +51,6 @@ export async function POST(req: NextRequest) {
     .from("sites")
     .select("id")
     .eq("id", siteId)
-    .eq("user_id", user.id)
     .maybeSingle();
   if (!site) return NextResponse.json({ error: "Site not found" }, { status: 404 });
 

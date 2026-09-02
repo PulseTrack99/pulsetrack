@@ -16,6 +16,8 @@ import {
   Code2,
   Plus,
   Ban,
+  Users,
+  Mail,
 } from "lucide-react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
@@ -32,11 +34,13 @@ export function SettingsPanel({
   sites: initialSites,
   currentPlan = "free",
   hasApiAccess = false,
+  teamOwnerEmail = null,
 }: {
   user: SupabaseUser;
   sites: Site[];
   currentPlan?: string;
   hasApiAccess?: boolean;
+  teamOwnerEmail?: string | null;
 }) {
   const [sites, setSites] = useState(initialSites);
 
@@ -54,6 +58,9 @@ export function SettingsPanel({
 
       {/* Change password */}
       <PasswordSection />
+
+      {/* Team */}
+      <TeamSection isMember={Boolean(teamOwnerEmail)} ownerEmail={teamOwnerEmail} />
 
       {/* Sites management */}
       <SitesSection
@@ -235,6 +242,205 @@ function PasswordSection() {
           Modifier le mot de passe
         </button>
       </form>
+    </section>
+  );
+}
+
+/* ─────────── TEAM ─────────── */
+interface TeamMember {
+  id: string;
+  label: string | null;
+  status: "pending" | "active";
+  email: string | null;
+  invite_url: string | null;
+  created_at: string;
+}
+
+function TeamSection({
+  isMember,
+  ownerEmail,
+}: {
+  isMember: boolean;
+  ownerEmail: string | null;
+}) {
+  const [members, setMembers] = useState<TeamMember[] | null>(null);
+  const [inviting, setInviting] = useState(false);
+  const [label, setLabel] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [revealUrl, setRevealUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [removing, setRemoving] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isMember) return;
+    fetch("/api/team")
+      .then((r) => r.json())
+      .then((d) => setMembers(d.members ?? []));
+  }, [isMember]);
+
+  async function invite() {
+    setInviting(true);
+    try {
+      const res = await fetch("/api/team", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: label.trim() || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) return;
+      setMembers((m) => [
+        { id: data.id, label: data.label, status: "pending", email: null, invite_url: data.invite_url, created_at: data.created_at },
+        ...(m ?? []),
+      ]);
+      setRevealUrl(data.invite_url);
+      setShowForm(false);
+      setLabel("");
+    } finally {
+      setInviting(false);
+    }
+  }
+
+  async function remove(id: string) {
+    setRemoving(id);
+    try {
+      const res = await fetch(`/api/team/${id}`, { method: "DELETE" });
+      if (res.ok) setMembers((m) => (m ?? []).filter((x) => x.id !== id));
+    } finally {
+      setRemoving(null);
+    }
+  }
+
+  function copyUrl(url: string) {
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <section className="rounded-xl border border-border bg-background p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <Users className="h-5 w-5 text-primary" />
+        <h2 className="text-lg font-semibold">Équipe</h2>
+      </div>
+
+      {isMember ? (
+        <div className="flex items-center gap-2 rounded-lg bg-surface px-4 py-3 text-sm text-muted">
+          <Mail className="h-4 w-4 shrink-0" />
+          Vous faites partie de l&apos;équipe de <strong className="mx-1">{ownerEmail}</strong> —
+          accès complet à ses sites, sauf la facturation.
+        </div>
+      ) : (
+        <>
+          <p className="text-xs text-muted mb-4">
+            Un coéquipier invité a accès complet à vos sites, funnels, replays
+            et clés API — tout sauf changer l&apos;offre ou supprimer le compte.
+          </p>
+
+          {!showForm && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="mb-4 flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-surface-hover transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Inviter un coéquipier
+            </button>
+          )}
+
+          {showForm && (
+            <div className="mb-4 flex items-center gap-2">
+              <input
+                type="text"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="Nom (optionnel — ex. « Marie »)"
+                className="flex-1 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm outline-none focus:border-primary"
+              />
+              <button
+                onClick={invite}
+                disabled={inviting}
+                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
+              >
+                {inviting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Générer le lien"}
+              </button>
+            </div>
+          )}
+
+          {revealUrl && (
+            <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-900/20">
+              <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                Envoyez ce lien à votre coéquipier — Slack, email, comme vous voulez.
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <code className="flex-1 truncate rounded-md bg-white px-2.5 py-1.5 text-xs dark:bg-black/20">
+                  {revealUrl}
+                </code>
+                <button
+                  onClick={() => copyUrl(revealUrl)}
+                  className="flex items-center gap-1 rounded-md border border-border px-2 py-1.5 text-xs font-medium hover:bg-surface-hover"
+                >
+                  {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                </button>
+                <button
+                  onClick={() => setRevealUrl(null)}
+                  className="rounded-md border border-border px-2 py-1.5 text-xs font-medium hover:bg-surface-hover"
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          )}
+
+          {members === null ? (
+            <p className="text-xs text-muted-light">Chargement…</p>
+          ) : members.length === 0 ? (
+            <p className="text-sm text-muted text-center py-4">
+              Aucun coéquipier pour l&apos;instant.
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {members.map((m) => (
+                <li
+                  key={m.id}
+                  className="flex items-center justify-between rounded-md bg-surface px-3 py-2 text-xs"
+                >
+                  <div className="min-w-0">
+                    {m.status === "active" ? (
+                      <span className="font-medium">{m.email}</span>
+                    ) : (
+                      <span className="text-muted">
+                        Invitation en attente{m.label ? ` (${m.label})` : ""}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {m.status === "pending" && m.invite_url && (
+                      <button
+                        onClick={() => copyUrl(m.invite_url!)}
+                        className="text-muted hover:text-foreground"
+                        title="Copier le lien"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => remove(m.id)}
+                      disabled={removing === m.id}
+                      className="flex items-center gap-1 text-red-500 hover:underline disabled:opacity-50"
+                    >
+                      {removing === m.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Ban className="h-3 w-3" />
+                      )}
+                      {m.status === "active" ? "Retirer" : "Annuler"}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
     </section>
   );
 }

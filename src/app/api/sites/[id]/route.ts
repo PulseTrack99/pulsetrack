@@ -18,12 +18,14 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify user owns this site
+    // Verify access — no .eq("user_id", user.id), RLS already scopes
+    // this to sites the caller owns or was added to as a team member.
+    // Site deletion counts as ordinary site management, not billing,
+    // so a team member can do this too.
     const { data: site } = await supabase
       .from("sites")
       .select("id")
       .eq("id", siteId)
-      .eq("user_id", user.id)
       .single();
 
     if (!site) {

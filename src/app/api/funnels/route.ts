@@ -22,12 +22,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // Verify user owns this site
+    // Verify access — no .eq("user_id", user.id), RLS already scopes
+    // this to sites the caller owns or was added to as a team member.
     const { data: site } = await supabase
       .from("sites")
       .select("id")
       .eq("id", site_id)
-      .eq("user_id", user.id)
       .single();
 
     if (!site) {
