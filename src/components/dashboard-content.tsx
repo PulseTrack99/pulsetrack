@@ -15,6 +15,8 @@ import {
   Tablet,
   ArrowRight,
   Plus,
+  Download,
+  Lock,
 } from "lucide-react";
 import { RealtimePanel } from "@/components/realtime-panel";
 
@@ -175,6 +177,38 @@ export function DashboardContent({ sites }: { sites: Site[] }) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [period, setPeriod] = useState("30d");
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportLocked, setExportLocked] = useState(false);
+
+  async function exportCsv() {
+    if (!selectedSite || exporting) return;
+    setExporting(true);
+    setExportLocked(false);
+    try {
+      const res = await fetch(
+        `/api/export/csv?site_id=${selectedSite}&period=${period}`
+      );
+      if (res.status === 402) {
+        setExportLocked(true);
+        return;
+      }
+      if (!res.ok) return;
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const match = disposition.match(/filename="([^"]+)"/);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = match?.[1] || "pulsetrack-export.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   useEffect(() => {
     if (!selectedSite) return;
@@ -257,7 +291,26 @@ export function DashboardContent({ sites }: { sites: Site[] }) {
             </button>
           ))}
         </div>
+
+        <button
+          onClick={exportCsv}
+          disabled={exporting || !selectedSite}
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+        >
+          <Download className="h-3.5 w-3.5" />
+          {exporting ? "Export…" : "Export CSV"}
+        </button>
       </div>
+
+      {exportLocked && (
+        <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary-pale px-3.5 py-2.5 text-[13px] text-primary">
+          <Lock className="h-4 w-4 shrink-0" />
+          L&apos;export CSV est disponible sur l&apos;offre Business.
+          <a href="/dashboard/upgrade" className="font-medium underline">
+            Voir les offres
+          </a>
+        </div>
+      )}
 
       {/* Realtime panel */}
       {selectedSite && <RealtimePanel siteId={selectedSite} />}
