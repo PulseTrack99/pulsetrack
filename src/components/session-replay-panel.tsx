@@ -19,6 +19,8 @@ import {
   ArrowDownToLine,
   Filter,
   Sparkles,
+  Bookmark,
+  Save,
 } from "lucide-react";
 
 const SessionReplayPlayer = dynamic(
@@ -46,6 +48,17 @@ interface FunnelOption {
 }
 
 type Behavior = "no_conversion" | "low_scroll" | "funnel_dropoff" | null;
+
+interface Cohort {
+  id: string;
+  name: string;
+  behavior: Behavior;
+  scroll_max: number | null;
+  funnel_id: string | null;
+  step: number | null;
+  device: string | null;
+  rage_only: boolean;
+}
 
 interface ReplayRow {
   id: string;
@@ -109,6 +122,14 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
   const [step, setStep] = useState(0);
   const [funnels, setFunnels] = useState<FunnelOption[]>([]);
   const [hasRevenue, setHasRevenue] = useState(false);
+
+  // Saved cohorts — a name attached to the exact filter shape above,
+  // nothing more. Applying one just sets the same state the manual
+  // controls set, so it stays editable afterwards like any other
+  // selection (same principle as the copilot).
+  const [cohorts, setCohorts] = useState<Cohort[]>([]);
+  const [savingCohort, setSavingCohort] = useState(false);
+  const [cohortName, setCohortName] = useState("");
 
   // Copilot — translates a plain-language question into one of the
   // behavioural filters above (src/app/api/copilot). It never invents a
@@ -175,6 +196,61 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
       cancelled = true;
     };
   }, [siteId]);
+
+  function loadCohorts(site: string) {
+    fetch(`/api/cohorts?site_id=${site}`)
+      .then((r) => r.json())
+      .then((d) => setCohorts(d.cohorts ?? []));
+  }
+
+  useEffect(() => {
+    if (!siteId) return;
+    loadCohorts(siteId);
+  }, [siteId]);
+
+  function applyCohort(c: Cohort) {
+    setBehavior(c.behavior);
+    if (c.behavior === "low_scroll" && c.scroll_max) setScrollMax(c.scroll_max);
+    if (c.behavior === "funnel_dropoff" && c.funnel_id) {
+      setFunnelId(c.funnel_id);
+      setStep(c.step ?? 0);
+    }
+    setDevice(c.device);
+    setRageOnly(c.rage_only);
+  }
+
+  async function saveCohort() {
+    const name = cohortName.trim();
+    if (!name || !siteId) return;
+    setSavingCohort(true);
+    try {
+      const res = await fetch("/api/cohorts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          site_id: siteId,
+          name,
+          behavior,
+          scroll_max: scrollMax,
+          funnel_id: funnelId,
+          step,
+          device,
+          rage_only: rageOnly,
+        }),
+      });
+      if (res.ok) {
+        setCohortName("");
+        loadCohorts(siteId);
+      }
+    } finally {
+      setSavingCohort(false);
+    }
+  }
+
+  async function deleteCohort(id: string) {
+    const res = await fetch(`/api/cohorts/${id}`, { method: "DELETE" });
+    if (res.ok) setCohorts((c) => c.filter((x) => x.id !== id));
+  }
 
   useEffect(() => {
     if (!siteId) return;
@@ -379,6 +455,7 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
               setFunnelId(null);
               setStep(0);
               setChat([]);
+              setCohorts([]);
             }}
             className="rounded-sm border border-border bg-surface px-3 py-2 text-[13px] outline-none focus:border-primary"
           >
@@ -557,6 +634,61 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
                 ))}
             </select>
           </>
+        )}
+      </div>
+
+      {/* Saved cohorts — a name attached to the filter combination
+          above, nothing more. Applying one sets the same state the
+          manual controls set, so it stays editable afterwards. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="flex items-center gap-1.5 text-[11.5px] text-muted-light">
+          <Bookmark className="h-3.5 w-3.5" />
+          Cohorts :
+        </span>
+
+        {cohorts.length === 0 && !behavior && (
+          <span className="text-[12px] text-muted-light">
+            Aucun cohort sauvegardé pour l&apos;instant.
+          </span>
+        )}
+
+        {cohorts.map((c) => (
+          <span
+            key={c.id}
+            className="group flex items-center gap-1 rounded-full border border-border bg-surface pl-2.5 pr-1 py-1 text-[12px] transition-colors hover:border-primary/40"
+          >
+            <button onClick={() => applyCohort(c)} className="text-muted hover:text-primary">
+              {c.name}
+            </button>
+            <button
+              onClick={() => deleteCohort(c.id)}
+              className="rounded-full p-0.5 text-muted-light opacity-0 transition-opacity hover:bg-coral-pale hover:text-coral group-hover:opacity-100"
+              title="Supprimer ce cohort"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+
+        {behavior && (
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              value={cohortName}
+              onChange={(e) => setCohortName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && saveCohort()}
+              placeholder="Nommer ce filtre…"
+              className="w-36 rounded-sm border border-border bg-surface px-2 py-1 text-[12px] outline-none focus:border-primary"
+            />
+            <button
+              onClick={saveCohort}
+              disabled={savingCohort || !cohortName.trim()}
+              className="flex items-center gap-1 rounded-sm border border-border px-2 py-1 text-[12px] text-muted transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-40"
+            >
+              <Save className="h-3 w-3" />
+              Sauvegarder
+            </button>
+          </div>
         )}
       </div>
 
