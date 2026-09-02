@@ -21,6 +21,7 @@ export const PLANS = {
       funnels: 1,
       retention_days: 30,
       replays_per_month: 0,
+      ai_queries_per_month: 0,
     },
     capabilities: {
       heatmaps: false,
@@ -28,6 +29,7 @@ export const PLANS = {
       revenue: false,
       api: false,
       csv_export: false,
+      ai_copilot: false,
     },
     features: [
       "1 site",
@@ -47,6 +49,7 @@ export const PLANS = {
       funnels: 5,
       retention_days: 90,
       replays_per_month: 500,
+      ai_queries_per_month: 50,
     },
     capabilities: {
       heatmaps: true,
@@ -54,6 +57,7 @@ export const PLANS = {
       revenue: false,
       api: false,
       csv_export: false,
+      ai_copilot: true,
     },
     features: [
       "3 sites",
@@ -61,6 +65,7 @@ export const PLANS = {
       "5 funnels",
       "500 session replays/mois",
       "90 jours de rétention",
+      "Copilote IA (50 requêtes/mois)",
       "Dashboard public",
       "Support email",
     ],
@@ -75,6 +80,7 @@ export const PLANS = {
       funnels: 20,
       retention_days: 180,
       replays_per_month: 3000,
+      ai_queries_per_month: 200,
     },
     capabilities: {
       heatmaps: true,
@@ -82,6 +88,7 @@ export const PLANS = {
       revenue: true,
       api: true,
       csv_export: false,
+      ai_copilot: true,
     },
     features: [
       "10 sites",
@@ -89,6 +96,7 @@ export const PLANS = {
       "20 funnels",
       "3 000 session replays/mois",
       "6 mois de rétention",
+      "Copilote IA (200 requêtes/mois)",
       "Revenue tracking (Stripe)",
       "API access",
       "Support prioritaire",
@@ -104,6 +112,7 @@ export const PLANS = {
       funnels: -1, // unlimited
       retention_days: 365,
       replays_per_month: 15000,
+      ai_queries_per_month: 1000,
     },
     capabilities: {
       heatmaps: true,
@@ -111,6 +120,7 @@ export const PLANS = {
       revenue: true,
       api: true,
       csv_export: true,
+      ai_copilot: true,
     },
     features: [
       "50 sites",
@@ -118,6 +128,7 @@ export const PLANS = {
       "Funnels illimités",
       "15 000 session replays/mois",
       "12 mois de rétention",
+      "Copilote IA (1 000 requêtes/mois)",
       "Revenue tracking (Stripe)",
       "API access",
       "Support prioritaire",

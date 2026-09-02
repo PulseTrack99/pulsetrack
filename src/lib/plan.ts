@@ -140,6 +140,41 @@ export async function canRecordReplay(
   return { allowed: used < limit, used, limit };
 }
 
+/**
+ * Whether the AI copilot is allowed to answer another question this
+ * month.
+ *
+ * Same shape as canRecordReplay: the quota is counted straight off
+ * copilot_queries (the log of every question actually asked) rather
+ * than a separate counter, so it can never disagree with what the
+ * account was actually charged for.
+ */
+export async function canUseCopilot(
+  supabase: SupabaseClient,
+  userId: string,
+  plan: PlanKey
+): Promise<{ allowed: boolean; used: number; limit: number }> {
+  const limit = PLANS[plan].limits.ai_queries_per_month;
+
+  if (limit <= 0) {
+    return { allowed: false, used: 0, limit };
+  }
+
+  const { data, error } = await supabase.rpc("copilot_queries_this_month", {
+    p_user: userId,
+  });
+
+  // Same failure posture as the other quota checks: an unreachable
+  // counter should not be what silently turns the copilot off.
+  if (error) {
+    console.error("copilot quota check failed:", error.message);
+    return { allowed: true, used: 0, limit };
+  }
+
+  const used = Number(data ?? 0);
+  return { allowed: used < limit, used, limit };
+}
+
 /** Owner of a site, for ingest routes that have no session. */
 export async function getSiteOwner(
   supabase: SupabaseClient,

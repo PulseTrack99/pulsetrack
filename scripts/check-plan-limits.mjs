@@ -47,6 +47,7 @@ function limitsFor(plan) {
     max_funnels: num("funnels"),
     retention_days: num("retention_days"),
     max_replays_per_month: num("replays_per_month"),
+    max_ai_queries_per_month: num("ai_queries_per_month"),
   };
 }
 
@@ -64,6 +65,7 @@ const FIELDS = [
   "max_funnels",
   "retention_days",
   "max_replays_per_month",
+  "max_ai_queries_per_month",
 ];
 
 let failed = 0;

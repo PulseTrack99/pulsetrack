@@ -18,6 +18,7 @@ import {
   CreditCard,
   ArrowDownToLine,
   Filter,
+  Sparkles,
 } from "lucide-react";
 
 const SessionReplayPlayer = dynamic(
@@ -108,6 +109,16 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
   const [step, setStep] = useState(0);
   const [funnels, setFunnels] = useState<FunnelOption[]>([]);
   const [hasRevenue, setHasRevenue] = useState(false);
+
+  // Copilot — translates a plain-language question into one of the
+  // behavioural filters above (src/app/api/copilot). It never invents a
+  // new way to query the data, it only sets the same state these
+  // buttons already set — so whatever it picks stays visibly editable
+  // through the ordinary controls afterwards.
+  const [question, setQuestion] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
+  const [aiUpsell, setAiUpsell] = useState<string | null>(null);
 
   const [replays, setReplays] = useState<ReplayRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -240,6 +251,61 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
     };
   }, [selected, siteId]);
 
+  async function askCopilot() {
+    const q = question.trim();
+    if (!q || aiLoading || !siteId) return;
+
+    setAiLoading(true);
+    setAiExplanation(null);
+    setAiUpsell(null);
+
+    try {
+      const res = await fetch("/api/copilot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ site_id: siteId, question: q }),
+      });
+      const data = await res.json();
+
+      if (res.status === 402) {
+        setAiUpsell(
+          data.error === "quota_exceeded"
+            ? `Quota IA atteint pour ce mois (${data.used}/${data.limit}) — ça repart à zéro le mois prochain, ou passez sur une offre supérieure.`
+            : "Le copilote IA est disponible à partir du plan Starter."
+        );
+        return;
+      }
+      if (!res.ok) {
+        setAiExplanation(data.error || "Le copilote n'a pas pu répondre.");
+        return;
+      }
+
+      const f = data.filter as {
+        behavior: Behavior;
+        scroll_max: number | null;
+        funnel_id: string | null;
+        step: number;
+        device: string | null;
+        rage_only: boolean;
+      };
+
+      setBehavior(f.behavior);
+      if (f.behavior === "low_scroll" && f.scroll_max) setScrollMax(f.scroll_max);
+      if (f.behavior === "funnel_dropoff" && f.funnel_id) {
+        setFunnelId(f.funnel_id);
+        setStep(f.step ?? 0);
+      }
+      if (f.device) setDevice(f.device);
+      if (f.rage_only) setRageOnly(true);
+
+      setAiExplanation(data.explanation);
+    } catch {
+      setAiExplanation("Le copilote n'a pas pu répondre — réessayez.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
   if (sites.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-surface p-12 text-center">
@@ -357,6 +423,44 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
               <X className="h-3 w-3" />
             </button>
           </span>
+        )}
+      </div>
+
+      {/* Copilot — sets the same filters below, never a new query path
+          of its own. Always shown here: every plan that reaches this
+          panel (session_replay requires at least Starter) also has
+          ai_copilot, so the only way this can be refused is the
+          monthly quota, surfaced inline below rather than hiding the
+          whole panel over it. */}
+      <div className="rounded-lg border border-primary/20 bg-primary-pale/30 p-3">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+          <input
+            type="text"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && askCopilot()}
+            placeholder="Ex : montre-moi les sessions qui n'ont pas converti"
+            className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-light"
+          />
+          <button
+            onClick={askCopilot}
+            disabled={aiLoading || !question.trim()}
+            className="shrink-0 rounded-sm bg-primary px-3 py-1.5 text-[12px] font-medium text-white transition-opacity disabled:opacity-40"
+          >
+            {aiLoading ? "…" : "Demander"}
+          </button>
+        </div>
+        {aiExplanation && (
+          <p className="mt-2 text-[12px] text-muted">{aiExplanation}</p>
+        )}
+        {aiUpsell && (
+          <p className="mt-2 flex items-center gap-1.5 text-[12px] text-coral">
+            {aiUpsell}
+            <Link href="/dashboard/upgrade" className="font-medium underline">
+              Voir les offres
+            </Link>
+          </p>
         )}
       </div>
 
