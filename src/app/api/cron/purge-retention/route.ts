@@ -77,36 +77,58 @@ export async function GET(req: NextRequest) {
   }
 
   for (const site of sites ?? []) {
+    // Each table purges independently — one table's failure (a bad
+    // column name, a transient error) must not stop the others from
+    // running for this site, the way it did the first time this ran:
+    // page_snapshots errored and copilot_queries/revenue_events/
+    // session_identities were silently never reached for that site.
+    let plan;
     try {
-      const plan = await getUserPlan(supabase, site.user_id);
-      const days = PLANS[plan].limits.retention_days;
-      const cutoff = new Date(Date.now() - days * 86_400_000).toISOString();
+      plan = await getUserPlan(supabase, site.user_id);
+    } catch (err) {
+      summary.errors.push(`${site.id}: plan lookup: ${err instanceof Error ? err.message : String(err)}`);
+      continue;
+    }
+    const days = PLANS[plan].limits.retention_days;
+    const cutoff = new Date(Date.now() - days * 86_400_000).toISOString();
 
+    try {
       const { data: expiredReplays, error: replayError } = await supabase
         .from("session_replays")
         .select("id, replay_id")
         .eq("site_id", site.id)
         .lt("started_at", cutoff)
         .limit(BATCH);
-      if (replayError) throw new Error(`session_replays: ${replayError.message}`);
+      if (replayError) throw new Error(replayError.message);
 
       for (const r of expiredReplays ?? []) {
         await deleteSessionReplay(supabase, site.id, r.replay_id);
         await supabase.from("session_replays").delete().eq("id", r.id);
         summary.replays_deleted++;
       }
-
-      summary.events_deleted += await deleteOlderThan("events", "created_at", site.id, cutoff);
-      summary.interactions_deleted += await deleteOlderThan("interactions", "created_at", site.id, cutoff);
-      summary.snapshots_deleted += await deleteOlderThan("page_snapshots", "created_at", site.id, cutoff);
-      summary.copilot_queries_deleted += await deleteOlderThan("copilot_queries", "created_at", site.id, cutoff);
-      summary.revenue_events_deleted += await deleteOlderThan("revenue_events", "stripe_created_at", site.id, cutoff);
-      summary.session_identities_deleted += await deleteOlderThan("session_identities", "identified_at", site.id, cutoff);
-
-      summary.sites_processed++;
     } catch (err) {
-      summary.errors.push(`${site.id}: ${err instanceof Error ? err.message : String(err)}`);
+      summary.errors.push(`${site.id}: session_replays: ${err instanceof Error ? err.message : String(err)}`);
     }
+
+    const tables: [string, string, keyof typeof summary][] = [
+      ["events", "created_at", "events_deleted"],
+      ["interactions", "created_at", "interactions_deleted"],
+      ["page_snapshots", "captured_at", "snapshots_deleted"],
+      ["copilot_queries", "created_at", "copilot_queries_deleted"],
+      ["revenue_events", "stripe_created_at", "revenue_events_deleted"],
+      ["session_identities", "identified_at", "session_identities_deleted"],
+    ];
+
+    for (const [table, column, key] of tables) {
+      try {
+        const deleted = await deleteOlderThan(table, column, site.id, cutoff);
+        (summary[key] as number) += deleted;
+      } catch (err) {
+        summary.errors.push(`${site.id}: ${table}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    summary.sites_processed++;
   }
 
   // Salts are only ever needed to hash the current day's visitors —
