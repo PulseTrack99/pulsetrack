@@ -16,6 +16,7 @@ import {
   DollarSign,
   MousePointerClick,
   Video,
+  Workflow,
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 
@@ -25,6 +26,7 @@ const navItems = [
   { href: "/dashboard/replays", label: "Session Replay", icon: Video },
   { href: "/dashboard/heatmaps", label: "Heatmaps", icon: MousePointerClick },
   { href: "/dashboard/funnels", label: "Funnels", icon: Filter },
+  { href: "/dashboard/flows", label: "Flows", icon: Workflow },
   { href: "/dashboard/sites", label: "Mes sites", icon: Globe },
   { href: "/dashboard/upgrade", label: "Upgrade", icon: Crown },
   { href: "/dashboard/settings", label: "Paramètres", icon: Settings },
