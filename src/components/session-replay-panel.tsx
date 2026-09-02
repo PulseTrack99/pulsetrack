@@ -114,11 +114,15 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
   // behavioural filters above (src/app/api/copilot). It never invents a
   // new way to query the data, it only sets the same state these
   // buttons already set — so whatever it picks stays visibly editable
-  // through the ordinary controls afterwards.
+  // through the ordinary controls afterwards. Kept as a real
+  // conversation (chat bubbles, history) rather than a single line that
+  // overwrites itself, so a question and its answer stay visible
+  // together once a second question is asked.
   const [question, setQuestion] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
-  const [aiUpsell, setAiUpsell] = useState<string | null>(null);
+  const [chat, setChat] = useState<
+    { role: "user" | "ai" | "upsell"; text: string }[]
+  >([]);
 
   const [replays, setReplays] = useState<ReplayRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -251,13 +255,22 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
     };
   }, [selected, siteId]);
 
-  async function askCopilot() {
-    const q = question.trim();
+  // Quick-start chips — only the ones that would actually do something on
+  // this site, mirroring which manual filter buttons are shown below.
+  const suggestions = useMemo(() => {
+    const s = ["Sessions qui n'ont presque pas scrollé"];
+    if (hasRevenue) s.push("Sessions qui n'ont pas converti");
+    if (funnels.length > 0) s.push(`Abandon du funnel ${funnels[0].name}`);
+    return s;
+  }, [hasRevenue, funnels]);
+
+  async function askCopilot(preset?: string) {
+    const q = (preset ?? question).trim();
     if (!q || aiLoading || !siteId) return;
 
+    setChat((c) => [...c, { role: "user", text: q }]);
+    setQuestion("");
     setAiLoading(true);
-    setAiExplanation(null);
-    setAiUpsell(null);
 
     try {
       const res = await fetch("/api/copilot", {
@@ -268,15 +281,23 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
       const data = await res.json();
 
       if (res.status === 402) {
-        setAiUpsell(
-          data.error === "quota_exceeded"
-            ? `Quota IA atteint pour ce mois (${data.used}/${data.limit}) — ça repart à zéro le mois prochain, ou passez sur une offre supérieure.`
-            : "Le copilote IA est disponible à partir du plan Starter."
-        );
+        setChat((c) => [
+          ...c,
+          {
+            role: "upsell",
+            text:
+              data.error === "quota_exceeded"
+                ? `Quota IA atteint pour ce mois (${data.used}/${data.limit}) — ça repart à zéro le mois prochain, ou passez sur une offre supérieure.`
+                : "Le copilote IA est disponible à partir du plan Starter.",
+          },
+        ]);
         return;
       }
       if (!res.ok) {
-        setAiExplanation(data.error || "Le copilote n'a pas pu répondre.");
+        setChat((c) => [
+          ...c,
+          { role: "ai", text: data.error || "Le copilote n'a pas pu répondre." },
+        ]);
         return;
       }
 
@@ -298,9 +319,12 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
       if (f.device) setDevice(f.device);
       if (f.rage_only) setRageOnly(true);
 
-      setAiExplanation(data.explanation);
+      setChat((c) => [...c, { role: "ai", text: data.explanation }]);
     } catch {
-      setAiExplanation("Le copilote n'a pas pu répondre — réessayez.");
+      setChat((c) => [
+        ...c,
+        { role: "ai", text: "Le copilote n'a pas pu répondre — réessayez." },
+      ]);
     } finally {
       setAiLoading(false);
     }
@@ -354,6 +378,7 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
               setBehavior(null);
               setFunnelId(null);
               setStep(0);
+              setChat([]);
             }}
             className="rounded-sm border border-border bg-surface px-3 py-2 text-[13px] outline-none focus:border-primary"
           >
@@ -423,44 +448,6 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
               <X className="h-3 w-3" />
             </button>
           </span>
-        )}
-      </div>
-
-      {/* Copilot — sets the same filters below, never a new query path
-          of its own. Always shown here: every plan that reaches this
-          panel (session_replay requires at least Starter) also has
-          ai_copilot, so the only way this can be refused is the
-          monthly quota, surfaced inline below rather than hiding the
-          whole panel over it. */}
-      <div className="rounded-lg border border-primary/20 bg-primary-pale/30 p-3">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 shrink-0 text-primary" />
-          <input
-            type="text"
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && askCopilot()}
-            placeholder="Ex : montre-moi les sessions qui n'ont pas converti"
-            className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-light"
-          />
-          <button
-            onClick={askCopilot}
-            disabled={aiLoading || !question.trim()}
-            className="shrink-0 rounded-sm bg-primary px-3 py-1.5 text-[12px] font-medium text-white transition-opacity disabled:opacity-40"
-          >
-            {aiLoading ? "…" : "Demander"}
-          </button>
-        </div>
-        {aiExplanation && (
-          <p className="mt-2 text-[12px] text-muted">{aiExplanation}</p>
-        )}
-        {aiUpsell && (
-          <p className="mt-2 flex items-center gap-1.5 text-[12px] text-coral">
-            {aiUpsell}
-            <Link href="/dashboard/upgrade" className="font-medium underline">
-              Voir les offres
-            </Link>
-          </p>
         )}
       </div>
 
@@ -574,8 +561,102 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
-        {/* Session list */}
-        <div className="max-h-[720px] overflow-y-auto rounded-lg border border-border bg-surface">
+        {/* Left column: copilot chat, then the session list under it */}
+        <div className="flex flex-col gap-4">
+          {/* Copilot — sets the same filters as the manual controls
+              above, never a new query path of its own. Always shown
+              here: every plan that reaches this panel (session_replay
+              requires at least Starter) also has ai_copilot, so the
+              only way a question can be refused is the monthly quota,
+              surfaced inline as an "upsell" chat bubble rather than
+              hiding the panel over it. */}
+          <div className="flex flex-col overflow-hidden rounded-lg border border-primary/20 bg-surface">
+            <div className="flex items-center gap-2 border-b border-border bg-primary-pale/40 px-3.5 py-2.5">
+              <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+              <span className="text-[13px] font-medium text-primary">Copilote IA</span>
+            </div>
+
+            <div className="flex max-h-[220px] min-h-[80px] flex-col gap-2 overflow-y-auto px-3 py-2.5">
+              {chat.length === 0 && (
+                <p className="px-0.5 text-[12px] text-muted-light">
+                  Posez une question sur vos sessions enregistrées — je choisis
+                  le filtre qui correspond.
+                </p>
+              )}
+              {chat.map((m, i) => (
+                <div
+                  key={i}
+                  className={
+                    m.role === "user"
+                      ? "self-end max-w-[88%] rounded-lg rounded-br-sm bg-primary px-3 py-1.5 text-[12.5px] text-white"
+                      : m.role === "upsell"
+                        ? "max-w-[92%] rounded-lg bg-coral-pale px-3 py-1.5 text-[12px] text-coral"
+                        : "max-w-[92%] rounded-lg rounded-bl-sm bg-surface-sunken px-3 py-1.5 text-[12.5px] text-foreground"
+                  }
+                >
+                  {m.text}
+                  {m.role === "upsell" && (
+                    <Link
+                      href="/dashboard/upgrade"
+                      className="ml-1.5 font-medium underline"
+                    >
+                      Voir les offres
+                    </Link>
+                  )}
+                </div>
+              ))}
+              {aiLoading && (
+                <div className="flex w-fit items-center gap-1 self-start rounded-lg rounded-bl-sm bg-surface-sunken px-3 py-2">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-light [animation-delay:0ms]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-light [animation-delay:120ms]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-light [animation-delay:240ms]" />
+                </div>
+              )}
+            </div>
+
+            {chat.length === 0 && (
+              <div className="flex flex-wrap gap-1.5 border-t border-border px-3 py-2">
+                {suggestions.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => askCopilot(s)}
+                    disabled={aiLoading}
+                    className="rounded-full border border-border px-2.5 py-1 text-[11px] text-muted transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-40"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 border-t border-border p-2">
+              <input
+                type="text"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && askCopilot()}
+                placeholder="Posez votre question…"
+                className="min-w-0 flex-1 rounded-sm bg-surface-sunken px-2.5 py-1.5 text-[12.5px] outline-none placeholder:text-muted-light"
+              />
+              <button
+                onClick={() => askCopilot()}
+                disabled={aiLoading || !question.trim()}
+                className="shrink-0 rounded-sm bg-primary px-3 py-1.5 text-[12px] font-medium text-white transition-opacity disabled:opacity-40"
+              >
+                {aiLoading ? "…" : "Envoyer"}
+              </button>
+            </div>
+          </div>
+
+          {/* Session list */}
+          <div className="flex max-h-[460px] flex-col overflow-hidden rounded-lg border border-border bg-surface">
+            {behavior && !loading && (
+              <p className="border-b border-border px-4 py-2 text-[11.5px] text-muted-light">
+                <span className="font-medium text-foreground">{replays.length}</span>{" "}
+                session{replays.length > 1 ? "s" : ""} trouvée{replays.length > 1 ? "s" : ""}
+              </p>
+            )}
+            <div className="overflow-y-auto">
           {loading && (
             <div className="flex justify-center py-10">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
@@ -633,6 +714,8 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
               );
             })}
           </ul>
+            </div>
+          </div>
         </div>
 
         {/* Player */}
