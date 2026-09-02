@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   User,
   Lock,
@@ -13,6 +13,9 @@ import {
   Share2,
   Link,
   ExternalLink,
+  Code2,
+  Plus,
+  Ban,
 } from "lucide-react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
@@ -28,10 +31,12 @@ export function SettingsPanel({
   user,
   sites: initialSites,
   currentPlan = "free",
+  hasApiAccess = false,
 }: {
   user: SupabaseUser;
   sites: Site[];
   currentPlan?: string;
+  hasApiAccess?: boolean;
 }) {
   const [sites, setSites] = useState(initialSites);
 
@@ -57,6 +62,9 @@ export function SettingsPanel({
           setSites(sites.filter((s) => s.id !== siteId))
         }
       />
+
+      {/* API keys */}
+      <ApiKeysSection sites={sites} hasApiAccess={hasApiAccess} />
 
       {/* Danger zone */}
       <DangerZone />
@@ -450,6 +458,228 @@ function SitesSection({
               </p>
             </div>
           ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ─────────── API KEYS ─────────── */
+interface ApiKeyRow {
+  id: string;
+  name: string | null;
+  key_prefix: string;
+  created_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+}
+
+function ApiKeysSection({
+  sites,
+  hasApiAccess,
+}: {
+  sites: Site[];
+  hasApiAccess: boolean;
+}) {
+  const [keysBySite, setKeysBySite] = useState<Record<string, ApiKeyRow[]>>({});
+  const [loaded, setLoaded] = useState(false);
+  const [creatingSite, setCreatingSite] = useState<string | null>(null);
+  const [keyName, setKeyName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [revoking, setRevoking] = useState<string | null>(null);
+  const [reveal, setReveal] = useState<{ siteId: string; key: string; prefix: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!hasApiAccess || sites.length === 0 || loaded) return;
+    let cancelled = false;
+    Promise.all(
+      sites.map((s) =>
+        fetch(`/api/keys?site_id=${s.id}`)
+          .then((r) => r.json())
+          .then((d) => [s.id, d.keys ?? []] as const)
+      )
+    ).then((pairs) => {
+      if (cancelled) return;
+      setKeysBySite(Object.fromEntries(pairs));
+      setLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasApiAccess, sites.length, loaded]);
+
+  async function createKey(siteId: string) {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ site_id: siteId, name: keyName.trim() || null }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setKeysBySite((m) => ({
+        ...m,
+        [siteId]: [
+          { id: data.id, name: data.name, key_prefix: data.key_prefix, created_at: data.created_at, last_used_at: null, revoked_at: null },
+          ...(m[siteId] ?? []),
+        ],
+      }));
+      setReveal({ siteId, key: data.key, prefix: data.key_prefix });
+      setCreatingSite(null);
+      setKeyName("");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function revokeKey(siteId: string, keyId: string) {
+    setRevoking(keyId);
+    try {
+      const res = await fetch(`/api/keys/${keyId}`, { method: "DELETE" });
+      if (res.ok) {
+        setKeysBySite((m) => ({
+          ...m,
+          [siteId]: (m[siteId] ?? []).map((k) =>
+            k.id === keyId ? { ...k, revoked_at: new Date().toISOString() } : k
+          ),
+        }));
+      }
+    } finally {
+      setRevoking(null);
+    }
+  }
+
+  function copyKey(key: string) {
+    navigator.clipboard.writeText(key);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <section className="rounded-xl border border-border bg-background p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <Code2 className="h-5 w-5 text-primary" />
+        <h2 className="text-lg font-semibold">Accès API</h2>
+      </div>
+
+      {!hasApiAccess ? (
+        <div className="rounded-lg bg-surface px-4 py-3 text-sm text-muted">
+          Disponible à partir du plan Growth.{" "}
+          <a href="/dashboard/upgrade" className="font-medium text-primary hover:underline">
+            Voir les offres →
+          </a>
+        </div>
+      ) : sites.length === 0 ? (
+        <p className="text-sm text-muted text-center py-6">Ajoutez d&apos;abord un site.</p>
+      ) : (
+        <div className="space-y-4">
+          <p className="text-xs text-muted">
+            Une clé par site donne un accès en lecture aux mêmes statistiques
+            que le dashboard, via <code className="rounded bg-surface px-1 py-0.5">GET /api/v1/stats</code>{" "}
+            avec l&apos;en-tête <code className="rounded bg-surface px-1 py-0.5">Authorization: Bearer &lt;clé&gt;</code>.
+          </p>
+
+          {sites.map((site) => {
+            const keys = keysBySite[site.id] ?? [];
+            const active = keys.filter((k) => !k.revoked_at);
+            return (
+              <div key={site.id} className="rounded-lg border border-border bg-surface p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold">{site.name}</h3>
+                    <p className="text-xs text-muted mt-0.5">{site.domain}</p>
+                  </div>
+                  <button
+                    onClick={() => setCreatingSite(creatingSite === site.id ? null : site.id)}
+                    className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-surface-hover transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Nouvelle clé
+                  </button>
+                </div>
+
+                {creatingSite === site.id && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={keyName}
+                      onChange={(e) => setKeyName(e.target.value)}
+                      placeholder="Nom (optionnel — ex. « BI interne »)"
+                      className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-primary"
+                    />
+                    <button
+                      onClick={() => createKey(site.id)}
+                      disabled={busy}
+                      className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
+                    >
+                      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Générer"}
+                    </button>
+                  </div>
+                )}
+
+                {reveal?.siteId === site.id && (
+                  <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-900/20">
+                    <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                      Copiez cette clé maintenant — elle ne sera plus jamais affichée.
+                    </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <code className="flex-1 truncate rounded-md bg-white px-2.5 py-1.5 text-xs dark:bg-black/20">
+                        {reveal.key}
+                      </code>
+                      <button
+                        onClick={() => copyKey(reveal.key)}
+                        className="flex items-center gap-1 rounded-md border border-border px-2 py-1.5 text-xs font-medium hover:bg-surface-hover"
+                      >
+                        {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                      </button>
+                      <button
+                        onClick={() => setReveal(null)}
+                        className="rounded-md border border-border px-2 py-1.5 text-xs font-medium hover:bg-surface-hover"
+                      >
+                        OK
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {active.length > 0 && (
+                  <ul className="mt-3 space-y-1.5">
+                    {active.map((k) => (
+                      <li
+                        key={k.id}
+                        className="flex items-center justify-between rounded-md bg-background px-3 py-1.5 text-xs"
+                      >
+                        <div className="min-w-0">
+                          <span className="font-mono text-muted">{k.key_prefix}…</span>
+                          {k.name && <span className="ml-2 text-muted">{k.name}</span>}
+                          <span className="ml-2 text-muted-light">
+                            {k.last_used_at
+                              ? `utilisée le ${new Date(k.last_used_at).toLocaleDateString("fr-FR")}`
+                              : "jamais utilisée"}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => revokeKey(site.id, k.id)}
+                          disabled={revoking === k.id}
+                          className="flex shrink-0 items-center gap-1 text-red-500 hover:underline disabled:opacity-50"
+                        >
+                          {revoking === k.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Ban className="h-3 w-3" />
+                          )}
+                          Révoquer
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </section>

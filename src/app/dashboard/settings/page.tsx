@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { SettingsPanel } from "@/components/settings-panel";
+import { getUserPlan, planHas } from "@/lib/plan";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -16,25 +16,18 @@ export default async function SettingsPage() {
     .select("id, name, domain, created_at, public_share_id")
     .order("created_at", { ascending: false });
 
-  // Get current plan
-  const serviceSupabase = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
-  const { data: sub } = await serviceSupabase
-    .from("subscriptions")
-    .select("plan")
-    .eq("user_id", user.id)
-    .single();
-
-  const currentPlan = sub?.plan || "free";
+  // getUserPlan (not a raw subscriptions read) so a canceled or
+  // past_due subscription correctly falls back to free here too —
+  // this page used to read the row directly and would keep showing a
+  // lapsed plan's label and capabilities.
+  const currentPlan = await getUserPlan(supabase, user.id);
 
   return (
     <SettingsPanel
       user={user}
       sites={sites || []}
       currentPlan={currentPlan}
+      hasApiAccess={planHas(currentPlan, "api")}
     />
   );
 }
