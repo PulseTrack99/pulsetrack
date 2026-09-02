@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
+import { createClient } from "@/lib/supabase/client";
 import {
   Video,
   AlertTriangle,
@@ -14,6 +15,9 @@ import {
   Clock,
   Flame,
   X,
+  CreditCard,
+  ArrowDownToLine,
+  Filter,
 } from "lucide-react";
 
 const SessionReplayPlayer = dynamic(
@@ -33,6 +37,14 @@ interface Site {
   name: string;
   domain: string;
 }
+
+interface FunnelOption {
+  id: string;
+  name: string;
+  steps: { step_order: number; name: string }[];
+}
+
+type Behavior = "no_conversion" | "low_scroll" | "funnel_dropoff" | null;
 
 interface ReplayRow {
   id: string;
@@ -86,6 +98,17 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
   const [device, setDevice] = useState<string | null>(null);
   const [rageOnly, setRageOnly] = useState(false);
 
+  // Read-time filters over sessions already recorded — they never change
+  // which visits the tracker chooses to record (src/app/api/replay/gate
+  // decides that before any of this can be known), only which of the
+  // already-captured recordings show up here.
+  const [behavior, setBehavior] = useState<Behavior>(null);
+  const [scrollMax, setScrollMax] = useState(25);
+  const [funnelId, setFunnelId] = useState<string | null>(null);
+  const [step, setStep] = useState(0);
+  const [funnels, setFunnels] = useState<FunnelOption[]>([]);
+  const [hasRevenue, setHasRevenue] = useState(false);
+
   const [replays, setReplays] = useState<ReplayRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [locked, setLocked] = useState(false);
@@ -96,6 +119,47 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
   const [eventsError, setEventsError] = useState<string | null>(null);
 
   const site = useMemo(() => sites.find((s) => s.id === siteId), [sites, siteId]);
+
+  // Funnels and the site's Stripe connection state, for the "abandon de
+  // funnel" and "sans conversion" filter options. RLS on both tables
+  // already restricts this to the signed-in owner, matching how
+  // /dashboard/funnels reads funnels directly from the browser client.
+  useEffect(() => {
+    if (!siteId) return;
+    let cancelled = false;
+    const supabase = createClient();
+
+    supabase
+      .from("funnels")
+      .select("id, name, funnel_steps(step_order, name)")
+      .eq("site_id", siteId)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setFunnels(
+          (data ?? []).map((f) => ({
+            id: f.id,
+            name: f.name,
+            steps: (f.funnel_steps ?? []).sort(
+              (a: { step_order: number }, b: { step_order: number }) =>
+                a.step_order - b.step_order
+            ),
+          }))
+        );
+      });
+
+    supabase
+      .from("stripe_connections")
+      .select("id")
+      .eq("site_id", siteId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setHasRevenue(Boolean(data));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [siteId]);
 
   useEffect(() => {
     if (!siteId) return;
@@ -109,6 +173,17 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
         if (device) params.set("device", device);
         if (path) params.set("path", path);
         if (rageOnly) params.set("rage", "1");
+
+        if (behavior === "low_scroll") {
+          params.set("behavior", "low_scroll");
+          params.set("scroll_max", String(scrollMax));
+        } else if (behavior === "no_conversion") {
+          params.set("behavior", "no_conversion");
+        } else if (behavior === "funnel_dropoff" && funnelId) {
+          params.set("behavior", "funnel_dropoff");
+          params.set("funnel_id", funnelId);
+          params.set("step", String(step));
+        }
 
         const res = await fetch(`/api/replay/list?${params}`);
         if (cancelled) return;
@@ -132,7 +207,7 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
     return () => {
       cancelled = true;
     };
-  }, [siteId, period, device, path, rageOnly]);
+  }, [siteId, period, device, path, rageOnly, behavior, scrollMax, funnelId, step]);
 
   useEffect(() => {
     if (!selected) {
@@ -210,6 +285,9 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
               setSiteId(e.target.value);
               setSelected(null);
               setPath(null);
+              setBehavior(null);
+              setFunnelId(null);
+              setStep(0);
             }}
             className="rounded-sm border border-border bg-surface px-3 py-2 text-[13px] outline-none focus:border-primary"
           >
@@ -279,6 +357,115 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
               <X className="h-3 w-3" />
             </button>
           </span>
+        )}
+      </div>
+
+      {/* Behavioural filters — narrow which recorded sessions show up,
+          never which ones get recorded in the first place. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="flex items-center gap-1.5 text-[11.5px] text-muted-light">
+          <Filter className="h-3.5 w-3.5" />
+          Comportement :
+        </span>
+
+        <div className="flex flex-wrap gap-0.5 rounded-sm border border-border bg-surface p-0.5">
+          <button
+            onClick={() => setBehavior(null)}
+            className={`rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
+              behavior === null ? "bg-primary-pale text-primary" : "text-muted hover:text-foreground"
+            }`}
+          >
+            Tous
+          </button>
+          <button
+            onClick={() => setBehavior("low_scroll")}
+            className={`flex items-center gap-1.5 rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
+              behavior === "low_scroll"
+                ? "bg-primary-pale text-primary"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            <ArrowDownToLine className="h-3.5 w-3.5" />
+            N&apos;ont presque pas scrollé
+          </button>
+          {hasRevenue && (
+            <button
+              onClick={() => setBehavior("no_conversion")}
+              className={`flex items-center gap-1.5 rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
+                behavior === "no_conversion"
+                  ? "bg-primary-pale text-primary"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              <CreditCard className="h-3.5 w-3.5" />
+              N&apos;ont pas converti
+            </button>
+          )}
+          {funnels.length > 0 && (
+            <button
+              onClick={() => {
+                setBehavior("funnel_dropoff");
+                if (!funnelId) setFunnelId(funnels[0].id);
+              }}
+              className={`flex items-center gap-1.5 rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
+                behavior === "funnel_dropoff"
+                  ? "bg-primary-pale text-primary"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              <Filter className="h-3.5 w-3.5" />
+              Abandon de funnel
+            </button>
+          )}
+        </div>
+
+        {behavior === "low_scroll" && (
+          <label className="flex items-center gap-1.5 text-[12px] text-muted">
+            Moins de
+            <input
+              type="number"
+              min={1}
+              max={99}
+              value={scrollMax}
+              onChange={(e) => setScrollMax(Math.max(1, Math.min(99, Number(e.target.value))))}
+              className="w-14 rounded-sm border border-border bg-surface px-1.5 py-1 text-[12px] outline-none focus:border-primary"
+            />
+            % scrollé
+          </label>
+        )}
+
+        {behavior === "funnel_dropoff" && funnelId && (
+          <>
+            <select
+              value={funnelId}
+              onChange={(e) => {
+                setFunnelId(e.target.value);
+                setStep(0);
+              }}
+              className="rounded-sm border border-border bg-surface px-2.5 py-1.5 text-[12px] outline-none focus:border-primary"
+            >
+              {funnels.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={step}
+              onChange={(e) => setStep(Number(e.target.value))}
+              className="rounded-sm border border-border bg-surface px-2.5 py-1.5 text-[12px] outline-none focus:border-primary"
+            >
+              {funnels
+                .find((f) => f.id === funnelId)
+                ?.steps.map((s, i, arr) => (
+                  <option key={s.step_order} value={i}>
+                    {i === arr.length - 1
+                      ? `Ont atteint : ${s.name}`
+                      : `Bloqués après : ${s.name}`}
+                  </option>
+                ))}
+            </select>
+          </>
         )}
       </div>
 
