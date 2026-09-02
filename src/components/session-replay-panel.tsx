@@ -21,6 +21,7 @@ import {
   Sparkles,
   Bookmark,
   Save,
+  Plus,
 } from "lucide-react";
 
 const SessionReplayPlayer = dynamic(
@@ -47,17 +48,86 @@ interface FunnelOption {
   steps: { step_order: number; name: string }[];
 }
 
-type Behavior = "no_conversion" | "low_scroll" | "funnel_dropoff" | null;
+// A single condition in the general cohort builder
+// (supabase/cohort-builder.sql) — the three quick-filter buttons are
+// just presets that set a one-condition array of this same shape, so
+// there is only ever one filtering mechanism to reason about.
+interface Condition {
+  field: string;
+  operator: string;
+  value?: string | number;
+  funnel_id?: string;
+  step?: number;
+}
+
+type Match = "AND" | "OR";
+
+const FIELD_LABELS: Record<string, string> = {
+  scroll_pct: "Scroll max",
+  duration: "Durée de session",
+  pageview_count: "Nombre de pages vues",
+  rage_click: "Clic de rage",
+  converted: "A converti",
+  device: "Appareil",
+  source: "Source de trafic",
+  country: "Pays",
+  funnel_step: "Étape de funnel",
+};
+
+const OPERATORS_FOR: Record<string, { value: string; label: string }[]> = {
+  scroll_pct: [
+    { value: "lt", label: "<" },
+    { value: "lte", label: "≤" },
+    { value: "gt", label: ">" },
+    { value: "gte", label: "≥" },
+  ],
+  duration: [
+    { value: "gt", label: ">" },
+    { value: "gte", label: "≥" },
+    { value: "lt", label: "<" },
+    { value: "lte", label: "≤" },
+  ],
+  pageview_count: [
+    { value: "gt", label: ">" },
+    { value: "gte", label: "≥" },
+    { value: "lt", label: "<" },
+    { value: "lte", label: "≤" },
+  ],
+  rage_click: [
+    { value: "exists", label: "a eu lieu" },
+    { value: "not_exists", label: "n'a pas eu lieu" },
+  ],
+  converted: [
+    { value: "exists", label: "oui" },
+    { value: "not_exists", label: "non" },
+  ],
+  device: [{ value: "eq", label: "est" }],
+  source: [
+    { value: "eq", label: "est" },
+    { value: "contains", label: "contient" },
+  ],
+  country: [{ value: "eq", label: "est" }],
+  funnel_step: [
+    { value: "dropped", label: "bloqué après" },
+    { value: "reached", label: "a atteint" },
+  ],
+};
+
+function defaultCondition(field: string, funnels: FunnelOption[]): Condition {
+  if (field === "funnel_step") return { field, operator: "dropped", funnel_id: funnels[0]?.id, step: 0 };
+  if (field === "rage_click" || field === "converted") return { field, operator: "exists" };
+  if (field === "device") return { field, operator: "eq", value: "Desktop" };
+  if (field === "scroll_pct") return { field, operator: "lt", value: 25 };
+  if (field === "duration") return { field, operator: "gt", value: 60 };
+  if (field === "pageview_count") return { field, operator: "gt", value: 3 };
+  return { field, operator: "eq", value: "" };
+}
 
 interface Cohort {
   id: string;
   name: string;
-  behavior: Behavior;
-  scroll_max: number | null;
-  funnel_id: string | null;
-  step: number | null;
-  device: string | null;
-  rage_only: boolean;
+  conditions: Condition[];
+  match: Match;
 }
 
 interface ReplayRow {
@@ -115,13 +185,16 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
   // Read-time filters over sessions already recorded — they never change
   // which visits the tracker chooses to record (src/app/api/replay/gate
   // decides that before any of this can be known), only which of the
-  // already-captured recordings show up here.
-  const [behavior, setBehavior] = useState<Behavior>(null);
-  const [scrollMax, setScrollMax] = useState(25);
-  const [funnelId, setFunnelId] = useState<string | null>(null);
-  const [step, setStep] = useState(0);
+  // already-captured recordings show up here. One mechanism for
+  // everything: the quick-filter buttons below just set a one-condition
+  // array of the same shape the advanced builder produces.
+  const [conditions, setConditions] = useState<Condition[]>([]);
+  const [match, setMatch] = useState<Match>("AND");
+  const [showBuilder, setShowBuilder] = useState(false);
   const [funnels, setFunnels] = useState<FunnelOption[]>([]);
   const [hasRevenue, setHasRevenue] = useState(false);
+
+  const singleCondition = conditions.length === 1 ? conditions[0] : null;
 
   // Saved cohorts — a name attached to the exact filter shape above,
   // nothing more. Applying one just sets the same state the manual
@@ -209,29 +282,30 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
   }, [siteId]);
 
   function applyCohort(c: Cohort) {
-    setBehavior(c.behavior);
-    if (c.behavior === "low_scroll" && c.scroll_max) setScrollMax(c.scroll_max);
-    if (c.behavior === "funnel_dropoff" && c.funnel_id) {
-      setFunnelId(c.funnel_id);
-      setStep(c.step ?? 0);
-    }
-    setDevice(c.device);
-    setRageOnly(c.rage_only);
+    setConditions(c.conditions);
+    setMatch(c.match);
+    setShowBuilder(c.conditions.length > 1);
   }
 
   // A cohort is only worth naming when it takes more than the one
-  // click the manual buttons already give you — the plain default of
-  // each behavior (25% scroll, first funnel's first step, no
-  // conversion with nothing else on) is already a single click away,
-  // so offering to "save" it would just be confusing busywork.
+  // click the quick-filter buttons already give you — their plain
+  // default (25% scroll, first funnel's first step, no conversion) is
+  // already a single click away, so offering to "save" exactly that
+  // would just be confusing busywork. Anything built with 2+
+  // conditions, a non-default value, or through the advanced builder
+  // is real, save-worthy configuration.
   const isTrivialDefault = useMemo(() => {
-    if (!behavior) return true;
+    if (conditions.length === 0) return true;
+    if (conditions.length > 1) return false;
     if (device || rageOnly) return false;
-    if (behavior === "low_scroll") return scrollMax === 25;
-    if (behavior === "no_conversion") return true;
-    if (behavior === "funnel_dropoff") return funnelId === funnels[0]?.id && step === 0;
+    const c = conditions[0];
+    if (c.field === "scroll_pct") return c.operator === "lt" && c.value === 25;
+    if (c.field === "converted") return c.operator === "not_exists";
+    if (c.field === "funnel_step") {
+      return c.operator === "dropped" && c.funnel_id === funnels[0]?.id && c.step === 0;
+    }
     return false;
-  }, [behavior, scrollMax, device, rageOnly, funnelId, step, funnels]);
+  }, [conditions, device, rageOnly, funnels]);
 
   async function saveCohort() {
     const name = cohortName.trim();
@@ -241,16 +315,7 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
       const res = await fetch("/api/cohorts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          site_id: siteId,
-          name,
-          behavior,
-          scroll_max: scrollMax,
-          funnel_id: funnelId,
-          step,
-          device,
-          rage_only: rageOnly,
-        }),
+        body: JSON.stringify({ site_id: siteId, name, conditions, match }),
       });
       if (res.ok) {
         setCohortName("");
@@ -279,15 +344,13 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
         if (path) params.set("path", path);
         if (rageOnly) params.set("rage", "1");
 
-        if (behavior === "low_scroll") {
-          params.set("behavior", "low_scroll");
-          params.set("scroll_max", String(scrollMax));
-        } else if (behavior === "no_conversion") {
-          params.set("behavior", "no_conversion");
-        } else if (behavior === "funnel_dropoff" && funnelId) {
-          params.set("behavior", "funnel_dropoff");
-          params.set("funnel_id", funnelId);
-          params.set("step", String(step));
+        // Only conditions that are actually usable — a funnel_step
+        // condition with no funnel chosen yet would just error server
+        // side for no reason while the picker is mid-selection.
+        const usable = conditions.filter((c) => c.field !== "funnel_step" || c.funnel_id);
+        if (usable.length > 0) {
+          params.set("conditions", JSON.stringify(usable));
+          params.set("match", match);
         }
 
         const res = await fetch(`/api/replay/list?${params}`);
@@ -312,7 +375,7 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
     return () => {
       cancelled = true;
     };
-  }, [siteId, period, device, path, rageOnly, behavior, scrollMax, funnelId, step]);
+  }, [siteId, period, device, path, rageOnly, conditions, match]);
 
   useEffect(() => {
     if (!selected) {
@@ -391,8 +454,12 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
         return;
       }
 
+      // The copilot still speaks the older fixed behavior/scroll_max/
+      // funnel_id shape (src/app/api/copilot) — translated into a
+      // one-condition array here rather than rewriting an already
+      // tested backend just to match a newer, more general client shape.
       const f = data.filter as {
-        behavior: Behavior;
+        behavior: "no_conversion" | "low_scroll" | "funnel_dropoff" | null;
         scroll_max: number | null;
         funnel_id: string | null;
         step: number;
@@ -400,11 +467,12 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
         rage_only: boolean;
       };
 
-      setBehavior(f.behavior);
-      if (f.behavior === "low_scroll" && f.scroll_max) setScrollMax(f.scroll_max);
-      if (f.behavior === "funnel_dropoff" && f.funnel_id) {
-        setFunnelId(f.funnel_id);
-        setStep(f.step ?? 0);
+      if (f.behavior === "low_scroll") {
+        setConditions([{ field: "scroll_pct", operator: "lt", value: f.scroll_max ?? 25 }]);
+      } else if (f.behavior === "no_conversion") {
+        setConditions([{ field: "converted", operator: "not_exists" }]);
+      } else if (f.behavior === "funnel_dropoff" && f.funnel_id) {
+        setConditions([{ field: "funnel_step", operator: "dropped", funnel_id: f.funnel_id, step: f.step ?? 0 }]);
       }
       if (f.device) setDevice(f.device);
       if (f.rage_only) setRageOnly(true);
@@ -465,9 +533,8 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
               setSiteId(e.target.value);
               setSelected(null);
               setPath(null);
-              setBehavior(null);
-              setFunnelId(null);
-              setStep(0);
+              setConditions([]);
+              setShowBuilder(false);
               setChat([]);
               setCohorts([]);
             }}
@@ -552,17 +619,23 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
 
         <div className="flex flex-wrap gap-0.5 rounded-sm border border-border bg-surface p-0.5">
           <button
-            onClick={() => setBehavior(null)}
+            onClick={() => {
+              setConditions([]);
+              setShowBuilder(false);
+            }}
             className={`rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
-              behavior === null ? "bg-primary-pale text-primary" : "text-muted hover:text-foreground"
+              conditions.length === 0 ? "bg-primary-pale text-primary" : "text-muted hover:text-foreground"
             }`}
           >
             Tous
           </button>
           <button
-            onClick={() => setBehavior("low_scroll")}
+            onClick={() => {
+              setConditions([{ field: "scroll_pct", operator: "lt", value: 25 }]);
+              setShowBuilder(false);
+            }}
             className={`flex items-center gap-1.5 rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
-              behavior === "low_scroll"
+              singleCondition?.field === "scroll_pct"
                 ? "bg-primary-pale text-primary"
                 : "text-muted hover:text-foreground"
             }`}
@@ -572,9 +645,12 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
           </button>
           {hasRevenue && (
             <button
-              onClick={() => setBehavior("no_conversion")}
+              onClick={() => {
+                setConditions([{ field: "converted", operator: "not_exists" }]);
+                setShowBuilder(false);
+              }}
               className={`flex items-center gap-1.5 rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
-                behavior === "no_conversion"
+                singleCondition?.field === "converted"
                   ? "bg-primary-pale text-primary"
                   : "text-muted hover:text-foreground"
               }`}
@@ -586,11 +662,11 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
           {funnels.length > 0 && (
             <button
               onClick={() => {
-                setBehavior("funnel_dropoff");
-                if (!funnelId) setFunnelId(funnels[0].id);
+                setConditions([{ field: "funnel_step", operator: "dropped", funnel_id: funnels[0].id, step: 0 }]);
+                setShowBuilder(false);
               }}
               className={`flex items-center gap-1.5 rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
-                behavior === "funnel_dropoff"
+                singleCondition?.field === "funnel_step"
                   ? "bg-primary-pale text-primary"
                   : "text-muted hover:text-foreground"
               }`}
@@ -599,31 +675,39 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
               Abandon de funnel
             </button>
           )}
+          <button
+            onClick={() => setShowBuilder((v) => !v)}
+            className={`flex items-center gap-1.5 rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
+              showBuilder ? "bg-primary-pale text-primary" : "text-muted hover:text-foreground"
+            }`}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Condition avancée
+          </button>
         </div>
 
-        {behavior === "low_scroll" && (
+        {singleCondition?.field === "scroll_pct" && !showBuilder && (
           <label className="flex items-center gap-1.5 text-[12px] text-muted">
             Moins de
             <input
               type="number"
               min={1}
               max={99}
-              value={scrollMax}
-              onChange={(e) => setScrollMax(Math.max(1, Math.min(99, Number(e.target.value))))}
+              value={singleCondition.value as number}
+              onChange={(e) =>
+                setConditions([{ ...singleCondition, value: Math.max(1, Math.min(99, Number(e.target.value))) }])
+              }
               className="w-14 rounded-sm border border-border bg-surface px-1.5 py-1 text-[12px] outline-none focus:border-primary"
             />
             % scrollé
           </label>
         )}
 
-        {behavior === "funnel_dropoff" && funnelId && (
+        {singleCondition?.field === "funnel_step" && !showBuilder && (
           <>
             <select
-              value={funnelId}
-              onChange={(e) => {
-                setFunnelId(e.target.value);
-                setStep(0);
-              }}
+              value={singleCondition.funnel_id}
+              onChange={(e) => setConditions([{ ...singleCondition, funnel_id: e.target.value, step: 0 }])}
               className="rounded-sm border border-border bg-surface px-2.5 py-1.5 text-[12px] outline-none focus:border-primary"
             >
               {funnels.map((f) => (
@@ -633,12 +717,12 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
               ))}
             </select>
             <select
-              value={step}
-              onChange={(e) => setStep(Number(e.target.value))}
+              value={singleCondition.step}
+              onChange={(e) => setConditions([{ ...singleCondition, step: Number(e.target.value) }])}
               className="rounded-sm border border-border bg-surface px-2.5 py-1.5 text-[12px] outline-none focus:border-primary"
             >
               {funnels
-                .find((f) => f.id === funnelId)
+                .find((f) => f.id === singleCondition.funnel_id)
                 ?.steps.map((s, i, arr) => (
                   <option key={s.step_order} value={i}>
                     {i === arr.length - 1
@@ -651,6 +735,167 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
         )}
       </div>
 
+      {/* Advanced builder — combine any number of conditions with a
+          single AND/OR across the whole set (Mixpanel-style cohort
+          builder, scoped to what our session-based data model can
+          actually answer). The quick buttons above are just presets
+          for the one-condition case. */}
+      {showBuilder && (
+        <div className="rounded-lg border border-border bg-surface p-3">
+          <div className="space-y-2">
+            {conditions.map((c, i) => (
+              <div key={i} className="flex flex-wrap items-center gap-1.5">
+                <select
+                  value={c.field}
+                  onChange={(e) => {
+                    const next = [...conditions];
+                    next[i] = defaultCondition(e.target.value, funnels);
+                    setConditions(next);
+                  }}
+                  className="rounded-sm border border-border bg-background px-2 py-1 text-[12px] outline-none focus:border-primary"
+                >
+                  {Object.entries(FIELD_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={c.operator}
+                  onChange={(e) => {
+                    const next = [...conditions];
+                    next[i] = { ...c, operator: e.target.value };
+                    setConditions(next);
+                  }}
+                  className="rounded-sm border border-border bg-background px-2 py-1 text-[12px] outline-none focus:border-primary"
+                >
+                  {OPERATORS_FOR[c.field]?.map((op) => (
+                    <option key={op.value} value={op.value}>
+                      {op.label}
+                    </option>
+                  ))}
+                </select>
+
+                {c.field === "device" && (
+                  <select
+                    value={c.value as string}
+                    onChange={(e) => {
+                      const next = [...conditions];
+                      next[i] = { ...c, value: e.target.value };
+                      setConditions(next);
+                    }}
+                    className="rounded-sm border border-border bg-background px-2 py-1 text-[12px] outline-none focus:border-primary"
+                  >
+                    <option value="Desktop">Desktop</option>
+                    <option value="Mobile">Mobile</option>
+                    <option value="Tablet">Tablette</option>
+                  </select>
+                )}
+
+                {c.field === "funnel_step" && (
+                  <>
+                    <select
+                      value={c.funnel_id}
+                      onChange={(e) => {
+                        const next = [...conditions];
+                        next[i] = { ...c, funnel_id: e.target.value, step: 0 };
+                        setConditions(next);
+                      }}
+                      className="rounded-sm border border-border bg-background px-2 py-1 text-[12px] outline-none focus:border-primary"
+                    >
+                      {funnels.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={c.step}
+                      onChange={(e) => {
+                        const next = [...conditions];
+                        next[i] = { ...c, step: Number(e.target.value) };
+                        setConditions(next);
+                      }}
+                      className="rounded-sm border border-border bg-background px-2 py-1 text-[12px] outline-none focus:border-primary"
+                    >
+                      {funnels
+                        .find((f) => f.id === c.funnel_id)
+                        ?.steps.map((s, si, arr) => (
+                          <option key={s.step_order} value={si}>
+                            {si === arr.length - 1 ? s.name : `après ${s.name}`}
+                          </option>
+                        ))}
+                    </select>
+                  </>
+                )}
+
+                {["gt", "gte", "lt", "lte"].includes(c.operator) && (
+                  <input
+                    type="number"
+                    value={c.value as number}
+                    onChange={(e) => {
+                      const next = [...conditions];
+                      next[i] = { ...c, value: Number(e.target.value) };
+                      setConditions(next);
+                    }}
+                    className="w-16 rounded-sm border border-border bg-background px-2 py-1 text-[12px] outline-none focus:border-primary"
+                  />
+                )}
+
+                {["eq", "contains"].includes(c.operator) && c.field !== "device" && (
+                  <input
+                    type="text"
+                    value={(c.value as string) ?? ""}
+                    onChange={(e) => {
+                      const next = [...conditions];
+                      next[i] = { ...c, value: e.target.value };
+                      setConditions(next);
+                    }}
+                    placeholder={c.field === "country" ? "FR" : "google.com"}
+                    className="w-28 rounded-sm border border-border bg-background px-2 py-1 text-[12px] outline-none focus:border-primary"
+                  />
+                )}
+
+                <button
+                  onClick={() => setConditions(conditions.filter((_, x) => x !== i))}
+                  className="rounded-sm p-1 text-muted-light hover:bg-coral-pale hover:text-coral"
+                  title="Retirer cette condition"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-2.5 flex items-center gap-2.5">
+            <button
+              onClick={() => setConditions([...conditions, defaultCondition("scroll_pct", funnels)])}
+              className="flex items-center gap-1 rounded-sm border border-border px-2 py-1 text-[12px] text-muted hover:border-primary/40 hover:text-primary"
+            >
+              <Plus className="h-3 w-3" />
+              Ajouter une condition
+            </button>
+
+            {conditions.length > 1 && (
+              <div className="flex gap-0.5 rounded-sm border border-border bg-background p-0.5">
+                {(["AND", "OR"] as Match[]).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setMatch(m)}
+                    className={`rounded-xs px-2 py-1 text-[11px] font-medium transition-colors ${
+                      match === m ? "bg-primary-pale text-primary" : "text-muted hover:text-foreground"
+                    }`}
+                  >
+                    {m === "AND" ? "ET (toutes)" : "OU (au moins une)"}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Saved cohorts — a name attached to the filter combination
           above, nothing more. Applying one sets the same state the
           manual controls set, so it stays editable afterwards. */}
@@ -660,7 +905,7 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
           Cohorts :
         </span>
 
-        {cohorts.length === 0 && !behavior && (
+        {cohorts.length === 0 && conditions.length === 0 && (
           <span className="text-[12px] text-muted-light">
             Aucun cohort sauvegardé pour l&apos;instant.
           </span>
@@ -684,13 +929,13 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
           </span>
         ))}
 
-        {behavior && isTrivialDefault && (
+        {conditions.length > 0 && isTrivialDefault && (
           <span className="text-[11.5px] text-muted-light">
             Déjà accessible en un clic ci-dessus — inutile à sauvegarder.
           </span>
         )}
 
-        {behavior && !isTrivialDefault && (
+        {conditions.length > 0 && !isTrivialDefault && (
           <div className="flex items-center gap-1.5">
             <input
               type="text"
@@ -802,7 +1047,7 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
 
           {/* Session list */}
           <div className="flex max-h-[460px] flex-col overflow-hidden rounded-lg border border-border bg-surface">
-            {behavior && !loading && (
+            {conditions.length > 0 && !loading && (
               <p className="border-b border-border px-4 py-2 text-[11.5px] text-muted-light">
                 <span className="font-medium text-foreground">{replays.length}</span>{" "}
                 session{replays.length > 1 ? "s" : ""} trouvée{replays.length > 1 ? "s" : ""}

@@ -63,6 +63,41 @@ async function resolveBehaviorSessionIds(
   return { ids: null, error: `Unknown behavior filter: ${behavior}` };
 }
 
+/**
+ * The general cohort builder (supabase/cohort-builder.sql) — an
+ * arbitrary AND/OR combination of conditions, sent as a JSON-encoded
+ * array rather than the fixed behavior/scroll_max/funnel_id params
+ * above. Takes priority over `behavior` when both are present (the
+ * UI never sends both at once, but the route shouldn't guess if it
+ * did).
+ */
+async function resolveConditionSessionIds(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  siteId: string,
+  since: string,
+  searchParams: URLSearchParams
+): Promise<{ ids: string[] | null; error?: string }> {
+  const raw = searchParams.get("conditions");
+  if (!raw) return { ids: null };
+
+  let conditions: unknown;
+  try {
+    conditions = JSON.parse(raw);
+  } catch {
+    return { ids: null, error: "conditions must be valid JSON" };
+  }
+
+  const match = searchParams.get("match") === "OR" ? "OR" : "AND";
+  const { data, error } = await supabase.rpc("resolve_cohort_sessions", {
+    p_site: siteId,
+    p_since: since,
+    p_conditions: conditions,
+    p_match: match,
+  });
+  if (error) return { ids: null, error: error.message };
+  return { ids: (data ?? []).map((r: { session_id: string }) => r.session_id) };
+}
+
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -113,15 +148,18 @@ export async function GET(req: NextRequest) {
       Date.now() - (PERIODS[period] ?? 30) * 86_400_000
     ).toISOString();
 
-    const behavior = await resolveBehaviorSessionIds(supabase, siteId, since, searchParams);
-    if (behavior.error) {
-      return NextResponse.json({ error: behavior.error }, { status: 400 });
+    const hasConditions = searchParams.has("conditions");
+    const filtered = hasConditions
+      ? await resolveConditionSessionIds(supabase, siteId, since, searchParams)
+      : await resolveBehaviorSessionIds(supabase, siteId, since, searchParams);
+    if (filtered.error) {
+      return NextResponse.json({ error: filtered.error }, { status: 400 });
     }
 
-    // No matching session at all for the requested behaviour — skip the
+    // No matching session at all for the requested filter — skip the
     // second query rather than asking list_session_replays to filter
     // against an empty set.
-    if (behavior.ids && behavior.ids.length === 0) {
+    if (filtered.ids && filtered.ids.length === 0) {
       return NextResponse.json({ replays: [], total: 0 });
     }
 
@@ -133,7 +171,7 @@ export async function GET(req: NextRequest) {
       p_limit: limit,
       p_offset: offset,
       p_path: path,
-      p_session_ids: behavior.ids,
+      p_session_ids: filtered.ids,
     });
 
     if (error) {
