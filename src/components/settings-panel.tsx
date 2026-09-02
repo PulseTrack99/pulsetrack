@@ -18,6 +18,7 @@ import {
   Ban,
   Users,
   Mail,
+  Bell,
 } from "lucide-react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
@@ -461,6 +462,39 @@ function SitesSection({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedShareId, setCopiedShareId] = useState<string | null>(null);
   const [togglingShareId, setTogglingShareId] = useState<string | null>(null);
+  const [alertRules, setAlertRules] = useState<Record<string, { enabled: boolean; threshold_pct: number }>>({});
+  const [savingAlertId, setSavingAlertId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all(
+      sites.map((s) =>
+        fetch(`/api/alerts?site_id=${s.id}`)
+          .then((r) => r.json())
+          .then((d) => [s.id, d.rule ?? { enabled: false, threshold_pct: 50 }] as const)
+      )
+    ).then((pairs) => {
+      if (!cancelled) setAlertRules(Object.fromEntries(pairs));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sites.length]);
+
+  async function saveAlert(siteId: string, next: { enabled: boolean; threshold_pct: number }) {
+    setAlertRules((r) => ({ ...r, [siteId]: next }));
+    setSavingAlertId(siteId);
+    try {
+      await fetch("/api/alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ site_id: siteId, ...next }),
+      });
+    } finally {
+      setSavingAlertId(null);
+    }
+  }
 
   async function handleDeleteSite(siteId: string) {
     setDeletingId(siteId);
@@ -651,6 +685,57 @@ function SitesSection({
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   </div>
+                )}
+              </div>
+
+              {/* Traffic drop alert */}
+              <div className="mt-3 pt-3 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Bell className="h-3.5 w-3.5 text-muted" />
+                    <span className="text-xs text-muted">Alerte de chute de trafic</span>
+                  </div>
+                  <button
+                    onClick={() =>
+                      saveAlert(site.id, {
+                        enabled: !alertRules[site.id]?.enabled,
+                        threshold_pct: alertRules[site.id]?.threshold_pct ?? 50,
+                      })
+                    }
+                    disabled={savingAlertId === site.id}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                      alertRules[site.id]?.enabled ? "bg-primary" : "bg-gray-300 dark:bg-gray-600"
+                    }`}
+                  >
+                    {savingAlertId === site.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin mx-auto text-white" />
+                    ) : (
+                      <span
+                        className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                          alertRules[site.id]?.enabled ? "translate-x-[18px]" : "translate-x-[3px]"
+                        }`}
+                      />
+                    )}
+                  </button>
+                </div>
+                {alertRules[site.id]?.enabled && (
+                  <label className="mt-2 flex items-center gap-1.5 text-xs text-muted">
+                    Nous alerter par email si le trafic chute de plus de
+                    <input
+                      type="number"
+                      min={1}
+                      max={99}
+                      value={alertRules[site.id]?.threshold_pct ?? 50}
+                      onChange={(e) =>
+                        saveAlert(site.id, {
+                          enabled: true,
+                          threshold_pct: Math.max(1, Math.min(99, Number(e.target.value))),
+                        })
+                      }
+                      className="w-14 rounded-md border border-border bg-background px-1.5 py-1 text-xs outline-none focus:border-primary"
+                    />
+                    % vs la semaine dernière
+                  </label>
                 )}
               </div>
 

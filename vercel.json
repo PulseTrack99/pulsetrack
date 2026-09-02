@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/purge-retention",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/check-alerts",
+      "schedule": "0 9 * * *"
     }
   ]
 }
