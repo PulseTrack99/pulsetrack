@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { HeatmapPanel } from "@/components/heatmap-panel";
 
@@ -30,7 +31,11 @@ export default async function HeatmapsPage() {
         </p>
       </div>
 
-      <HeatmapPanel sites={sites ?? []} />
+      {/* useSearchParams (for the ?site=&path= cross-link from a replay)
+          requires a Suspense boundary around whatever reads it. */}
+      <Suspense fallback={null}>
+        <HeatmapPanel sites={sites ?? []} />
+      </Suspense>
     </div>
   );
 }

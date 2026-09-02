@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   MousePointerClick,
   AlertTriangle,
@@ -13,6 +14,8 @@ import {
   Layers,
   ExternalLink,
   Lock,
+  Video,
+  Clock,
 } from "lucide-react";
 import { HeatmapCanvas, type Point } from "./heatmap-canvas";
 import { PageWireframe, type SnapshotElement } from "./page-wireframe";
@@ -101,9 +104,27 @@ function Metric({
   );
 }
 
+interface ReplayRow {
+  id: string;
+  replay_id: string;
+  path: string | null;
+  device: string | null;
+  started_at: string;
+  duration_ms: number;
+  has_rage: boolean;
+}
+
 export function HeatmapPanel({ sites }: { sites: Site[] }) {
-  const [siteId, setSiteId] = useState(sites[0]?.id ?? "");
-  const [path, setPath] = useState<string | null>(null);
+  // Arriving from "Heatmap de cette page" on a replay carries ?site= and
+  // ?path= — read once on mount so the map opens already scoped to the
+  // page that was being watched.
+  const initial = useSearchParams();
+  const [siteId, setSiteId] = useState(
+    initial.get("site") && sites.some((s) => s.id === initial.get("site"))
+      ? initial.get("site")!
+      : (sites[0]?.id ?? "")
+  );
+  const [path, setPath] = useState<string | null>(initial.get("path"));
   // null lets the server pick the breakpoint with the most data.
   const [device, setDevice] = useState<string | null>(null);
   const [period, setPeriod] = useState("30d");
@@ -147,6 +168,39 @@ export function HeatmapPanel({ sites }: { sites: Site[] }) {
       cancelled = true;
     };
   }, [siteId, path, device, period]);
+
+  // A short list of individual sessions on the same page — the pivot
+  // from "here's the aggregate pattern" to "show me one person's actual
+  // journey" that a heatmap alone can't give you.
+  const [replays, setReplays] = useState<ReplayRow[]>([]);
+
+  useEffect(() => {
+    if (!siteId || !stats?.path) {
+      setReplays([]);
+      return;
+    }
+    let cancelled = false;
+
+    const params = new URLSearchParams({
+      site_id: siteId,
+      path: stats.path,
+      period,
+      limit: "5",
+    });
+
+    fetch(`/api/replay/list?${params}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setReplays(data.replays ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setReplays([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [siteId, stats?.path, period]);
 
   if (sites.length === 0) {
     return (
@@ -455,6 +509,45 @@ export function HeatmapPanel({ sites }: { sites: Site[] }) {
 
         {/* Side panels */}
         <div className="space-y-5">
+          {/* Sessions on this page */}
+          {replays.length > 0 && (
+            <div className="rounded-lg border border-border bg-surface p-4">
+              <h3 className="flex items-center gap-1.5 text-[13px] font-medium">
+                <Video className="h-3.5 w-3.5 text-primary" />
+                Sessions sur cette page
+              </h3>
+              <p className="mt-0.5 text-[11px] text-muted-light">
+                Regardez ce que ces visiteurs ont fait, pas juste où ils ont
+                cliqué
+              </p>
+              <div className="mt-3 space-y-1">
+                {replays.map((r) => (
+                  <Link
+                    key={r.id}
+                    href={`/dashboard/replays?site=${siteId}&path=${encodeURIComponent(r.path ?? "")}`}
+                    className="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-[12px] transition-colors hover:bg-surface-hover"
+                  >
+                    <span className="flex items-center gap-1.5 text-muted">
+                      <Clock className="h-3 w-3 text-muted-light" />
+                      {Math.round(r.duration_ms / 1000)}s · {r.device ?? "—"}
+                    </span>
+                    {r.has_rage && (
+                      <span title="Clic de rage détecté">
+                        <AlertTriangle className="h-3 w-3 text-coral" />
+                      </span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+              <Link
+                href={`/dashboard/replays?site=${siteId}&path=${encodeURIComponent(stats?.path ?? "")}`}
+                className="mt-3 block text-center text-[11.5px] text-primary hover:underline"
+              >
+                Voir toutes les sessions →
+              </Link>
+            </div>
+          )}
+
           {/* Scroll depth */}
           <div className="rounded-lg border border-border bg-surface p-4">
             <h3 className="text-[13px] font-medium">Profondeur de scroll</h3>

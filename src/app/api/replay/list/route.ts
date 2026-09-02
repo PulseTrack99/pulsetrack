@@ -19,8 +19,12 @@ export async function GET(req: NextRequest) {
     const siteId = searchParams.get("site_id");
     const period = searchParams.get("period") || "30d";
     const device = searchParams.get("device") || null;
+    const path = searchParams.get("path") || null;
     const rageOnly = searchParams.get("rage") === "1";
     const offset = Number(searchParams.get("offset") || 0);
+    // Capped rather than trusted outright — this also serves the compact
+    // "sessions on this page" list the heatmap view asks for.
+    const limit = Math.max(1, Math.min(30, Number(searchParams.get("limit") || 30)));
 
     if (!siteId) {
       return NextResponse.json({ error: "site_id is required" }, { status: 400 });
@@ -54,8 +58,9 @@ export async function GET(req: NextRequest) {
       p_since: since,
       p_device: device,
       p_rage_only: rageOnly,
-      p_limit: 30,
+      p_limit: limit,
       p_offset: offset,
+      p_path: path,
     });
 
     if (error) {

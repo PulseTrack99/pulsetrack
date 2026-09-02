@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
   Video,
@@ -11,6 +12,8 @@ import {
   Tablet,
   Lock,
   Clock,
+  Flame,
+  X,
 } from "lucide-react";
 
 const SessionReplayPlayer = dynamic(
@@ -68,7 +71,17 @@ function formatDuration(ms: number): string {
 }
 
 export function SessionReplayPanel({ sites }: { sites: Site[] }) {
-  const [siteId, setSiteId] = useState(sites[0]?.id ?? "");
+  // Arriving from "Sessions sur cette page" on the heatmap view carries
+  // ?site= and ?path= — read once on mount so the list opens already
+  // scoped to what was clicked, rather than making the visitor redo the
+  // filtering.
+  const initial = useSearchParams();
+  const [siteId, setSiteId] = useState(
+    initial.get("site") && sites.some((s) => s.id === initial.get("site"))
+      ? initial.get("site")!
+      : (sites[0]?.id ?? "")
+  );
+  const [path, setPath] = useState<string | null>(initial.get("path"));
   const [period, setPeriod] = useState("30d");
   const [device, setDevice] = useState<string | null>(null);
   const [rageOnly, setRageOnly] = useState(false);
@@ -94,6 +107,7 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
       try {
         const params = new URLSearchParams({ site_id: siteId, period });
         if (device) params.set("device", device);
+        if (path) params.set("path", path);
         if (rageOnly) params.set("rage", "1");
 
         const res = await fetch(`/api/replay/list?${params}`);
@@ -118,7 +132,7 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
     return () => {
       cancelled = true;
     };
-  }, [siteId, period, device, rageOnly]);
+  }, [siteId, period, device, path, rageOnly]);
 
   useEffect(() => {
     if (!selected) {
@@ -195,6 +209,7 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
             onChange={(e) => {
               setSiteId(e.target.value);
               setSelected(null);
+              setPath(null);
             }}
             className="rounded-sm border border-border bg-surface px-3 py-2 text-[13px] outline-none focus:border-primary"
           >
@@ -252,6 +267,19 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
           <AlertTriangle className="h-3.5 w-3.5" />
           Clics de rage uniquement
         </button>
+
+        {path && (
+          <span className="flex items-center gap-1.5 rounded-sm border border-primary/30 bg-primary-pale px-2.5 py-1.5 text-[12px] text-primary">
+            Page : {path}
+            <button
+              onClick={() => setPath(null)}
+              className="rounded-xs p-0.5 hover:bg-primary/10"
+              title="Retirer le filtre"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        )}
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
@@ -332,11 +360,22 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
 
           {selected && !eventsError && (
             <>
-              <div className="mb-3">
-                <p className="text-[13px] font-medium">{selected.path || "/"}</p>
-                <p className="text-[11.5px] text-muted-light">
-                  {site?.domain} · {selected.browser} · {selected.country}
-                </p>
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[13px] font-medium">{selected.path || "/"}</p>
+                  <p className="text-[11.5px] text-muted-light">
+                    {site?.domain} · {selected.browser} · {selected.country}
+                  </p>
+                </div>
+                {selected.path && (
+                  <Link
+                    href={`/dashboard/heatmaps?site=${siteId}&path=${encodeURIComponent(selected.path)}`}
+                    className="flex shrink-0 items-center gap-1.5 rounded-sm border border-border px-2.5 py-1.5 text-[11.5px] text-muted transition-colors hover:border-primary/40 hover:text-primary"
+                  >
+                    <Flame className="h-3.5 w-3.5" />
+                    Heatmap de cette page
+                  </Link>
+                )}
               </div>
               {events ? (
                 <SessionReplayPlayer events={events} />

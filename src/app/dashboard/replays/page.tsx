@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { SessionReplayPanel } from "@/components/session-replay-panel";
 
@@ -30,7 +31,12 @@ export default async function ReplaysPage() {
         </p>
       </div>
 
-      <SessionReplayPanel sites={sites ?? []} />
+      {/* useSearchParams (for the ?site=&path= cross-link from the
+          heatmap view) requires a Suspense boundary around whatever
+          reads it. */}
+      <Suspense fallback={null}>
+        <SessionReplayPanel sites={sites ?? []} />
+      </Suspense>
     </div>
   );
 }
