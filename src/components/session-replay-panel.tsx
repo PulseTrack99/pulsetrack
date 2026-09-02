@@ -219,6 +219,20 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
     setRageOnly(c.rage_only);
   }
 
+  // A cohort is only worth naming when it takes more than the one
+  // click the manual buttons already give you — the plain default of
+  // each behavior (25% scroll, first funnel's first step, no
+  // conversion with nothing else on) is already a single click away,
+  // so offering to "save" it would just be confusing busywork.
+  const isTrivialDefault = useMemo(() => {
+    if (!behavior) return true;
+    if (device || rageOnly) return false;
+    if (behavior === "low_scroll") return scrollMax === 25;
+    if (behavior === "no_conversion") return true;
+    if (behavior === "funnel_dropoff") return funnelId === funnels[0]?.id && step === 0;
+    return false;
+  }, [behavior, scrollMax, device, rageOnly, funnelId, step, funnels]);
+
   async function saveCohort() {
     const name = cohortName.trim();
     if (!name || !siteId) return;
@@ -670,7 +684,13 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
           </span>
         ))}
 
-        {behavior && (
+        {behavior && isTrivialDefault && (
+          <span className="text-[11.5px] text-muted-light">
+            Déjà accessible en un clic ci-dessus — inutile à sauvegarder.
+          </span>
+        )}
+
+        {behavior && !isTrivialDefault && (
           <div className="flex items-center gap-1.5">
             <input
               type="text"
