@@ -19,9 +19,9 @@ export async function sendEmail({
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      // resend.dev needs no domain verification — good enough until
-      // a branded sending domain (e.g. alertes@pulsetrack.io) is set up.
-      from: "PulseTrack <onboarding@resend.dev>",
+      // pulsetrack.eu verified on Resend (SPF/DKIM/DMARC) — branded
+      // sender instead of the resend.dev sandbox address.
+      from: "PulseTrack <alerts@pulsetrack.eu>",
       to,
       subject,
       html,

@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { FEATURE_SLUGS } from "@/content/features";
 
 const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://pulsetrack-sigma.vercel.app";
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://pulsetrack.eu";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();

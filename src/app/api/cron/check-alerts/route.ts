@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
         html: `
           <p>Le trafic de <strong>${site.name}</strong> (${site.domain}) a chuté de <strong>${dropPct}%</strong> par rapport à la même période la semaine dernière.</p>
           <p>${todayCount} visiteurs sur les dernières 24h, contre ${lastWeekCount} la semaine précédente.</p>
-          <p><a href="https://pulsetrack-sigma.vercel.app/dashboard">Voir le dashboard</a></p>
+          <p><a href="${process.env.NEXT_PUBLIC_SITE_URL ?? "https://pulsetrack.eu"}/dashboard">Voir le dashboard</a></p>
           <p style="color:#888;font-size:12px">Vous recevez cet email parce qu'une alerte de chute de trafic est activée sur ce site — réglable depuis Paramètres.</p>
         `,
       });

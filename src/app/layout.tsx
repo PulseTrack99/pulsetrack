@@ -19,7 +19,7 @@ const serif = Instrument_Serif({
 });
 
 export const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://pulsetrack-sigma.vercel.app";
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://pulsetrack.eu";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
