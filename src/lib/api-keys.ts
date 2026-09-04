@@ -1,6 +1,7 @@
 import { randomBytes, createHash } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getUserPlan, planHas } from "@/lib/plan";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 /**
  * API key generation, hashing, and shared resolution — used by both the
@@ -75,21 +76,19 @@ export async function resolveApiKey(
   return { keyId: key.id, site, plan };
 }
 
-// In-memory, per key — same shape as the tracker ingest route's
-// (src/app/api/track/route.ts). Shared across the REST API and the MCP
-// server so a client can't double its effective quota by splitting
-// calls between the two surfaces.
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+// Persistent (supabase/rate-limits.sql) — survives across serverless
+// invocations, unlike an in-memory Map. "apikey:" namespaces this
+// counter apart from the MCP server's "oauth:" one (src/app/api/mcp/
+// route.ts) so the two auth methods don't share a quota by accident,
+// while both still cap at the same 60/min a client could reach via
+// either the REST API or MCP.
 const RATE_LIMIT = 60;
-const RATE_WINDOW = 60_000;
+const RATE_WINDOW_SECONDS = 60;
 
-export function isApiKeyRateLimited(keyId: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(keyId);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(keyId, { count: 1, resetAt: now + RATE_WINDOW });
-    return false;
-  }
-  entry.count++;
-  return entry.count > RATE_LIMIT;
+export async function isApiKeyRateLimited(
+  supabase: SupabaseClient,
+  keyId: string
+): Promise<boolean> {
+  const withinLimit = await checkRateLimit(supabase, `apikey:${keyId}`, RATE_LIMIT, RATE_WINDOW_SECONDS);
+  return !withinLimit;
 }

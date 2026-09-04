@@ -137,5 +137,10 @@ export async function GET(req: NextRequest) {
   // statement in supabase/privacy.sql, now part of the recurring job).
   await supabase.from("daily_salts").delete().lt("day", new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10));
 
+  // check_rate_limit() (supabase/rate-limits.sql) writes one row per
+  // key per 60s window — nothing ever reads a window after it closes,
+  // so anything over an hour old is just accumulated dead weight.
+  await supabase.from("rate_limits").delete().lt("window_start", new Date(Date.now() - 3_600_000).toISOString());
+
   return NextResponse.json(summary);
 }

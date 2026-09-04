@@ -3,6 +3,7 @@ import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { z } from "zod";
 import { resolveApiKey, isApiKeyRateLimited, type ResolvedApiKey } from "@/lib/api-keys";
 import { resolveOAuthToken, type ResolvedOAuthToken } from "@/lib/oauth";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { getSiteStats } from "@/lib/stats";
 import { getSiteRevenue } from "@/lib/revenue";
 import { planHas } from "@/lib/plan";
@@ -267,22 +268,22 @@ const handler = withMcpAuth(
 
     // "pta_..." — issued by the OAuth flow (src/app/oauth/authorize,
     // src/app/api/oauth/token) after "Se connecter avec PulseTrack".
-    // Anything else is a manually-generated "pt_live_..." key.
-    // Neither path shares a rate limiter with the other by accident —
-    // resolveOAuthToken has none (tokens are short-lived and already
-    // scoped to one consent grant); resolveApiKey's is still enforced
-    // below only on that branch, matching the REST API.
+    // Anything else is a manually-generated "pt_live_..." key. Each
+    // gets its own persistent counter ("oauth:"/"apikey:" namespaced,
+    // src/lib/rate-limit.ts) so the two auth methods enforce the same
+    // 60/min without sharing a quota by accident.
     let resolved: ResolvedApiKey | ResolvedOAuthToken | null;
     let clientId: string;
     if (plaintext.startsWith("pta_")) {
       resolved = await resolveOAuthToken(supabase, plaintext);
       if (!resolved) return undefined;
       clientId = (resolved as ResolvedOAuthToken).tokenId;
+      if (!(await checkRateLimit(supabase, `oauth:${clientId}`, 60, 60))) return undefined;
     } else {
       resolved = await resolveApiKey(supabase, plaintext);
       if (!resolved) return undefined;
       const apiKeyResolved = resolved as ResolvedApiKey;
-      if (isApiKeyRateLimited(apiKeyResolved.keyId)) return undefined;
+      if (await isApiKeyRateLimited(supabase, apiKeyResolved.keyId)) return undefined;
       clientId = apiKeyResolved.keyId;
     }
 

@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    if (isApiKeyRateLimited(resolved.keyId)) {
+    if (await isApiKeyRateLimited(supabase, resolved.keyId)) {
       return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
     }
 

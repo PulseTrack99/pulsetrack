@@ -7,6 +7,7 @@ import {
   getClientIp,
 } from "@/lib/visitor";
 import { getSiteOwner, getUserPlan, recordEvent } from "@/lib/plan";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 // Use service-level client for ingestion (no auth needed — events come from visitors)
 const supabase = createClient(
@@ -14,22 +15,12 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// Simple in-memory rate limiter (per IP, 100 events/min)
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT = 100;
-const RATE_WINDOW = 60_000; // 1 minute
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW });
-    return false;
-  }
-
-  entry.count++;
-  return entry.count > RATE_LIMIT;
+// Persistent (supabase/rate-limits.sql) — an in-memory Map here reset
+// on every cold start / across every serverless instance on Vercel,
+// so it never reliably capped anything under real traffic.
+async function isRateLimited(ip: string): Promise<boolean> {
+  const withinLimit = await checkRateLimit(supabase, `ip:${ip}`, 100, 60);
+  return !withinLimit;
 }
 
 // Parse country from headers (Vercel/Cloudflare provide this)
@@ -101,7 +92,7 @@ export async function POST(req: NextRequest) {
     // visitor id below. Never written to the database.
     const ip = getClientIp(req.headers);
 
-    if (isRateLimited(ip)) {
+    if (await isRateLimited(ip)) {
       return NextResponse.json(
         { error: "Rate limited" },
         { status: 429, headers: { "Access-Control-Allow-Origin": "*" } }
