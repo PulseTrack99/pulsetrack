@@ -6,6 +6,7 @@ import { ArrowRight, Check } from "lucide-react";
 import { getLocale } from "@/i18n/get-locale";
 import { dictionaries } from "@/i18n/dictionaries";
 import { FEATURE_SLUGS, getFeature, type FeatureSlug } from "@/content/features";
+import { getAssistantFaq } from "@/content/assistant-faq";
 
 import { SiteNav } from "@/components/marketing/site-nav";
 import { Assistant } from "@/components/marketing/assistant";
@@ -269,7 +270,7 @@ export default async function FeaturePageRoute({
         legal={t.footer.legal}
       />
 
-      <Assistant t={t.assistant} />
+      <Assistant t={t.assistant} faq={getAssistantFaq(locale)} />
 
       <script
         type="application/ld+json"

@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Sparkles, X, ArrowUp } from "lucide-react";
+import type { FaqEntry } from "@/content/assistant-faq";
+import { findAnswer } from "@/lib/assistant-match";
 
 export interface AssistantLabels {
   pill: string;
@@ -14,10 +16,13 @@ export interface AssistantLabels {
 }
 
 /**
- * Floating assistant. Answers come from a scripted intro today — the panel is
- * wired so a real endpoint can replace `reply()` without touching the shell.
+ * Floating assistant. Answers come from a fixed bank (src/content/
+ * assistant-faq.ts) matched client-side by keyword overlap (src/lib/
+ * assistant-match.ts) — no API call, so no per-visitor cost. Falls back to
+ * `t.answer` when nothing matches well enough. The panel is still wired so
+ * a real endpoint can replace this lookup later without touching the shell.
  */
-export function Assistant({ t }: { t: AssistantLabels }) {
+export function Assistant({ t, faq }: { t: AssistantLabels; faq: FaqEntry[] }) {
   const [open, setOpen] = useState(false);
   const [thread, setThread] = useState<{ role: "user" | "bot"; text: string }[]>(
     []
@@ -33,12 +38,13 @@ export function Assistant({ t }: { t: AssistantLabels }) {
   function send(text: string) {
     const q = text.trim();
     if (!q) return;
+    const reply = findAnswer(q, faq) ?? t.answer;
     setThread((p) => [...p, { role: "user", text: q }]);
     setDraft("");
     setTyping(true);
     window.setTimeout(() => {
       setTyping(false);
-      setThread((p) => [...p, { role: "bot", text: t.answer }]);
+      setThread((p) => [...p, { role: "bot", text: reply }]);
     }, 700);
   }
 

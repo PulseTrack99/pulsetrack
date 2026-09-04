@@ -6,6 +6,7 @@ import { SiteNav } from "@/components/marketing/site-nav";
 import { ProductShowcase } from "@/components/marketing/product-showcase";
 import { AiConnect } from "@/components/marketing/ai-connect";
 import { Assistant } from "@/components/marketing/assistant";
+import { getAssistantFaq } from "@/content/assistant-faq";
 import { Reveal } from "@/components/marketing/reveal";
 import {
   FeatureBlock,
@@ -228,7 +229,7 @@ export default async function Home() {
         legal={t.footer.legal}
       />
 
-      <Assistant t={t.assistant} />
+      <Assistant t={t.assistant} faq={getAssistantFaq(locale)} />
     </>
   );
 }
