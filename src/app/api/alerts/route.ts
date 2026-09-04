@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("alert_rules")
-    .select("id, type, threshold_pct, enabled, last_triggered_at")
+    .select("id, type, threshold_pct, enabled, webhook_url, last_triggered_at")
     .eq("site_id", siteId)
     .eq("type", "traffic_drop")
     .maybeSingle();
@@ -42,15 +42,45 @@ export async function POST(req: NextRequest) {
 
   if (!siteId) return NextResponse.json({ error: "site_id is required" }, { status: 400 });
 
+  // The cron fetches this URL server-side (src/lib/webhook-alert.ts) —
+  // an unvalidated URL here is an SSRF vector, so only Slack's and
+  // Discord's own incoming-webhook hosts are accepted. Omitting the
+  // field entirely leaves whatever was saved before untouched; sending
+  // it as an empty string clears it — the same two-state convention
+  // as everything else in this route.
+  const row: Record<string, unknown> = {
+    site_id: siteId,
+    type: "traffic_drop",
+    threshold_pct: threshold,
+    enabled,
+  };
+  if ("webhook_url" in body) {
+    const raw = typeof body.webhook_url === "string" ? body.webhook_url.trim() : "";
+    if (!raw) {
+      row.webhook_url = null;
+    } else {
+      let host = "";
+      try {
+        host = new URL(raw).hostname;
+      } catch {
+        return NextResponse.json({ error: "URL de webhook invalide" }, { status: 400 });
+      }
+      if (!["hooks.slack.com", "discord.com", "discordapp.com"].includes(host)) {
+        return NextResponse.json(
+          { error: "L'URL doit être un webhook Slack (hooks.slack.com) ou Discord (discord.com)" },
+          { status: 400 }
+        );
+      }
+      row.webhook_url = raw;
+    }
+  }
+
   // RLS (site_id must resolve to an accessible site) turns an attempt
   // to save against a foreign site into a clean failure here.
   const { data, error } = await supabase
     .from("alert_rules")
-    .upsert(
-      { site_id: siteId, type: "traffic_drop", threshold_pct: threshold, enabled },
-      { onConflict: "site_id,type" }
-    )
-    .select("id, type, threshold_pct, enabled, last_triggered_at")
+    .upsert(row, { onConflict: "site_id,type" })
+    .select("id, type, threshold_pct, enabled, webhook_url, last_triggered_at")
     .single();
 
   if (error) return NextResponse.json({ error: "Could not save alert" }, { status: 500 });

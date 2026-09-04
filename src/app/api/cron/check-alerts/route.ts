@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/email";
+import { sendWebhookAlert } from "@/lib/webhook-alert";
 
 /**
  * Turns PulseTrack from a dashboard someone has to remember to check
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
 
   const { data: rules, error: rulesError } = await supabase
     .from("alert_rules")
-    .select("id, site_id, threshold_pct, last_triggered_at, sites(name, domain, user_id)")
+    .select("id, site_id, threshold_pct, webhook_url, last_triggered_at, sites(name, domain, user_id)")
     .eq("type", "traffic_drop")
     .eq("enabled", true);
 
@@ -72,20 +73,52 @@ export async function GET(req: NextRequest) {
       const dropPct = Math.round((1 - todayCount / lastWeekCount) * 100);
       if (dropPct < rule.threshold_pct) continue;
 
+      const dashboardUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://pulsetrack.eu"}/dashboard`;
+
+      // Email and webhook are independent channels — one failing (a
+      // bad Resend response, a revoked Slack webhook) must not stop
+      // the other, and both together still count as one trigger for
+      // the cooldown below.
+      let delivered = false;
+
       const { data: owner } = await supabase.auth.admin.getUserById(site.user_id);
       const email = owner.user?.email;
-      if (!email) continue;
+      if (email) {
+        try {
+          await sendEmail({
+            to: email,
+            subject: `⚠️ Chute de trafic sur ${site.name}`,
+            html: `
+              <p>Le trafic de <strong>${site.name}</strong> (${site.domain}) a chuté de <strong>${dropPct}%</strong> par rapport à la même période la semaine dernière.</p>
+              <p>${todayCount} visiteurs sur les dernières 24h, contre ${lastWeekCount} la semaine précédente.</p>
+              <p><a href="${dashboardUrl}">Voir le dashboard</a></p>
+              <p style="color:#888;font-size:12px">Vous recevez cet email parce qu'une alerte de chute de trafic est activée sur ce site — réglable depuis Paramètres.</p>
+            `,
+          });
+          delivered = true;
+        } catch (err) {
+          summary.errors.push(`${rule.site_id}: email: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
 
-      await sendEmail({
-        to: email,
-        subject: `⚠️ Chute de trafic sur ${site.name}`,
-        html: `
-          <p>Le trafic de <strong>${site.name}</strong> (${site.domain}) a chuté de <strong>${dropPct}%</strong> par rapport à la même période la semaine dernière.</p>
-          <p>${todayCount} visiteurs sur les dernières 24h, contre ${lastWeekCount} la semaine précédente.</p>
-          <p><a href="${process.env.NEXT_PUBLIC_SITE_URL ?? "https://pulsetrack.eu"}/dashboard">Voir le dashboard</a></p>
-          <p style="color:#888;font-size:12px">Vous recevez cet email parce qu'une alerte de chute de trafic est activée sur ce site — réglable depuis Paramètres.</p>
-        `,
-      });
+      if (rule.webhook_url) {
+        try {
+          await sendWebhookAlert({
+            webhookUrl: rule.webhook_url,
+            siteName: site.name,
+            domain: site.domain,
+            dropPct,
+            todayCount,
+            lastWeekCount,
+            dashboardUrl,
+          });
+          delivered = true;
+        } catch (err) {
+          summary.errors.push(`${rule.site_id}: webhook: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+
+      if (!delivered) continue;
 
       await supabase.from("alert_rules").update({ last_triggered_at: new Date().toISOString() }).eq("id", rule.id);
       summary.triggered++;

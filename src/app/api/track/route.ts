@@ -67,6 +67,17 @@ function getSource(referrer: string | null): string {
       "reddit.com": "Reddit",
       "youtube.com": "YouTube",
       "t.co": "X (Twitter)",
+      // AI assistants sending traffic — previously fell through to the
+      // raw hostname (or worse, an unrelated bucket), invisible next to
+      // named channels like "Google" or "Reddit" even though this is
+      // exactly the kind of source a PulseTrack user cares about most.
+      "chatgpt.com": "ChatGPT",
+      "chat.openai.com": "ChatGPT",
+      "perplexity.ai": "Perplexity",
+      "claude.ai": "Claude",
+      "gemini.google.com": "Gemini",
+      "copilot.microsoft.com": "Copilot",
+      "you.com": "You.com",
     };
     return sourceMap[host] || host;
   } catch {

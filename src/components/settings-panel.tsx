@@ -462,8 +462,15 @@ function SitesSection({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedShareId, setCopiedShareId] = useState<string | null>(null);
   const [togglingShareId, setTogglingShareId] = useState<string | null>(null);
-  const [alertRules, setAlertRules] = useState<Record<string, { enabled: boolean; threshold_pct: number }>>({});
+  interface AlertRuleState {
+    enabled: boolean;
+    threshold_pct: number;
+    webhook_url: string | null;
+  }
+  const [alertRules, setAlertRules] = useState<Record<string, AlertRuleState>>({});
   const [savingAlertId, setSavingAlertId] = useState<string | null>(null);
+  const [webhookDraft, setWebhookDraft] = useState<Record<string, string>>({});
+  const [webhookError, setWebhookError] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -471,10 +478,16 @@ function SitesSection({
       sites.map((s) =>
         fetch(`/api/alerts?site_id=${s.id}`)
           .then((r) => r.json())
-          .then((d) => [s.id, d.rule ?? { enabled: false, threshold_pct: 50 }] as const)
+          .then(
+            (d) =>
+              [s.id, d.rule ?? { enabled: false, threshold_pct: 50, webhook_url: null }] as const
+          )
       )
     ).then((pairs) => {
-      if (!cancelled) setAlertRules(Object.fromEntries(pairs));
+      if (!cancelled) {
+        setAlertRules(Object.fromEntries(pairs));
+        setWebhookDraft(Object.fromEntries(pairs.map(([id, r]) => [id, r.webhook_url ?? ""])));
+      }
     });
     return () => {
       cancelled = true;
@@ -482,15 +495,28 @@ function SitesSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sites.length]);
 
-  async function saveAlert(siteId: string, next: { enabled: boolean; threshold_pct: number }) {
-    setAlertRules((r) => ({ ...r, [siteId]: next }));
+  async function saveAlert(siteId: string, next: Partial<AlertRuleState>) {
+    const merged = {
+      enabled: alertRules[siteId]?.enabled ?? false,
+      threshold_pct: alertRules[siteId]?.threshold_pct ?? 50,
+      webhook_url: alertRules[siteId]?.webhook_url ?? null,
+      ...next,
+    };
+    setAlertRules((r) => ({ ...r, [siteId]: merged }));
     setSavingAlertId(siteId);
+    setWebhookError((e) => ({ ...e, [siteId]: "" }));
     try {
-      await fetch("/api/alerts", {
+      const res = await fetch("/api/alerts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ site_id: siteId, ...next }),
+        body: JSON.stringify({ site_id: siteId, ...merged }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if ("webhook_url" in next) {
+          setWebhookError((e) => ({ ...e, [siteId]: data.error || "Erreur" }));
+        }
+      }
     } finally {
       setSavingAlertId(null);
     }
@@ -696,12 +722,7 @@ function SitesSection({
                     <span className="text-xs text-muted">Alerte de chute de trafic</span>
                   </div>
                   <button
-                    onClick={() =>
-                      saveAlert(site.id, {
-                        enabled: !alertRules[site.id]?.enabled,
-                        threshold_pct: alertRules[site.id]?.threshold_pct ?? 50,
-                      })
-                    }
+                    onClick={() => saveAlert(site.id, { enabled: !alertRules[site.id]?.enabled })}
                     disabled={savingAlertId === site.id}
                     className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                       alertRules[site.id]?.enabled ? "bg-primary" : "bg-gray-300 dark:bg-gray-600"
@@ -719,23 +740,50 @@ function SitesSection({
                   </button>
                 </div>
                 {alertRules[site.id]?.enabled && (
-                  <label className="mt-2 flex items-center gap-1.5 text-xs text-muted">
-                    Nous alerter par email si le trafic chute de plus de
-                    <input
-                      type="number"
-                      min={1}
-                      max={99}
-                      value={alertRules[site.id]?.threshold_pct ?? 50}
-                      onChange={(e) =>
-                        saveAlert(site.id, {
-                          enabled: true,
-                          threshold_pct: Math.max(1, Math.min(99, Number(e.target.value))),
-                        })
-                      }
-                      className="w-14 rounded-md border border-border bg-background px-1.5 py-1 text-xs outline-none focus:border-primary"
-                    />
-                    % vs la semaine dernière
-                  </label>
+                  <>
+                    <label className="mt-2 flex items-center gap-1.5 text-xs text-muted">
+                      Nous alerter par email si le trafic chute de plus de
+                      <input
+                        type="number"
+                        min={1}
+                        max={99}
+                        value={alertRules[site.id]?.threshold_pct ?? 50}
+                        onChange={(e) =>
+                          saveAlert(site.id, {
+                            threshold_pct: Math.max(1, Math.min(99, Number(e.target.value))),
+                          })
+                        }
+                        className="w-14 rounded-md border border-border bg-background px-1.5 py-1 text-xs outline-none focus:border-primary"
+                      />
+                      % vs la semaine dernière
+                    </label>
+
+                    <div className="mt-2">
+                      <label className="flex items-center gap-1.5 text-xs text-muted">
+                        Webhook Slack/Discord (optionnel)
+                      </label>
+                      <div className="mt-1 flex items-center gap-2">
+                        <input
+                          type="url"
+                          placeholder="https://hooks.slack.com/services/…"
+                          value={webhookDraft[site.id] ?? ""}
+                          onChange={(e) =>
+                            setWebhookDraft((d) => ({ ...d, [site.id]: e.target.value }))
+                          }
+                          onBlur={() => {
+                            const value = webhookDraft[site.id] ?? "";
+                            if (value !== (alertRules[site.id]?.webhook_url ?? "")) {
+                              saveAlert(site.id, { webhook_url: value || null });
+                            }
+                          }}
+                          className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-primary font-mono"
+                        />
+                      </div>
+                      {webhookError[site.id] && (
+                        <p className="mt-1 text-xs text-red-500">{webhookError[site.id]}</p>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
 

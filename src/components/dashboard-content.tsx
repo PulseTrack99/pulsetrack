@@ -17,6 +17,7 @@ import {
   Plus,
   Download,
   Lock,
+  X,
 } from "lucide-react";
 import { RealtimePanel } from "@/components/realtime-panel";
 
@@ -36,6 +37,12 @@ interface Stats {
   top_countries: { country: string; visitors: number }[];
   devices: { device: string; count: number }[];
   visitors_chart: { date: string; count: number }[];
+}
+
+interface Annotation {
+  id: string;
+  date: string;
+  label: string;
 }
 
 function StatCard({
@@ -78,12 +85,82 @@ function StatCard({
   );
 }
 
-function MiniBarChart({ data }: { data: { date: string; count: number }[] }) {
+function MiniBarChart({
+  data,
+  annotations,
+  onAdd,
+  onDelete,
+  addBusy,
+  deletingId,
+}: {
+  data: { date: string; count: number }[];
+  annotations: Annotation[];
+  onAdd: (date: string, label: string) => void;
+  onDelete: (id: string) => void;
+  addBusy: boolean;
+  deletingId: string | null;
+}) {
   const max = Math.max(...data.map((d) => d.count), 1);
+  const [showForm, setShowForm] = useState(false);
+  const [draftDate, setDraftDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [draftLabel, setDraftLabel] = useState("");
+
+  const byDate = new Map<string, Annotation[]>();
+  for (const a of annotations) {
+    const list = byDate.get(a.date) ?? [];
+    list.push(a);
+    byDate.set(a.date, list);
+  }
+
+  function submit() {
+    const label = draftLabel.trim();
+    if (!label) return;
+    onAdd(draftDate, label);
+    setDraftLabel("");
+    setShowForm(false);
+  }
 
   return (
     <div className="rounded-xl border border-border bg-background p-5">
-      <h3 className="text-sm font-semibold mb-4">Visiteurs — 30 derniers jours</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold">Visiteurs — 30 derniers jours</h3>
+        <button
+          onClick={() => setShowForm((v) => !v)}
+          className="flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors"
+          title="Marquer un événement (lancement, campagne, déploiement…)"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Annotation
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-2.5">
+          <input
+            type="date"
+            value={draftDate}
+            onChange={(e) => setDraftDate(e.target.value)}
+            className="rounded-md border border-border bg-background px-2 py-1 text-xs outline-none focus:border-primary"
+          />
+          <input
+            type="text"
+            value={draftLabel}
+            onChange={(e) => setDraftLabel(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+            placeholder="Ex. « Lancement early bird »"
+            maxLength={140}
+            className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1 text-xs outline-none focus:border-primary"
+          />
+          <button
+            onClick={submit}
+            disabled={addBusy || !draftLabel.trim()}
+            className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
+          >
+            Ajouter
+          </button>
+        </div>
+      )}
+
       <div className="flex items-end gap-[2px] h-32">
         {data.map((d, i) => (
           <div
@@ -94,6 +171,50 @@ function MiniBarChart({ data }: { data: { date: string; count: number }[] }) {
           />
         ))}
       </div>
+      {/* Marker row — same flex-1-per-day layout as the bars above, so
+          a dot lines up under its exact day without needing to know
+          pixel widths. */}
+      <div className="mt-1 flex items-center gap-[2px]">
+        {data.map((d, i) => {
+          const dayAnnotations = byDate.get(d.date);
+          return (
+            <div key={i} className="flex flex-1 justify-center">
+              {dayAnnotations && (
+                <span
+                  className="h-1.5 w-1.5 rounded-full bg-coral"
+                  title={dayAnnotations.map((a) => a.label).join(" · ")}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {annotations.length > 0 && (
+        <ul className="mt-3 space-y-1 border-t border-border pt-3">
+          {annotations.map((a) => (
+            <li key={a.id} className="flex items-center justify-between text-xs">
+              <span className="text-muted">
+                <span className="font-mono text-muted-light">
+                  {new Date(a.date + "T00:00:00").toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                  })}
+                </span>{" "}
+                — {a.label}
+              </span>
+              <button
+                onClick={() => onDelete(a.id)}
+                disabled={deletingId === a.id}
+                className="shrink-0 text-muted-light hover:text-red-500 disabled:opacity-50"
+                title="Supprimer"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -179,6 +300,37 @@ export function DashboardContent({ sites }: { sites: Site[] }) {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportLocked, setExportLocked] = useState(false);
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [addingAnnotation, setAddingAnnotation] = useState(false);
+  const [deletingAnnotationId, setDeletingAnnotationId] = useState<string | null>(null);
+
+  async function addAnnotation(date: string, label: string) {
+    if (!selectedSite) return;
+    setAddingAnnotation(true);
+    try {
+      const res = await fetch("/api/annotations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ site_id: selectedSite, date, label }),
+      });
+      if (res.ok) {
+        const { annotation } = await res.json();
+        setAnnotations((a) => [...a, annotation].sort((x, y) => x.date.localeCompare(y.date)));
+      }
+    } finally {
+      setAddingAnnotation(false);
+    }
+  }
+
+  async function deleteAnnotation(id: string) {
+    setDeletingAnnotationId(id);
+    try {
+      const res = await fetch(`/api/annotations/${id}`, { method: "DELETE" });
+      if (res.ok) setAnnotations((a) => a.filter((x) => x.id !== id));
+    } finally {
+      setDeletingAnnotationId(null);
+    }
+  }
 
   async function exportCsv() {
     if (!selectedSite || exporting) return;
@@ -232,6 +384,15 @@ export function DashboardContent({ sites }: { sites: Site[] }) {
 
     fetchStats();
   }, [selectedSite, period]);
+
+  useEffect(() => {
+    if (!selectedSite) return;
+    const since = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+    fetch(`/api/annotations?site_id=${selectedSite}&since=${since}`)
+      .then((r) => r.json())
+      .then((d) => setAnnotations(d.annotations ?? []))
+      .catch(() => setAnnotations([]));
+  }, [selectedSite]);
 
   if (sites.length === 0) {
     return <EmptyState />;
@@ -340,7 +501,14 @@ export function DashboardContent({ sites }: { sites: Site[] }) {
       </div>
 
       {/* Chart */}
-      <MiniBarChart data={displayStats.visitors_chart} />
+      <MiniBarChart
+        data={displayStats.visitors_chart}
+        annotations={annotations}
+        onAdd={addAnnotation}
+        onDelete={deleteAnnotation}
+        addBusy={addingAnnotation}
+        deletingId={deletingAnnotationId}
+      />
 
       {/* Rankings */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
