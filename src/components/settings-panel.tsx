@@ -922,6 +922,9 @@ function ApiKeysSection({
             Une clé par site donne un accès en lecture aux mêmes statistiques
             que le dashboard, via <code className="rounded bg-surface px-1 py-0.5">GET /api/v1/stats</code>{" "}
             avec l&apos;en-tête <code className="rounded bg-surface px-1 py-0.5">Authorization: Bearer &lt;clé&gt;</code>.
+            {" "}Sur l&apos;offre Business, la même clé donne aussi accès aux événements bruts (
+            <code className="rounded bg-surface px-1 py-0.5">GET /api/v1/events</code>, paginé par
+            curseur) pour alimenter votre propre entrepôt de données.
           </p>
 
           <div className="rounded-lg border border-primary/20 bg-primary-pale/30 p-4">

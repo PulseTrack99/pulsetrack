@@ -133,6 +133,7 @@ export const PLANS = {
       "API access",
       "Support prioritaire",
       "Export CSV",
+      "Export brut des événements (API)",
     ],
   },
 } as const;
