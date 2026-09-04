@@ -20,6 +20,18 @@ function detectPlatform(url: string): WebhookPlatform {
   }
 }
 
+async function postToWebhook(webhookUrl: string, body: unknown): Promise<void> {
+  const res = await fetch(webhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => "");
+    throw new Error(`Webhook delivery failed (${res.status}): ${errBody}`);
+  }
+}
+
 export interface WebhookAlertParams {
   webhookUrl: string;
   siteName: string;
@@ -56,14 +68,38 @@ export async function sendWebhookAlert(params: WebhookAlertParams): Promise<void
         // accepts a bare {text: "..."} payload.
         { text: message };
 
-  const res = await fetch(webhookUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  await postToWebhook(webhookUrl, body);
+}
 
-  if (!res.ok) {
-    const errBody = await res.text().catch(() => "");
-    throw new Error(`Webhook delivery failed (${res.status}): ${errBody}`);
-  }
+export interface WebhookDigestParams {
+  webhookUrl: string;
+  siteName: string;
+  summary: string;
+  dashboardUrl: string;
+}
+
+/** Weekly proactive-insights digest (src/app/api/cron/weekly-insights)
+ *  — same delivery mechanics as sendWebhookAlert, different content
+ *  shape (one narrative summary rather than three fixed numbers). */
+export async function sendWebhookDigest(params: WebhookDigestParams): Promise<void> {
+  const { webhookUrl, siteName, summary, dashboardUrl } = params;
+  const platform = detectPlatform(webhookUrl);
+
+  const body =
+    platform === "discord"
+      ? {
+          embeds: [
+            {
+              title: `🔎 Insights de la semaine — ${siteName}`,
+              description: summary,
+              url: dashboardUrl,
+              color: 0x5b3df5,
+            },
+          ],
+        }
+      : {
+          text: `🔎 *Insights de la semaine — ${siteName}*\n${summary}\n<${dashboardUrl}|Voir le dashboard>`,
+        };
+
+  await postToWebhook(webhookUrl, body);
 }

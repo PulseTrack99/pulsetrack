@@ -18,6 +18,7 @@ import {
   Download,
   Lock,
   X,
+  Sparkles,
 } from "lucide-react";
 import { RealtimePanel } from "@/components/realtime-panel";
 
@@ -301,6 +302,11 @@ export function DashboardContent({ sites }: { sites: Site[] }) {
   const [exporting, setExporting] = useState(false);
   const [exportLocked, setExportLocked] = useState(false);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [insightDigest, setInsightDigest] = useState<{
+    week_start: string;
+    summary: string;
+    flagged: unknown[];
+  } | null>(null);
   const [addingAnnotation, setAddingAnnotation] = useState(false);
   const [deletingAnnotationId, setDeletingAnnotationId] = useState<string | null>(null);
 
@@ -394,6 +400,14 @@ export function DashboardContent({ sites }: { sites: Site[] }) {
       .catch(() => setAnnotations([]));
   }, [selectedSite]);
 
+  useEffect(() => {
+    if (!selectedSite) return;
+    fetch(`/api/insights?site_id=${selectedSite}`)
+      .then((r) => (r.ok ? r.json() : { digest: null }))
+      .then((d) => setInsightDigest(d.digest ?? null))
+      .catch(() => setInsightDigest(null));
+  }, [selectedSite]);
+
   if (sites.length === 0) {
     return <EmptyState />;
   }
@@ -470,6 +484,27 @@ export function DashboardContent({ sites }: { sites: Site[] }) {
           <a href="/dashboard/upgrade" className="font-medium underline">
             Voir les offres
           </a>
+        </div>
+      )}
+
+      {/* Proactive AI insights — only shown once a digest exists, so a
+          site with nothing flagged yet stays quiet rather than showing
+          an empty placeholder every week. */}
+      {insightDigest && (
+        <div className="rounded-xl border border-primary/20 bg-primary-pale/40 p-5">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">
+              Insights de la semaine du{" "}
+              {new Date(insightDigest.week_start + "T00:00:00").toLocaleDateString("fr-FR", {
+                day: "numeric",
+                month: "long",
+              })}
+            </h3>
+          </div>
+          <p className="mt-2 text-[13px] leading-relaxed text-muted whitespace-pre-line">
+            {insightDigest.summary}
+          </p>
         </div>
       )}
 
