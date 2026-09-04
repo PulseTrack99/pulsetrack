@@ -1,14 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Activity, ArrowRight, Loader2 } from "lucide-react";
 
+// Only a same-origin relative path is accepted — a bare "/..." with no
+// leading "//" (that second form is a protocol-relative URL and would
+// silently send a logged-in user off-site). Anything else falls back
+// to the dashboard. Used to return to /oauth/authorize after login
+// (src/app/oauth/authorize/page.tsx) instead of always landing on
+// /dashboard.
+function safeNext(raw: string | null): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
+  return raw;
+}
+
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const next = safeNext(useSearchParams().get("next"));
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -25,7 +46,7 @@ export default function LoginPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      window.location.href = "/dashboard";
+      window.location.href = next;
     }
   }
 

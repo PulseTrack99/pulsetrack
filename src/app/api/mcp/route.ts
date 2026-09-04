@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { z } from "zod";
 import { resolveApiKey, isApiKeyRateLimited, type ResolvedApiKey } from "@/lib/api-keys";
+import { resolveOAuthToken, type ResolvedOAuthToken } from "@/lib/oauth";
 import { getSiteStats } from "@/lib/stats";
 import { getSiteRevenue } from "@/lib/revenue";
 import { planHas } from "@/lib/plan";
@@ -254,12 +255,36 @@ const baseHandler = createMcpHandler(
 
 const handler = withMcpAuth(
   baseHandler,
-  async (_req, bearerToken) => {
-    if (!bearerToken) return undefined;
+  async (req, bearerToken) => {
+    // Most MCP clients (Claude.ai's "Add custom connector", ChatGPT, ...)
+    // just want a single URL to paste — no header field, no config file.
+    // A "?key=" query param lets the settings page hand out one
+    // ready-to-paste personalized URL instead of asking a non-technical
+    // user to edit JSON. The header still works for clients that do
+    // support one (mcp-remote, Claude Code's .mcp.json, curl, ...).
+    const plaintext = bearerToken?.trim() || new URL(req.url).searchParams.get("key")?.trim();
+    if (!plaintext) return undefined;
 
-    const resolved = await resolveApiKey(supabase, bearerToken.trim());
-    if (!resolved) return undefined;
-    if (isApiKeyRateLimited(resolved.keyId)) return undefined;
+    // "pta_..." — issued by the OAuth flow (src/app/oauth/authorize,
+    // src/app/api/oauth/token) after "Se connecter avec PulseTrack".
+    // Anything else is a manually-generated "pt_live_..." key.
+    // Neither path shares a rate limiter with the other by accident —
+    // resolveOAuthToken has none (tokens are short-lived and already
+    // scoped to one consent grant); resolveApiKey's is still enforced
+    // below only on that branch, matching the REST API.
+    let resolved: ResolvedApiKey | ResolvedOAuthToken | null;
+    let clientId: string;
+    if (plaintext.startsWith("pta_")) {
+      resolved = await resolveOAuthToken(supabase, plaintext);
+      if (!resolved) return undefined;
+      clientId = (resolved as ResolvedOAuthToken).tokenId;
+    } else {
+      resolved = await resolveApiKey(supabase, plaintext);
+      if (!resolved) return undefined;
+      const apiKeyResolved = resolved as ResolvedApiKey;
+      if (isApiKeyRateLimited(apiKeyResolved.keyId)) return undefined;
+      clientId = apiKeyResolved.keyId;
+    }
 
     const extra: AuthExtra = {
       siteId: resolved.site.id,
@@ -268,13 +293,13 @@ const handler = withMcpAuth(
       plan: resolved.plan,
     };
     return {
-      token: bearerToken,
-      clientId: resolved.keyId,
+      token: plaintext,
+      clientId,
       scopes: ["read"],
       extra: extra as unknown as Record<string, unknown>,
     };
   },
-  { required: true }
+  { required: true, resourceMetadataPath: "/.well-known/oauth-protected-resource" }
 );
 
 export { handler as GET, handler as POST };

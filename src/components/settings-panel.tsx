@@ -781,6 +781,7 @@ function ApiKeysSection({
   const [reveal, setReveal] = useState<{ siteId: string; key: string; prefix: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [mcpUrlCopied, setMcpUrlCopied] = useState(false);
+  const [personalUrlCopied, setPersonalUrlCopied] = useState(false);
   const mcpUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://pulsetrack.eu"}/api/mcp`;
 
   useEffect(() => {
@@ -878,11 +879,11 @@ function ApiKeysSection({
           <div className="rounded-lg border border-primary/20 bg-primary-pale/30 p-4">
             <p className="text-sm font-semibold">Connecter Claude, ChatGPT ou Gemini (MCP)</p>
             <p className="mt-1 text-xs text-muted">
-              La même clé donne aussi accès au serveur MCP de PulseTrack — posez vos questions
-              d&apos;analytics en langage naturel directement depuis votre assistant IA. Ajoutez ce
-              serveur distant à votre client MCP (Claude Desktop, Claude Code, etc.) avec l&apos;URL
-              ci-dessous et une clé générée plus bas en en-tête{" "}
-              <code className="rounded bg-surface px-1 py-0.5">Authorization: Bearer</code>.
+              Posez vos questions d&apos;analytics en langage naturel directement depuis votre
+              assistant IA. Dans Claude.ai ou ChatGPT, ajoutez un connecteur avec l&apos;URL
+              ci-dessous — <span className="font-medium text-foreground">rien d&apos;autre à
+              coller</span>, l&apos;app vous redirige ici pour vous connecter et choisir un site,
+              aucune clé n&apos;est jamais affichée.
             </p>
             <div className="mt-2 flex items-center gap-2">
               <code className="flex-1 truncate rounded-md bg-background px-2.5 py-1.5 text-xs">
@@ -899,7 +900,13 @@ function ApiKeysSection({
                 {mcpUrlCopied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
               </button>
             </div>
+            <p className="mt-3 text-[11px] text-muted-light">
+              Client sans écran de connexion (Claude Code, script, curl) ? Générez une clé
+              ci-dessous — la clé brute ou l&apos;URL avec la clé intégrée fonctionnent aussi.
+            </p>
           </div>
+
+          <ConnectedAppsSection />
 
           {sites.map((site) => {
             const keys = keysBySite[site.id] ?? [];
@@ -954,6 +961,29 @@ function ApiKeysSection({
                       >
                         {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
                       </button>
+                    </div>
+
+                    <p className="mt-3 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                      Pour Claude.ai, ChatGPT et autres — une seule URL à coller, rien d&apos;autre à
+                      configurer :
+                    </p>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <code className="flex-1 truncate rounded-md bg-white px-2.5 py-1.5 text-xs dark:bg-black/20">
+                        {mcpUrl}?key={reveal.key}
+                      </code>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${mcpUrl}?key=${reveal.key}`);
+                          setPersonalUrlCopied(true);
+                          setTimeout(() => setPersonalUrlCopied(false), 2000);
+                        }}
+                        className="flex items-center gap-1 rounded-md border border-border px-2 py-1.5 text-xs font-medium hover:bg-surface-hover"
+                      >
+                        {personalUrlCopied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                      </button>
+                    </div>
+
+                    <div className="mt-2 flex justify-end">
                       <button
                         onClick={() => setReveal(null)}
                         className="rounded-md border border-border px-2 py-1.5 text-xs font-medium hover:bg-surface-hover"
@@ -1002,6 +1032,80 @@ function ApiKeysSection({
         </div>
       )}
     </section>
+  );
+}
+
+interface Connection {
+  id: string;
+  client_name: string | null;
+  scope: string;
+  created_at: string;
+  last_used_at: string | null;
+  sites: { name: string; domain: string } | { name: string; domain: string }[] | null;
+}
+
+/** Apps connected via "Se connecter avec PulseTrack" (OAuth) — the
+ *  companion list to ApiKeysSection's manual keys, so revoking access
+ *  is never a hunt through a third-party app's own settings. */
+function ConnectedAppsSection() {
+  const [connections, setConnections] = useState<Connection[] | null>(null);
+  const [revoking, setRevoking] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/oauth/connections")
+      .then((r) => r.json())
+      .then((d) => setConnections(d.connections ?? []));
+  }, []);
+
+  async function revoke(id: string) {
+    setRevoking(id);
+    try {
+      const res = await fetch(`/api/oauth/connections/${id}`, { method: "DELETE" });
+      if (res.ok) setConnections((c) => (c ?? []).filter((x) => x.id !== id));
+    } finally {
+      setRevoking(null);
+    }
+  }
+
+  if (!connections || connections.length === 0) return null;
+
+  return (
+    <div>
+      <p className="text-xs font-medium text-muted mb-1.5">Applications connectées</p>
+      <ul className="space-y-1.5">
+        {connections.map((c) => {
+          const site = Array.isArray(c.sites) ? c.sites[0] : c.sites;
+          return (
+            <li
+              key={c.id}
+              className="flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2 text-xs"
+            >
+              <div className="min-w-0">
+                <span className="font-medium">{c.client_name || "Application"}</span>
+                {site && <span className="ml-2 text-muted">{site.name}</span>}
+                <span className="ml-2 text-muted-light">
+                  {c.last_used_at
+                    ? `utilisée le ${new Date(c.last_used_at).toLocaleDateString("fr-FR")}`
+                    : "jamais utilisée"}
+                </span>
+              </div>
+              <button
+                onClick={() => revoke(c.id)}
+                disabled={revoking === c.id}
+                className="flex shrink-0 items-center gap-1 text-red-500 hover:underline disabled:opacity-50"
+              >
+                {revoking === c.id ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Ban className="h-3 w-3" />
+                )}
+                Révoquer
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 
