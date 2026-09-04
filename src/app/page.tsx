@@ -102,6 +102,17 @@ export default async function Home() {
           worksWith={t.trust.worksWith}
         />
 
+        {/* MCP moved up front — this is the differentiator, not a
+            footnote after four feature deep-dives nobody reached yet. */}
+        <AiConnect
+          eyebrow={t.aiConnect.eyebrow}
+          badge={t.aiConnect.badge}
+          title={t.aiConnect.title}
+          body={t.aiConnect.body}
+          cta={t.aiConnect.cta}
+          ctaHref="/signup"
+        />
+
         {/* ── Features, revealed on scroll ── */}
         <FeatureBlock
           eyebrow={t.featureRevenue.eyebrow}
@@ -176,15 +187,6 @@ export default async function Home() {
             </Reveal>
           </div>
         </section>
-
-        <AiConnect
-          eyebrow={t.aiConnect.eyebrow}
-          badge={t.aiConnect.badge}
-          title={t.aiConnect.title}
-          body={t.aiConnect.body}
-          cta={t.aiConnect.cta}
-          ctaHref="/signup"
-        />
 
         <Benefits
           title={t.benefits.title}
