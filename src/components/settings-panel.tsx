@@ -780,6 +780,8 @@ function ApiKeysSection({
   const [revoking, setRevoking] = useState<string | null>(null);
   const [reveal, setReveal] = useState<{ siteId: string; key: string; prefix: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [mcpUrlCopied, setMcpUrlCopied] = useState(false);
+  const mcpUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://pulsetrack.eu"}/api/mcp`;
 
   useEffect(() => {
     if (!hasApiAccess || sites.length === 0 || loaded) return;
@@ -872,6 +874,32 @@ function ApiKeysSection({
             que le dashboard, via <code className="rounded bg-surface px-1 py-0.5">GET /api/v1/stats</code>{" "}
             avec l&apos;en-tête <code className="rounded bg-surface px-1 py-0.5">Authorization: Bearer &lt;clé&gt;</code>.
           </p>
+
+          <div className="rounded-lg border border-primary/20 bg-primary-pale/30 p-4">
+            <p className="text-sm font-semibold">Connecter Claude, ChatGPT ou Gemini (MCP)</p>
+            <p className="mt-1 text-xs text-muted">
+              La même clé donne aussi accès au serveur MCP de PulseTrack — posez vos questions
+              d&apos;analytics en langage naturel directement depuis votre assistant IA. Ajoutez ce
+              serveur distant à votre client MCP (Claude Desktop, Claude Code, etc.) avec l&apos;URL
+              ci-dessous et une clé générée plus bas en en-tête{" "}
+              <code className="rounded bg-surface px-1 py-0.5">Authorization: Bearer</code>.
+            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <code className="flex-1 truncate rounded-md bg-background px-2.5 py-1.5 text-xs">
+                {mcpUrl}
+              </code>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(mcpUrl);
+                  setMcpUrlCopied(true);
+                  setTimeout(() => setMcpUrlCopied(false), 2000);
+                }}
+                className="flex items-center gap-1 rounded-md border border-border px-2 py-1.5 text-xs font-medium hover:bg-surface-hover"
+              >
+                {mcpUrlCopied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+              </button>
+            </div>
+          </div>
 
           {sites.map((site) => {
             const keys = keysBySite[site.id] ?? [];

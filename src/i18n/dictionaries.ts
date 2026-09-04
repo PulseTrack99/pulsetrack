@@ -380,11 +380,11 @@ const en: Dictionary = {
 
   aiConnect: {
     eyebrow: "PulseTrack MCP",
-    badge: "On the roadmap",
+    badge: "Live",
     title: "Ask your analytics from wherever you already work",
     body:
       "An MCP server that lets Claude, ChatGPT, Gemini and friends query your PulseTrack data directly — pull last week's revenue by source without leaving your editor or your chat.",
-    cta: "Follow the build",
+    cta: "Connect it now",
   },
 
   benefits: {
@@ -829,11 +829,11 @@ const fr: Dictionary = {
 
   aiConnect: {
     eyebrow: "PulseTrack MCP",
-    badge: "Au programme",
+    badge: "Disponible",
     title: "Interrogez vos analytics depuis là où vous travaillez déjà",
     body:
       "Un serveur MCP qui permet à Claude, ChatGPT, Gemini et les autres d'interroger directement vos données PulseTrack — sortez le revenu par source de la semaine sans quitter votre éditeur ou votre chat.",
-    cta: "Suivre le développement",
+    cta: "Connectez-le maintenant",
   },
 
   benefits: {

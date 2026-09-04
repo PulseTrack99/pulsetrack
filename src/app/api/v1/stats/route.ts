@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { hashApiKey } from "@/lib/api-keys";
-import { getUserPlan, planHas } from "@/lib/plan";
+import { resolveApiKey, isApiKeyRateLimited } from "@/lib/api-keys";
 import { getSiteStats, PERIOD_DAYS } from "@/lib/stats";
 
 /**
@@ -16,30 +15,16 @@ import { getSiteStats, PERIOD_DAYS } from "@/lib/stats";
  * sends. Reuses getSiteStats, the same source the dashboard overview
  * and the CSV export both read, so this can never disagree with what
  * the account owner already sees on screen.
+ *
+ * resolveApiKey/isApiKeyRateLimited (src/lib/api-keys.ts) are shared
+ * with the MCP server (src/app/api/mcp/route.ts) so both surfaces enforce
+ * the exact same validity rules and count against the same quota.
  */
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-// Self-contained in-memory limiter, same shape as the tracker ingest
-// route's (src/app/api/track/route.ts) — per key rather than per IP,
-// since a key is the identity that matters here.
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT = 60;
-const RATE_WINDOW = 60_000;
-
-function isRateLimited(key: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(key);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_WINDOW });
-    return false;
-  }
-  entry.count++;
-  return entry.count > RATE_LIMIT;
-}
 
 export async function GET(req: NextRequest) {
   try {
@@ -51,39 +36,17 @@ export async function GET(req: NextRequest) {
         { status: 401 }
       );
     }
-    const plaintext = match[1].trim();
-    const hash = hashApiKey(plaintext);
 
-    const { data: key } = await supabase
-      .from("api_keys")
-      .select("id, site_id")
-      .eq("key_hash", hash)
-      .is("revoked_at", null)
-      .maybeSingle();
-
-    if (!key) {
-      return NextResponse.json({ error: "Invalid or revoked API key" }, { status: 401 });
+    const resolved = await resolveApiKey(supabase, match[1].trim());
+    if (!resolved) {
+      return NextResponse.json(
+        { error: "Invalid, revoked API key, or this site's plan no longer includes API access" },
+        { status: 401 }
+      );
     }
 
-    if (isRateLimited(key.id)) {
+    if (isApiKeyRateLimited(resolved.keyId)) {
       return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
-    }
-
-    const { data: site } = await supabase
-      .from("sites")
-      .select("id, user_id, name, domain")
-      .eq("id", key.site_id)
-      .maybeSingle();
-
-    if (!site) {
-      return NextResponse.json({ error: "Site not found" }, { status: 404 });
-    }
-
-    // Checked on every call, not only at key issuance — a downgrade
-    // after the key was created must take effect immediately.
-    const plan = await getUserPlan(supabase, site.user_id);
-    if (!planHas(plan, "api")) {
-      return NextResponse.json({ error: "This site's plan no longer includes API access" }, { status: 403 });
     }
 
     const period = new URL(req.url).searchParams.get("period") || "30d";
@@ -94,13 +57,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Best-effort; a failed write here should never fail the request.
-    supabase
-      .from("api_keys")
-      .update({ last_used_at: new Date().toISOString() })
-      .eq("id", key.id)
-      .then(() => {});
-
+    const { site } = resolved;
     const stats = await getSiteStats(supabase, site.id, period);
 
     return NextResponse.json({
