@@ -107,45 +107,58 @@
 
 /* ═══════════════════════════════════════════════════════════
    BASE
+
+   Everything here lives inside @layer base on purpose. Written
+   outside a layer (as it was), these element rules beat *every*
+   Tailwind utility regardless of specificity — unlayered CSS always
+   wins over layered CSS — so `<h1 className="text-lg">` silently
+   rendered at 64px instead of 18px, in 51 places across 19 files.
+   Inside the layer, utilities override these again, which is the
+   behaviour every one of those files was written against.
    ═══════════════════════════════════════════════════════════ */
 
-* {
-  border-color: var(--border);
-}
+@layer base {
+  * {
+    border-color: var(--border);
+  }
 
-html {
-  scroll-behavior: smooth;
-  scroll-padding-top: 5rem;
-}
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+  }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
-  font-size: 16px;
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans), system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 
-/* Display type — medium weight, tight tracking. The premium signal. */
-h1, h2, h3, h4 {
-  font-weight: 500;
-  letter-spacing: -0.022em;
-  line-height: 1.12;
-  color: var(--foreground);
-  text-wrap: balance;
-}
+  /* Display type — medium weight, tight tracking. The premium signal.
+     These sizes are the marketing scale: they still apply to any
+     heading that doesn't set its own size (the landing page), and
+     step aside wherever a size class is present (the app). */
+  h1, h2, h3, h4 {
+    font-weight: 500;
+    letter-spacing: -0.022em;
+    line-height: 1.12;
+    color: var(--foreground);
+    text-wrap: balance;
+  }
 
-h1 { font-size: clamp(2.5rem, 5.5vw, 4rem); }
-h2 { font-size: clamp(2rem, 4vw, 3rem); }
-h3 { font-size: clamp(1.125rem, 2vw, 1.375rem); letter-spacing: -0.015em; }
+  h1 { font-size: clamp(2.5rem, 5.5vw, 4rem); }
+  h2 { font-size: clamp(2rem, 4vw, 3rem); }
+  h3 { font-size: clamp(1.125rem, 2vw, 1.375rem); letter-spacing: -0.015em; }
 
-p { text-wrap: pretty; }
+  p { text-wrap: pretty; }
 
-::selection {
-  background: var(--primary-pale);
-  color: var(--primary);
+  ::selection {
+    background: var(--primary-pale);
+    color: var(--primary);
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════
