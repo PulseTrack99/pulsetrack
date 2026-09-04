@@ -162,6 +162,122 @@
 }
 
 /* ═══════════════════════════════════════════════════════════
+   APP SCALE
+
+   The scale above is editorial: it exists for the landing page,
+   where a 64px h1 is the point. An application is read, scanned and
+   operated, not browsed — it needs its own scale, denser and
+   quieter. Everything under .app-scope (the dashboard shell) opts
+   into this second system; the marketing pages keep the first.
+
+   Reference points: 13px body, 20px page title, 4px spacing grid,
+   6px radii. That is roughly where Linear, Stripe and Mixpanel sit,
+   and it fits 5-10x more useful information per screen than a 16px
+   body with 1.6 line-height ever can.
+   ═══════════════════════════════════════════════════════════ */
+
+@layer base {
+  .app-scope {
+    /* Type */
+    --app-micro: 11px;
+    --app-sm: 12px;
+    --app-body: 13px;
+    --app-md: 14px;
+    --app-lg: 16px;
+    --app-title: 20px;
+    --app-metric: 28px;
+
+    /* Spacing — 4px grid */
+    --app-1: 4px;
+    --app-2: 8px;
+    --app-3: 12px;
+    --app-4: 16px;
+    --app-5: 20px;
+    --app-6: 24px;
+    --app-8: 32px;
+
+    /* Density */
+    --app-card-pad: 16px;
+    --app-radius: 6px;
+    --app-radius-sm: 4px;
+
+    font-size: var(--app-body);
+    line-height: 1.5;
+  }
+
+  /* Headings that don't carry their own size class land here rather
+     than on the 40-64px marketing scale. */
+  .app-scope h1 {
+    font-size: var(--app-title);
+    font-weight: 600;
+    letter-spacing: -0.011em;
+    line-height: 1.25;
+  }
+  .app-scope h2 {
+    font-size: var(--app-lg);
+    font-weight: 600;
+    letter-spacing: -0.006em;
+    line-height: 1.3;
+  }
+  .app-scope h3 {
+    font-size: var(--app-body);
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.4;
+  }
+  .app-scope h4 {
+    font-size: var(--app-sm);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  /* Numbers line up in columns everywhere in an analytics tool. */
+  .app-scope .metric,
+  .app-scope td,
+  .app-scope th {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ── App primitives ──
+   Named classes rather than repeated utility strings, so a card is
+   the same card on all eight pages — the single most visible thing
+   Mixpanel does that we don't. */
+
+.app-scope .app-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--app-radius);
+  padding: var(--app-card-pad);
+}
+
+/* Section label above a group — 11px uppercase, the quiet way to
+   structure a screen without spending a heading on it. */
+.app-scope .app-label {
+  font-size: var(--app-micro);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted-light);
+}
+
+/* The one toolbar shape, reused on every list and table. */
+.app-scope .app-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--app-2);
+  flex-wrap: wrap;
+}
+
+.app-scope .app-metric {
+  font-size: var(--app-metric);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═══════════════════════════════════════════════════════════
    COMPONENT PRIMITIVES
    ═══════════════════════════════════════════════════════════ */
 
