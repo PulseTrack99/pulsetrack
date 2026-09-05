@@ -106,56 +106,64 @@ export function RealtimePanel({ siteId }: { siteId: string }) {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-border bg-background p-6">
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-        </div>
+      // Same height as the loaded strip, so the page below it doesn't
+      // jump once the first poll lands.
+      <div className="app-card flex items-center gap-2">
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+        <span className="app-label">Temps réel</span>
       </div>
     );
   }
 
   if (!data) return null;
 
+  const idle = data.active_visitors === 0;
+
+  /* One compact strip rather than the page's hero. It used to open the
+     dashboard with a 4xl count and two columns that, on a quiet site,
+     both read "aucune" — the emptiest thing on screen taking the most
+     space, above the figures people actually came for. */
   return (
-    <div className="rounded-xl border border-border bg-background p-6">
-      {/* Header with live indicator */}
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2.5">
-          <div className="relative flex items-center justify-center">
-            <Radio className="h-4 w-4 text-emerald-500" />
-            <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
-            <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500" />
-          </div>
-          <h2 className="text-lg font-semibold">Temps réel</h2>
+    <div className="app-card">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="relative flex items-center justify-center">
+          <Radio className="h-3.5 w-3.5 text-emerald-500" />
+          {!idle && (
+            <>
+              <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 animate-ping rounded-full bg-emerald-500" />
+              <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            </>
+          )}
         </div>
-        <span className="text-xs text-muted">
-          Mise à jour toutes les 5s
+
+        <span className="app-label">Temps réel</span>
+
+        <span className="flex items-baseline gap-1.5">
+          <span
+            className={`text-[20px] font-semibold tabular-nums transition-transform duration-300 ${
+              pulse ? "scale-110" : "scale-100"
+            }`}
+          >
+            {data.active_visitors}
+          </span>
+          <span className="text-[12.5px] text-muted">
+            visiteur{data.active_visitors !== 1 ? "s" : ""} en ce moment
+          </span>
         </span>
-      </div>
 
-      {/* Active visitors count + sparkline */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <div className="flex items-baseline gap-2">
-            <span
-              className={`text-4xl font-bold tabular-nums transition-transform duration-300 ${
-                pulse ? "scale-110" : "scale-100"
-              }`}
-            >
-              {data.active_visitors}
-            </span>
-            <span className="text-sm text-muted">
-              visiteur{data.active_visitors !== 1 ? "s" : ""} en ce moment
-            </span>
-          </div>
-          <p className="text-xs text-muted mt-1">
-            Sessions actives dans les 5 dernières minutes
-          </p>
+        <div className="ml-auto flex items-center gap-3">
+          <Sparkline data={data.sparkline} />
+          <span className="text-[11px] text-muted-light">MAJ 5s</span>
         </div>
-        <Sparkline data={data.sparkline} />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      {idle ? (
+        <p className="mt-2 text-[12px] text-muted-light">
+          Personne sur le site à cette seconde. Les visites s&apos;affichent ici
+          en direct, sans rechargement.
+        </p>
+      ) : (
+      <div className="mt-4 grid gap-5 lg:grid-cols-2">
         {/* Active pages */}
         <div>
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
@@ -230,6 +238,7 @@ export function RealtimePanel({ siteId }: { siteId: string }) {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

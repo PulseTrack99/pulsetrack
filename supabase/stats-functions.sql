@@ -281,3 +281,72 @@ $$;
 GRANT EXECUTE ON FUNCTION realtime_pages(UUID, INT, INT)   TO authenticated;
 GRANT EXECUTE ON FUNCTION realtime_active(UUID, INT)       TO authenticated;
 GRANT EXECUTE ON FUNCTION realtime_sparkline(UUID, INT)    TO authenticated;
+
+-- ─────────────────────────────────────────────────────────────
+-- Applied as migration `stats_overview_bounded_window_and_visitors`.
+-- Kept here so this file still describes the live schema.
+--
+-- Two changes: a bounded window (p_until) so the dashboard can ask for
+-- the *previous* period and show a period-over-period delta, and a real
+-- visitor count — "visitors" used to return the session count, which is
+-- why the card labelled "Visiteurs uniques" read high.
+--
+-- CREATE OR REPLACE with an extra parameter creates a SECOND overload
+-- rather than replacing, and the two-argument call then becomes
+-- ambiguous, so the old signature must be dropped explicitly.
+DROP FUNCTION IF EXISTS public.stats_overview(uuid, timestamptz);
+
+CREATE FUNCTION public.stats_overview(
+  p_site  uuid,
+  p_since timestamptz,
+  p_until timestamptz DEFAULT NULL
+)
+RETURNS TABLE(
+  visitors     bigint,
+  sessions     bigint,
+  pageviews    bigint,
+  bounce_rate  integer,
+  avg_duration integer
+)
+LANGUAGE sql
+STABLE
+SET search_path TO 'public'
+AS $function$
+  WITH bounds AS (
+    SELECT p_since AS lo, COALESCE(p_until, now()) AS hi
+  ),
+  pv AS (
+    SELECT session_id, visitor_id
+    FROM events, bounds
+    WHERE site_id = p_site
+      AND type = 'pageview'
+      AND created_at >= bounds.lo
+      AND created_at <  bounds.hi
+  ),
+  sess AS (
+    SELECT session_id, count(*) AS n FROM pv GROUP BY session_id
+  ),
+  dur AS (
+    SELECT avg(duration) AS d
+    FROM events, bounds
+    WHERE site_id = p_site
+      AND type = 'leave'
+      AND created_at >= bounds.lo
+      AND created_at <  bounds.hi
+      AND duration > 0
+  )
+  SELECT
+    (SELECT count(DISTINCT visitor_id) FROM pv)::BIGINT,
+    (SELECT count(*) FROM sess)::BIGINT,
+    (SELECT count(*) FROM pv)::BIGINT,
+    -- A bounce is a session that saw exactly one page.
+    COALESCE(
+      (SELECT round(100.0 * count(*) FILTER (WHERE n = 1) / NULLIF(count(*), 0))
+       FROM sess), 0
+    )::INT,
+    COALESCE((SELECT round(d) FROM dur), 0)::INT;
+$function$;
+
+-- anon is required by the public share view (/public/[shareId]).
+GRANT EXECUTE ON FUNCTION public.stats_overview(uuid, timestamptz, timestamptz)
+  TO authenticated, anon;

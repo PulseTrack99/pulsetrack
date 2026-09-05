@@ -14,11 +14,22 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * can never drift apart.
  */
 
-export interface SiteStats {
+/** The four headline figures, for one window. */
+export interface StatsOverview {
+  /** Distinct visitor_id. Was previously the session count under this
+   *  name, which is why the dashboard card read higher than reality. */
   visitors: number;
+  sessions: number;
   pageviews: number;
   bounce_rate: number;
   avg_duration: number;
+}
+
+export interface SiteStats extends StatsOverview {
+  /** The same window immediately before this one, so the dashboard can
+   *  say "vs période précédente" instead of showing bare numbers with
+   *  nothing to compare them against. */
+  previous: StatsOverview;
   top_pages: { path: string; views: number }[];
   top_sources: { source: string; visitors: number }[];
   top_countries: { country: string; visitors: number }[];
@@ -38,11 +49,6 @@ export function periodStart(period: string): string {
   return new Date(Date.now() - days * 86_400_000).toISOString();
 }
 
-/** Days the chart should show, so it keeps a fixed width regardless of traffic. */
-export function chartDays(period: string): number {
-  return PERIOD_DAYS[period] ?? 30;
-}
-
 export async function getSiteStats(
   supabase: SupabaseClient,
   siteId: string,
@@ -51,22 +57,39 @@ export async function getSiteStats(
   const since = periodStart(period);
   const args = { p_site: siteId, p_since: since };
 
-  const [overview, pages, sources, countries, devices, daily] = await Promise.all([
-    supabase.rpc("stats_overview", args),
-    supabase.rpc("stats_top_pages", { ...args, p_limit: 10 }),
-    supabase.rpc("stats_top_sources", { ...args, p_limit: 10 }),
-    supabase.rpc("stats_top_countries", { ...args, p_limit: 10 }),
-    supabase.rpc("stats_devices", args),
-    supabase.rpc("stats_daily", args),
-  ]);
+  // The window of the same length ending where the current one starts.
+  const days = PERIOD_DAYS[period] ?? 30;
+  const previousSince = new Date(
+    new Date(since).getTime() - days * 86_400_000
+  ).toISOString();
+
+  const [overview, prevOverview, pages, sources, countries, devices, daily] =
+    await Promise.all([
+      supabase.rpc("stats_overview", args),
+      supabase.rpc("stats_overview", {
+        p_site: siteId,
+        p_since: previousSince,
+        p_until: since,
+      }),
+      supabase.rpc("stats_top_pages", { ...args, p_limit: 10 }),
+      supabase.rpc("stats_top_sources", { ...args, p_limit: 10 }),
+      supabase.rpc("stats_top_countries", { ...args, p_limit: 10 }),
+      supabase.rpc("stats_devices", args),
+      supabase.rpc("stats_daily", args),
+    ]);
 
   // stats_overview returns a single row; an empty result means no traffic.
-  const head = (overview.data?.[0] ?? {}) as Partial<{
-    visitors: number;
-    pageviews: number;
-    bounce_rate: number;
-    avg_duration: number;
-  }>;
+  type OverviewRow = Partial<StatsOverview>;
+  const head = (overview.data?.[0] ?? {}) as OverviewRow;
+  const prev = (prevOverview.data?.[0] ?? {}) as OverviewRow;
+
+  const toOverview = (r: OverviewRow): StatsOverview => ({
+    visitors: Number(r.visitors ?? 0),
+    sessions: Number(r.sessions ?? 0),
+    pageviews: Number(r.pageviews ?? 0),
+    bounce_rate: Number(r.bounce_rate ?? 0),
+    avg_duration: Number(r.avg_duration ?? 0),
+  });
 
   // Days with no traffic are absent from stats_daily, so fill them in.
   const byDay = new Map<string, number>();
@@ -74,7 +97,7 @@ export async function getSiteStats(
     byDay.set(String(r.day).slice(0, 10), Number(r.visitors))
   );
 
-  const days = chartDays(period);
+  // Fixed width regardless of traffic: `days` is the period length.
   const visitors_chart = Array.from({ length: days }, (_, i) => {
     const date = new Date(Date.now() - (days - 1 - i) * 86_400_000)
       .toISOString()
@@ -83,10 +106,8 @@ export async function getSiteStats(
   });
 
   return {
-    visitors: Number(head.visitors ?? 0),
-    pageviews: Number(head.pageviews ?? 0),
-    bounce_rate: Number(head.bounce_rate ?? 0),
-    avg_duration: Number(head.avg_duration ?? 0),
+    ...toOverview(head),
+    previous: toOverview(prev),
     top_pages: ((pages.data ?? []) as { path: string; views: number }[]).map((r) => ({
       path: r.path,
       views: Number(r.views),

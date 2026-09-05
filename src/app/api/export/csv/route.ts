@@ -85,7 +85,8 @@ export async function GET(req: NextRequest) {
     csv += "\r\n";
 
     csv += csvSection("Résumé", ["Métrique", "Valeur"], [
-      ["Visiteurs uniques", stats.visitors],
+      ["Visiteurs", stats.visitors],
+      ["Sessions", stats.sessions],
       ["Pages vues", stats.pageviews],
       ["Taux de rebond (%)", stats.bounce_rate],
       ["Durée moyenne (s)", stats.avg_duration],

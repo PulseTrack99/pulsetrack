@@ -137,7 +137,7 @@ export function SitesManager({ origin }: { origin: string }) {
                     </span>
                   ) : live ? (
                     <>
-                      <span className="flex items-center gap-1.5 text-[12px] font-medium text-emerald-600 dark:text-emerald-400">
+                      <span className="flex items-center gap-1.5 text-[12px] font-medium text-emerald-600">
                         <Check className="h-3.5 w-3.5" />
                         Données reçues
                       </span>
@@ -149,7 +149,7 @@ export function SitesManager({ origin }: { origin: string }) {
                     </>
                   ) : (
                     <>
-                      <span className="flex items-center gap-1.5 text-[12px] font-medium text-amber-600 dark:text-amber-400">
+                      <span className="flex items-center gap-1.5 text-[12px] font-medium text-amber-600">
                         <Radio className="h-3.5 w-3.5" />
                         En attente de données
                       </span>

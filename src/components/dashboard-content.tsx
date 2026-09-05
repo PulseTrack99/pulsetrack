@@ -20,6 +20,7 @@ import {
   Lock,
   X,
   Sparkles,
+  Activity,
 } from "lucide-react";
 import { RealtimePanel } from "@/components/realtime-panel";
 import { useSites } from "@/components/site-context";
@@ -30,11 +31,16 @@ interface Site {
   domain: string;
 }
 
-interface Stats {
+interface Overview {
   visitors: number;
+  sessions: number;
   pageviews: number;
   bounce_rate: number;
   avg_duration: number;
+}
+
+interface Stats extends Overview {
+  previous: Overview;
   top_pages: { path: string; views: number }[];
   top_sources: { source: string; visitors: number }[];
   top_countries: { country: string; visitors: number }[];
@@ -48,47 +54,114 @@ interface Annotation {
   label: string;
 }
 
+/** Spelled out once in the toolbar, so the cards can stay bare numbers. */
+const PERIOD_LABEL: Record<string, string> = {
+  "24h": "24 heures précédentes",
+  "7d": "7 jours précédents",
+  "30d": "30 jours précédents",
+  "90d": "90 jours précédents",
+};
+
+/** Period-over-period change, or null when there's nothing to compare
+ *  against — a percentage off zero is either a divide-by-zero or a
+ *  meaningless "+∞ %", and both are worse than saying nothing. */
+function delta(current: number, previous: number): number | null {
+  if (previous === 0) return null;
+  return Math.round(((current - previous) / previous) * 100);
+}
+
 function StatCard({
   label,
   value,
   change,
+  hint,
+  lowerIsBetter,
   icon: Icon,
 }: {
   label: string;
   value: string;
-  change?: number;
+  change?: number | null;
+  /** One line saying what the metric actually counts. */
+  hint: string;
+  /** Bounce rate going down is good; everything else is the reverse. */
+  lowerIsBetter?: boolean;
   icon: React.ComponentType<{ className?: string }>;
 }) {
+  const good = change === null || change === undefined
+    ? null
+    : lowerIsBetter
+      ? change <= 0
+      : change >= 0;
+
   return (
-    <div className="rounded-xl border border-border bg-background p-5">
+    <div className="app-card group">
       <div className="flex items-center justify-between">
-        <span className="text-sm text-muted">{label}</span>
-        <Icon className="h-4 w-4 text-muted" />
+        <span className="app-label" title={hint}>
+          {label}
+        </span>
+        <Icon className="h-3.5 w-3.5 text-muted-light" />
       </div>
-      <p className="mt-2 text-3xl font-bold">{value}</p>
-      {change !== undefined && (
-        <div className="mt-1 flex items-center gap-1">
-          {change >= 0 ? (
-            <TrendingUp className="h-3 w-3 text-emerald-500" />
-          ) : (
-            <TrendingDown className="h-3 w-3 text-red-500" />
-          )}
+      {/* The comparison basis is written once, in the toolbar, so each
+          card only carries the number — "vs période précédente" repeated
+          five times wrapped onto two lines and got clipped. */}
+      <div className="mt-1.5 flex items-baseline gap-2">
+        <p className="app-metric">{value}</p>
+        {change === null || change === undefined ? (
           <span
-            className={`text-xs font-medium ${
-              change >= 0 ? "text-emerald-500" : "text-red-500"
-            }`}
+            className="text-[11px] text-muted-light"
+            title="Aucune donnée sur la période précédente, il n'y a rien à comparer."
           >
-            {change >= 0 ? "+" : ""}
+            —
+          </span>
+        ) : (
+          <span
+            className={`flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[11px] font-medium tabular-nums ${
+              good ? "text-emerald-600" : "text-coral"
+            }`}
+            title={`${change > 0 ? "+" : ""}${change}% par rapport à la période précédente`}
+          >
+            {change >= 0 ? (
+              <TrendingUp className="h-3 w-3" />
+            ) : (
+              <TrendingDown className="h-3 w-3" />
+            )}
+            {change > 0 ? "+" : ""}
             {change}%
           </span>
-          <span className="text-xs text-muted">vs mois dernier</span>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
 
-function MiniBarChart({
+/** Rounds a max up to a readable axis top (1, 2, 5 × 10ⁿ) so the
+ *  gridline labels are numbers a person would actually write down. */
+function niceMax(value: number): number {
+  if (value <= 4) return 4;
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  const scaled = value / magnitude;
+  const step = scaled <= 1 ? 1 : scaled <= 2 ? 2 : scaled <= 5 ? 5 : 10;
+  return step * magnitude;
+}
+
+function shortDate(iso: string): string {
+  return new Date(iso + "T00:00:00").toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+/**
+ * Daily visitors.
+ *
+ * It used to be a bare row of divs: no axis, no scale, no dates, no way
+ * to read a value. You could see that something went up without being
+ * able to say when or by how much. This keeps the bar form — the right
+ * one for a daily count — and adds the parts that make a chart a chart:
+ * a labelled scale, gridlines, dates along the bottom, and the exact
+ * figure on hover.
+ */
+function VisitorsChart({
   data,
   annotations,
   onAdd,
@@ -103,10 +176,14 @@ function MiniBarChart({
   addBusy: boolean;
   deletingId: string | null;
 }) {
-  const max = Math.max(...data.map((d) => d.count), 1);
   const [showForm, setShowForm] = useState(false);
   const [draftDate, setDraftDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [draftLabel, setDraftLabel] = useState("");
+  const [hover, setHover] = useState<number | null>(null);
+
+  const peak = Math.max(...data.map((d) => d.count), 0);
+  const top = niceMax(peak);
+  const total = data.reduce((s, d) => s + d.count, 0);
 
   const byDate = new Map<string, Annotation[]>();
   for (const a of annotations) {
@@ -123,13 +200,23 @@ function MiniBarChart({
     setShowForm(false);
   }
 
+  // Four evenly spread dates along the bottom — enough to place a spike
+  // in time without turning the axis into a wall of text.
+  const tickEvery = Math.max(1, Math.floor((data.length - 1) / 3));
+
   return (
-    <div className="rounded-xl border border-border bg-background p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold">Visiteurs — 30 derniers jours</h3>
+    <div className="app-card">
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <h3 className="text-[13.5px] font-semibold">Visiteurs par jour</h3>
+          <p className="text-[11.5px] text-muted-light">
+            {total.toLocaleString("fr-FR")} au total sur la période · pic à{" "}
+            {peak.toLocaleString("fr-FR")}
+          </p>
+        </div>
         <button
           onClick={() => setShowForm((v) => !v)}
-          className="flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors"
+          className="flex items-center gap-1 text-[12px] text-muted transition-colors hover:text-foreground"
           title="Marquer un événement (lancement, campagne, déploiement…)"
         >
           <Plus className="h-3.5 w-3.5" />
@@ -138,12 +225,12 @@ function MiniBarChart({
       </div>
 
       {showForm && (
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-2.5">
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[var(--app-radius-sm)] border border-border bg-surface-sunken p-2.5">
           <input
             type="date"
             value={draftDate}
             onChange={(e) => setDraftDate(e.target.value)}
-            className="rounded-md border border-border bg-background px-2 py-1 text-xs outline-none focus:border-primary"
+            className="rounded-[var(--app-radius-sm)] border border-border bg-surface px-2 py-1 text-[12px] outline-none focus:border-primary"
           />
           <input
             type="text"
@@ -152,64 +239,129 @@ function MiniBarChart({
             onKeyDown={(e) => e.key === "Enter" && submit()}
             placeholder="Ex. « Lancement early bird »"
             maxLength={140}
-            className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1 text-xs outline-none focus:border-primary"
+            className="min-w-0 flex-1 rounded-[var(--app-radius-sm)] border border-border bg-surface px-2 py-1 text-[12px] outline-none focus:border-primary"
           />
           <button
             onClick={submit}
             disabled={addBusy || !draftLabel.trim()}
-            className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
+            className="rounded-[var(--app-radius-sm)] bg-primary px-2.5 py-1 text-[12px] font-medium text-white hover:bg-primary-hover disabled:opacity-50"
           >
             Ajouter
           </button>
         </div>
       )}
 
-      <div className="flex items-end gap-[2px] h-32">
-        {data.map((d, i) => (
-          <div
-            key={i}
-            className="flex-1 rounded-t bg-gradient-to-t from-primary to-primary-light transition-all hover:from-primary-dark hover:to-primary cursor-pointer"
-            style={{ height: `${(d.count / max) * 100}%`, minHeight: "2px" }}
-            title={`${d.date}: ${d.count} visiteurs`}
-          />
-        ))}
-      </div>
-      {/* Marker row — same flex-1-per-day layout as the bars above, so
-          a dot lines up under its exact day without needing to know
-          pixel widths. */}
-      <div className="mt-1 flex items-center gap-[2px]">
-        {data.map((d, i) => {
-          const dayAnnotations = byDate.get(d.date);
-          return (
-            <div key={i} className="flex flex-1 justify-center">
-              {dayAnnotations && (
-                <span
-                  className="h-1.5 w-1.5 rounded-full bg-coral"
-                  title={dayAnnotations.map((a) => a.label).join(" · ")}
-                />
-              )}
+      <div className="flex gap-2">
+        {/* Y scale. Without it the bars had no unit at all. */}
+        <div className="relative w-8 shrink-0" style={{ height: 148 }}>
+          {[top, top / 2, 0].map((v, i) => (
+            <span
+              key={i}
+              className="absolute right-0 -translate-y-1/2 text-[10px] tabular-nums text-muted-light"
+              style={{ top: `${(i / 2) * 100}%` }}
+            >
+              {v.toLocaleString("fr-FR")}
+            </span>
+          ))}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="relative" style={{ height: 148 }}>
+            {/* Gridlines, behind the bars. */}
+            {[0, 0.5, 1].map((f) => (
+              <div
+                key={f}
+                className="absolute inset-x-0 border-t border-border"
+                style={{ top: `${f * 100}%` }}
+              />
+            ))}
+
+            <div
+              className="absolute inset-0 flex items-end gap-[2px]"
+              onMouseLeave={() => setHover(null)}
+            >
+              {data.map((d, i) => (
+                <div
+                  key={d.date}
+                  onMouseEnter={() => setHover(i)}
+                  className="group/bar relative flex h-full flex-1 cursor-default items-end"
+                >
+                  {/* Full-height hit area so thin bars are still hoverable. */}
+                  <div
+                    className={`w-full rounded-t-[2px] transition-colors ${
+                      hover === i ? "bg-primary" : "bg-primary/55"
+                    }`}
+                    style={{
+                      height: top > 0 ? `${(d.count / top) * 100}%` : "0%",
+                      minHeight: d.count > 0 ? 2 : 0,
+                    }}
+                  />
+                </div>
+              ))}
             </div>
-          );
-        })}
+
+            {hover !== null && (
+              <div
+                className="pointer-events-none absolute -top-1 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-[var(--app-radius-sm)] border border-border bg-surface px-2 py-1 text-[11px] shadow-lg"
+                style={{ left: `${((hover + 0.5) / data.length) * 100}%` }}
+              >
+                <span className="font-medium tabular-nums">
+                  {data[hover].count.toLocaleString("fr-FR")} visiteur
+                  {data[hover].count > 1 ? "s" : ""}
+                </span>
+                <span className="text-muted-light"> · {shortDate(data[hover].date)}</span>
+                {byDate.get(data[hover].date)?.map((a) => (
+                  <span key={a.id} className="block text-coral">
+                    {a.label}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Annotation markers — same flex-1-per-day layout as the bars,
+              so a dot lines up under its exact day. */}
+          <div className="mt-1 flex items-center gap-[2px]">
+            {data.map((d) => (
+              <div key={d.date} className="flex flex-1 justify-center">
+                {byDate.get(d.date) && (
+                  <span
+                    className="h-1.5 w-1.5 rounded-full bg-coral"
+                    title={byDate.get(d.date)!.map((a) => a.label).join(" · ")}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* X scale. */}
+          <div className="mt-1 flex gap-[2px]">
+            {data.map((d, i) => (
+              <div key={d.date} className="min-w-0 flex-1 text-center">
+                {i % tickEvery === 0 && (
+                  <span className="text-[10px] whitespace-nowrap text-muted-light">
+                    {shortDate(d.date)}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {annotations.length > 0 && (
-        <ul className="mt-3 space-y-1 border-t border-border pt-3">
+        <ul className="mt-4 space-y-1 border-t border-border pt-3">
           {annotations.map((a) => (
-            <li key={a.id} className="flex items-center justify-between text-xs">
+            <li key={a.id} className="flex items-center justify-between text-[12px]">
               <span className="text-muted">
-                <span className="font-mono text-muted-light">
-                  {new Date(a.date + "T00:00:00").toLocaleDateString("fr-FR", {
-                    day: "numeric",
-                    month: "short",
-                  })}
-                </span>{" "}
-                — {a.label}
+                <span className="tabular-nums text-muted-light">{shortDate(a.date)}</span>
+                {" — "}
+                {a.label}
               </span>
               <button
                 onClick={() => onDelete(a.id)}
                 disabled={deletingId === a.id}
-                className="shrink-0 text-muted-light hover:text-red-500 disabled:opacity-50"
+                className="shrink-0 text-muted-light transition-colors hover:text-red-500 disabled:opacity-50"
                 title="Supprimer"
               >
                 <X className="h-3 w-3" />
@@ -245,34 +397,59 @@ function RankingTable({
     1
   );
 
+  const total = data.reduce((s, d) => s + Number(d[valueKey]), 0);
+  const rows = data.slice(0, 6);
+
   return (
-    <div className="rounded-xl border border-border bg-background p-5">
-      <h3 className="text-sm font-semibold mb-4">{title}</h3>
-      <div className="space-y-3">
-        {data.length === 0 && (
-          <p className="py-4 text-center text-[12px] leading-relaxed text-muted-light">
-            {emptyHint}
-          </p>
+    <div className="app-card">
+      <div className="mb-3 flex items-baseline justify-between">
+        <h3 className="text-[13.5px] font-semibold">{title}</h3>
+        {data.length > rows.length && (
+          <span className="text-[11px] text-muted-light">
+            top {rows.length} sur {data.length}
+          </span>
         )}
-        {data.slice(0, 5).map((item, i) => (
-          <div key={i}>
-            <div className="flex items-center justify-between text-sm mb-1">
-              <span className="truncate">{String(item[labelKey])}</span>
-              <span className="text-muted ml-2 flex-shrink-0">
-                {String(item[valueKey])} {valueLabel}
-              </span>
-            </div>
-            <div className="h-1.5 rounded-full bg-surface">
-              <div
-                className="h-full rounded-full bg-primary/60"
-                style={{
-                  width: `${(Number(item[valueKey]) / max) * 100}%`,
-                }}
-              />
-            </div>
-          </div>
-        ))}
       </div>
+
+      {data.length === 0 ? (
+        <p className="py-4 text-center text-[12px] leading-relaxed text-muted-light">
+          {emptyHint}
+        </p>
+      ) : (
+        <div className="space-y-1">
+          {rows.map((item, i) => {
+            const value = Number(item[valueKey]);
+            return (
+              <div
+                key={i}
+                className="relative flex items-center justify-between gap-3 rounded-[var(--app-radius-sm)] px-1.5 py-1"
+              >
+                {/* The bar sits behind the row rather than under it, the
+                    way a ranked table reads in Mixpanel: the label stays
+                    on the baseline and the length is still comparable. */}
+                <div
+                  className="absolute inset-y-0 left-0 rounded-[var(--app-radius-sm)] bg-primary/10"
+                  style={{ width: `${(value / max) * 100}%` }}
+                />
+                <span className="relative truncate text-[12.5px]">
+                  {String(item[labelKey])}
+                </span>
+                <span className="relative shrink-0 text-[12px] tabular-nums text-muted">
+                  {value.toLocaleString("fr-FR")}
+                  {total > 0 && (
+                    <span className="ml-1.5 text-muted-light">
+                      {Math.round((value / total) * 100)}%
+                    </span>
+                  )}
+                </span>
+              </div>
+            );
+          })}
+          <p className="pt-1.5 text-[11px] text-muted-light">
+            {total.toLocaleString("fr-FR")} {valueLabel} au total
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -445,12 +622,19 @@ export function DashboardContent() {
     return <EmptyState />;
   }
 
-  // Fallback demo data when no real stats yet
-  const displayStats: Stats = stats || {
+  // Zeroes while the first request is in flight, so the layout is the
+  // real one rather than a skeleton that reflows into it.
+  const emptyOverview: Overview = {
     visitors: 0,
+    sessions: 0,
     pageviews: 0,
     bounce_rate: 0,
     avg_duration: 0,
+  };
+
+  const displayStats: Stats = stats || {
+    ...emptyOverview,
+    previous: emptyOverview,
     top_pages: [],
     top_sources: [],
     top_countries: [],
@@ -464,10 +648,12 @@ export function DashboardContent() {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Period — the site is chosen once in the rail. */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-1 rounded-lg border border-border bg-background p-0.5">
+    <div className="space-y-3">
+      {/* Period — the site is chosen once in the rail. Same segmented
+          control as Flows and Heatmaps; it used to be a heavier filled
+          variant here only. */}
+      <div className="app-toolbar justify-between">
+        <div className="flex gap-0.5 rounded-sm border border-border bg-surface p-0.5">
           {[
             { value: "24h", label: "24h" },
             { value: "7d", label: "7j" },
@@ -477,9 +663,9 @@ export function DashboardContent() {
             <button
               key={p.value}
               onClick={() => setPeriod(p.value)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
                 period === p.value
-                  ? "bg-primary text-white"
+                  ? "bg-primary-pale text-primary"
                   : "text-muted hover:text-foreground"
               }`}
             >
@@ -488,10 +674,14 @@ export function DashboardContent() {
           ))}
         </div>
 
+        <span className="text-[11.5px] text-muted-light">
+          Les écarts comparent aux {PERIOD_LABEL[period]}
+        </span>
+
         <button
           onClick={exportCsv}
           disabled={exporting || !selectedSite}
-          className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+          className="ml-auto flex items-center gap-1.5 rounded-sm border border-border bg-surface px-2.5 py-1.5 text-[12px] font-medium text-muted transition-colors hover:text-foreground disabled:opacity-50"
         >
           <Download className="h-3.5 w-3.5" />
           {exporting ? "Export…" : "Export CSV"}
@@ -499,12 +689,12 @@ export function DashboardContent() {
       </div>
 
       {exportLocked && (
-        <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary-pale px-3.5 py-2.5 text-[13px] text-primary">
-          <Lock className="h-4 w-4 shrink-0" />
+        <div className="flex items-center gap-2 rounded-[var(--app-radius)] border border-primary/30 bg-primary-pale px-3 py-2 text-[12.5px] text-primary">
+          <Lock className="h-3.5 w-3.5 shrink-0" />
           L&apos;export CSV est disponible sur l&apos;offre Business.
-          <a href="/dashboard/upgrade" className="font-medium underline">
+          <Link href="/dashboard/upgrade" className="font-medium underline">
             Voir les offres
-          </a>
+          </Link>
         </div>
       )}
 
@@ -512,10 +702,10 @@ export function DashboardContent() {
           site with nothing flagged yet stays quiet rather than showing
           an empty placeholder every week. */}
       {insightDigest && (
-        <div className="rounded-xl border border-primary/20 bg-primary-pale/40 p-5">
+        <div className="rounded-[var(--app-radius)] border border-primary/20 bg-primary-pale/40 p-4">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
+            <h3 className="text-[13px] font-semibold">
               Insights de la semaine du{" "}
               {new Date(insightDigest.week_start + "T00:00:00").toLocaleDateString("fr-FR", {
                 day: "numeric",
@@ -523,7 +713,7 @@ export function DashboardContent() {
               })}
             </h3>
           </div>
-          <p className="mt-2 text-[13px] leading-relaxed text-muted whitespace-pre-line">
+          <p className="mt-2 whitespace-pre-line text-[12.5px] leading-relaxed text-muted">
             {insightDigest.summary}
           </p>
         </div>
@@ -532,32 +722,50 @@ export function DashboardContent() {
       {/* Realtime panel */}
       {selectedSite && <RealtimePanel siteId={selectedSite} />}
 
-      {/* Stats cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Headline figures. Every one carries its change against the
+          same-length window immediately before, which is the difference
+          between a number and a number that means something. */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard
-          label="Visiteurs uniques"
+          label="Visiteurs"
           value={displayStats.visitors.toLocaleString("fr-FR")}
+          change={delta(displayStats.visitors, displayStats.previous.visitors)}
+          hint="Personnes distinctes, identifiées par un hash sans cookie."
           icon={Users}
+        />
+        <StatCard
+          label="Sessions"
+          value={displayStats.sessions.toLocaleString("fr-FR")}
+          change={delta(displayStats.sessions, displayStats.previous.sessions)}
+          hint="Visites : une même personne qui revient compte plusieurs fois."
+          icon={Activity}
         />
         <StatCard
           label="Pages vues"
           value={displayStats.pageviews.toLocaleString("fr-FR")}
+          change={delta(displayStats.pageviews, displayStats.previous.pageviews)}
+          hint="Total des pages chargées sur la période."
           icon={Eye}
         />
         <StatCard
           label="Taux de rebond"
           value={`${displayStats.bounce_rate}%`}
+          change={delta(displayStats.bounce_rate, displayStats.previous.bounce_rate)}
+          hint="Part des sessions qui n'ont vu qu'une seule page."
+          lowerIsBetter
           icon={MousePointerClick}
         />
         <StatCard
-          label="Durée moy. session"
+          label="Durée moy."
           value={`${Math.floor(displayStats.avg_duration / 60)}m ${displayStats.avg_duration % 60}s`}
+          change={delta(displayStats.avg_duration, displayStats.previous.avg_duration)}
+          hint="Temps moyen passé par session."
           icon={Clock}
         />
       </div>
 
       {/* Chart */}
-      <MiniBarChart
+      <VisitorsChart
         data={displayStats.visitors_chart}
         annotations={annotations}
         onAdd={addAnnotation}
@@ -567,7 +775,7 @@ export function DashboardContent() {
       />
 
       {/* Rankings */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         <RankingTable
           title="Pages populaires"
           data={displayStats.top_pages}
