@@ -212,16 +212,28 @@ export function HeatmapPanel() {
 
   if (sites.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-surface p-12 text-center">
-        <MousePointerClick className="mx-auto h-8 w-8 text-muted-light" />
-        <h2 className="mt-4 text-lg font-medium">Ajoutez d&apos;abord un site</h2>
-        <p className="mx-auto mt-2 max-w-sm text-[13.5px] text-muted">
-          Les heatmaps se construisent à partir des interactions enregistrées par
-          le script de tracking.
+      <div className="app-card flex flex-col items-center justify-center py-16 text-center">
+        <MousePointerClick className="h-7 w-7 text-muted-light" />
+        <h2 className="mt-3 text-[15px] font-semibold">Aucun site pour l&apos;instant</h2>
+        <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-muted">
+          Une heatmap se construit à partir des clics et des scrolls que le
+          script enregistre sur une page. Ajoutez un site, installez le script,
+          et la première carte apparaît dès les premières visites.
         </p>
-        <Link href="/dashboard/sites/new" className="btn btn-brand mt-6">
-          Ajouter un site
-        </Link>
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <Link
+            href="/dashboard/sites/new"
+            className="rounded-[var(--app-radius-sm)] bg-primary px-3 py-2 text-[13px] font-medium text-white transition-colors hover:bg-primary-hover"
+          >
+            Ajouter un site
+          </Link>
+          <Link
+            href="/features/heatmaps"
+            className="rounded-[var(--app-radius-sm)] border border-border px-3 py-2 text-[13px] font-medium transition-colors hover:bg-surface-hover"
+          >
+            Comment ça marche
+          </Link>
+        </div>
       </div>
     );
   }
@@ -452,9 +464,12 @@ export function HeatmapPanel() {
                     <p className="mt-3 text-[14px] font-medium">
                       Pas encore d&apos;interactions
                     </p>
-                    <p className="mx-auto mt-1.5 max-w-xs text-[13px] text-muted">
-                      Les clics apparaissent ici dès que des visiteurs
-                      parcourent cette page avec le script installé.
+                    <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted">
+                      Aucun clic ni scroll enregistré sur cette page sur la
+                      période choisie. Essayez une autre page dans le sélecteur
+                      ci-dessus, ou élargissez la période — sur un site récent
+                      c&apos;est simplement qu&apos;il n&apos;y a pas encore eu
+                      de visite ici.
                     </p>
                   </div>
                 )}
@@ -609,7 +624,10 @@ export function HeatmapPanel() {
             <h3 className="text-[13px] font-medium">Éléments les plus cliqués</h3>
             <div className="mt-3 space-y-2.5">
               {(s?.elements ?? []).length === 0 && (
-                <p className="py-2 text-[12px] text-muted-light">Aucune donnée</p>
+                <p className="py-2 text-[12px] leading-relaxed text-muted-light">
+                  Les boutons et liens les plus cliqués de cette page se
+                  classeront ici.
+                </p>
               )}
               {(s?.elements ?? []).map((el) => (
                 <div key={el.selector}>

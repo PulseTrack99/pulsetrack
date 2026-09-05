@@ -415,7 +415,11 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
               })}
             </div>
           ) : (
-            <p className="text-sm text-muted">Aucune donnée</p>
+            <p className="text-[13px] leading-relaxed text-muted">
+              Aucun paiement rattaché à une source sur cette période. Dès
+              qu&apos;un visiteur venu de Google ou d&apos;un réseau social
+              paiera, le revenu qu&apos;il a rapporté apparaîtra ici.
+            </p>
           )}
         </div>
 

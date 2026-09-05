@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -227,12 +228,17 @@ function RankingTable({
   labelKey,
   valueKey,
   valueLabel,
+  emptyHint,
 }: {
   title: string;
   data: Record<string, unknown>[];
   labelKey: string;
   valueKey: string;
   valueLabel: string;
+  /** What this card will show once there is data. Three cards all
+   *  saying "Pas encore de données" told you nothing about what each
+   *  one is for. */
+  emptyHint: string;
 }) {
   const max = Math.max(
     ...data.map((d) => Number(d[valueKey])),
@@ -244,8 +250,8 @@ function RankingTable({
       <h3 className="text-sm font-semibold mb-4">{title}</h3>
       <div className="space-y-3">
         {data.length === 0 && (
-          <p className="text-sm text-muted py-4 text-center">
-            Pas encore de données
+          <p className="py-4 text-center text-[12px] leading-relaxed text-muted-light">
+            {emptyHint}
           </p>
         )}
         {data.slice(0, 5).map((item, i) => (
@@ -273,22 +279,31 @@ function RankingTable({
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mb-4">
-        <Globe className="h-8 w-8 text-primary" />
+    <div className="app-card flex flex-col items-center justify-center py-16 text-center">
+      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary-pale">
+        <Globe className="h-5 w-5 text-primary" />
       </div>
-      <h2 className="text-xl font-bold">Ajoutez votre premier site</h2>
-      <p className="mt-2 max-w-md text-sm text-muted">
-        Pour commencer à tracker vos visiteurs, ajoutez votre site web et
-        installez le script de tracking.
+      <h2 className="text-[15px] font-semibold">Ajoutez votre premier site</h2>
+      <p className="mt-1 max-w-md text-[13px] leading-relaxed text-muted">
+        Deux étapes : vous déclarez le domaine, puis vous collez une ligne de
+        script dans vos pages. Les premières visites remontent en quelques
+        secondes, sans cookie ni bandeau de consentement.
       </p>
-      <a
-        href="/dashboard/sites/new"
-        className="mt-6 flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
-      >
-        <Plus className="h-4 w-4" />
-        Ajouter un site
-      </a>
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+        <Link
+          href="/dashboard/sites/new"
+          className="flex items-center gap-1.5 rounded-[var(--app-radius-sm)] bg-primary px-3 py-2 text-[13px] font-medium text-white transition-colors hover:bg-primary-hover"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Ajouter un site
+        </Link>
+        <Link
+          href="/features/analytics"
+          className="rounded-[var(--app-radius-sm)] border border-border px-3 py-2 text-[13px] font-medium transition-colors hover:bg-surface-hover"
+        >
+          Voir ce que PulseTrack mesure
+        </Link>
+      </div>
     </div>
   );
 }
@@ -559,6 +574,7 @@ export function DashboardContent() {
           labelKey="path"
           valueKey="views"
           valueLabel="vues"
+          emptyHint="Vos pages les plus consultées apparaîtront ici dès la première visite enregistrée."
         />
         <RankingTable
           title="Sources de trafic"
@@ -566,6 +582,7 @@ export function DashboardContent() {
           labelKey="source"
           valueKey="visitors"
           valueLabel="visiteurs"
+          emptyHint="D'où arrivent vos visiteurs : Google, réseaux sociaux, IA, ou accès direct."
         />
         <RankingTable
           title="Pays"
@@ -573,6 +590,7 @@ export function DashboardContent() {
           labelKey="country"
           valueKey="visitors"
           valueLabel="visiteurs"
+          emptyHint="La répartition géographique de vos visiteurs, déduite de leur IP sans la stocker."
         />
       </div>
     </div>

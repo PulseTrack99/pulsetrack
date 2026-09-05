@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import {
   Filter,
@@ -61,9 +62,9 @@ export function FunnelsList({ funnels }: { funnels: Funnel[] }) {
           Un funnel suit le parcours des visiteurs d&apos;un site précis. Ajoutez
           un site pour en créer un.
         </p>
-        <a href="/dashboard/sites/new" className="btn btn-brand mt-4">
+        <Link href="/dashboard/sites/new" className="btn btn-brand mt-4">
           Ajouter un site
-        </a>
+        </Link>
       </div>
     );
   }
@@ -454,9 +455,14 @@ function CreateFunnelForm({
 function FunnelVisualization({ steps }: { steps: FunnelStepResult[] }) {
   if (steps.length === 0) {
     return (
-      <p className="text-center text-sm text-muted py-8">
-        Pas encore de données pour ce funnel.
-      </p>
+      <div className="py-8 text-center">
+        <p className="text-[13px] font-medium">Aucun visiteur dans ce funnel</p>
+        <p className="mx-auto mt-1.5 max-w-sm text-[12px] leading-relaxed text-muted">
+          Personne n&apos;a franchi la première étape sur la période choisie.
+          Vérifiez que son URL correspond bien à une page réelle du site, ou
+          élargissez la période ci-dessus.
+        </p>
+      </div>
     );
   }
 
