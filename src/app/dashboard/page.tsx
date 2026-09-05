@@ -1,14 +1,11 @@
-import { createClient } from "@/lib/supabase/server";
 import { DashboardContent } from "@/components/dashboard-content";
 
-export default async function DashboardPage() {
-  const supabase = await createClient();
+export const metadata = {
+  title: "Accueil",
+};
 
-  // Fetch user's sites
-  const { data: sites } = await supabase
-    .from("sites")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  return <DashboardContent sites={sites || []} />;
+/** Sites are fetched once in the layout and shared through
+ *  SiteProvider — this page no longer needs to fetch them itself. */
+export default function DashboardPage() {
+  return <DashboardContent />;
 }

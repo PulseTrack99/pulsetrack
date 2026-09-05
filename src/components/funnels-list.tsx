@@ -9,12 +9,7 @@ import {
   ArrowDown,
   Loader2,
 } from "lucide-react";
-
-interface Site {
-  id: string;
-  name: string;
-  domain: string;
-}
+import { useSites } from "@/components/site-context";
 
 interface FunnelStep {
   id: string;
@@ -41,11 +36,55 @@ interface FunnelStepResult {
   drop_off_rate: number;
 }
 
-export function FunnelsList({
-  sites,
+/**
+ * The rail's site switcher is the single source of truth for scope, so
+ * this screen shows the funnels of the selected site only — the page
+ * used to mix every site's funnels into one list and ask you to read
+ * the domain under each name to tell them apart.
+ *
+ * The list is keyed by site: a funnel belongs to exactly one site, so
+ * switching site invalidates the opened funnel, its results and a
+ * half-filled create form. Remounting drops all of it at once.
+ */
+export function FunnelsList({ funnels }: { funnels: Funnel[] }) {
+  const { site, siteId, ready } = useSites();
+
+  // Don't flash "ajoutez un site" before the stored selection is read.
+  if (!ready) return null;
+
+  if (!siteId) {
+    return (
+      <div className="app-card flex flex-col items-center justify-center py-16 text-center">
+        <Filter className="h-7 w-7 text-muted-light" />
+        <h2 className="mt-3 text-[15px] font-semibold">Ajoutez d&apos;abord un site</h2>
+        <p className="mt-1 max-w-sm text-[13px] text-muted">
+          Un funnel suit le parcours des visiteurs d&apos;un site précis. Ajoutez
+          un site pour en créer un.
+        </p>
+        <a href="/dashboard/sites/new" className="btn btn-brand mt-4">
+          Ajouter un site
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <SiteFunnels
+      key={siteId}
+      siteId={siteId}
+      siteName={site?.name ?? "ce site"}
+      funnels={funnels.filter((f) => f.site_id === siteId)}
+    />
+  );
+}
+
+function SiteFunnels({
+  siteId,
+  siteName,
   funnels: initialFunnels,
 }: {
-  sites: Site[];
+  siteId: string;
+  siteName: string;
   funnels: Funnel[];
 }) {
   const [funnels, setFunnels] = useState(initialFunnels);
@@ -82,33 +121,18 @@ export function FunnelsList({
     loadResults();
   }, [selectedFunnel, period]);
 
-  if (sites.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <Filter className="h-12 w-12 text-muted mb-4" />
-        <h2 className="text-xl font-bold">Ajoutez d&apos;abord un site</h2>
-        <p className="mt-2 text-sm text-muted">
-          Vous devez avoir au moins un site pour créer un funnel.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Funnels de conversion</h1>
-          <p className="mt-1 text-sm text-muted">
-            Suivez le parcours de vos visiteurs étape par étape et identifiez où ils décrochent.
-          </p>
-        </div>
+    <div className="space-y-4">
+      <div className="app-toolbar justify-between">
+        <p className="text-[13px] text-muted">
+          Suivez le parcours de vos visiteurs étape par étape et identifiez où
+          ils décrochent.
+        </p>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
+          className="flex items-center gap-1.5 rounded-[var(--app-radius-sm)] bg-primary px-2.5 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-primary-hover"
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-3.5 w-3.5" />
           Créer un funnel
         </button>
       </div>
@@ -116,7 +140,7 @@ export function FunnelsList({
       {/* Create funnel form */}
       {showCreate && (
         <CreateFunnelForm
-          sites={sites}
+          siteId={siteId}
           onCreated={(funnel) => {
             setFunnels([funnel, ...funnels]);
             setShowCreate(false);
@@ -127,19 +151,29 @@ export function FunnelsList({
 
       {/* Funnels list */}
       {funnels.length === 0 && !showCreate ? (
-        <div className="rounded-xl border border-border bg-background p-12 text-center">
-          <Filter className="mx-auto h-10 w-10 text-muted mb-3" />
-          <h3 className="text-lg font-semibold">Aucun funnel</h3>
-          <p className="mt-1 text-sm text-muted">
-            Créez votre premier funnel pour commencer à analyser vos conversions.
+        <div className="app-card flex flex-col items-center justify-center py-16 text-center">
+          <Filter className="h-7 w-7 text-muted-light" />
+          <h3 className="mt-3 text-[15px] font-semibold">
+            Aucun funnel sur {siteName}
+          </h3>
+          <p className="mt-1 max-w-sm text-[13px] text-muted">
+            Un funnel est une suite d&apos;étapes — page d&apos;accueil, pricing,
+            inscription. PulseTrack compte combien de visiteurs franchissent
+            chacune et où ils abandonnent.
           </p>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="mt-4 flex items-center gap-1.5 rounded-[var(--app-radius-sm)] bg-primary px-3 py-2 text-[13px] font-medium text-white transition-colors hover:bg-primary-hover"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Créer mon premier funnel
+          </button>
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-3">
           {/* Funnel cards */}
           <div className="space-y-3 lg:col-span-1">
             {funnels.map((funnel) => {
-              const site = sites.find((s) => s.id === funnel.site_id);
               const steps = funnel.funnel_steps?.sort(
                 (a, b) => a.step_order - b.step_order
               ) || [];
@@ -160,7 +194,7 @@ export function FunnelsList({
                     <div>
                       <h3 className="font-semibold">{funnel.name}</h3>
                       <p className="text-xs text-muted mt-0.5">
-                        {site?.domain || "Site inconnu"} · {steps.length} étapes
+                        {steps.length} étapes
                       </p>
                     </div>
                     <ChevronRight
@@ -232,16 +266,15 @@ export function FunnelsList({
 
 /* ─────────── CREATE FUNNEL FORM ─────────── */
 function CreateFunnelForm({
-  sites,
+  siteId,
   onCreated,
   onCancel,
 }: {
-  sites: Site[];
+  siteId: string;
   onCreated: (funnel: Funnel) => void;
   onCancel: () => void;
 }) {
   const [name, setName] = useState("");
-  const [siteId, setSiteId] = useState(sites[0]?.id || "");
   const [steps, setSteps] = useState([
     { name: "Page d'accueil", match_type: "path", match_value: "/" },
     { name: "Page pricing", match_type: "path", match_value: "/pricing" },
@@ -311,34 +344,20 @@ function CreateFunnelForm({
           </div>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="block text-sm font-medium mb-1.5">
-              Nom du funnel
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              placeholder="Ex: Inscription, Achat, Onboarding"
-              className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Site</label>
-            <select
-              value={siteId}
-              onChange={(e) => setSiteId(e.target.value)}
-              className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm outline-none focus:border-primary"
-            >
-              {sites.map((site) => (
-                <option key={site.id} value={site.id}>
-                  {site.name} — {site.domain}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* No site picker: the funnel is created on the site selected in
+            the rail, the same scope the rest of the screen already shows. */}
+        <div>
+          <label className="block text-sm font-medium mb-1.5">
+            Nom du funnel
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            placeholder="Ex: Inscription, Achat, Onboarding"
+            className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+          />
         </div>
 
         {/* Steps */}

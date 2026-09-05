@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
+import { useSites } from "@/components/site-context";
 import {
   Video,
   AlertTriangle,
@@ -35,12 +36,6 @@ const SessionReplayPlayer = dynamic(
     ),
   }
 );
-
-interface Site {
-  id: string;
-  name: string;
-  domain: string;
-}
 
 interface FunnelOption {
   id: string;
@@ -166,18 +161,68 @@ function formatDuration(ms: number): string {
   return m > 0 ? `${m}m ${rem}s` : `${rem}s`;
 }
 
-export function SessionReplayPanel({ sites }: { sites: Site[] }) {
+/**
+ * Follows the rail's site switcher. Everything below is scoped to one
+ * site — the open recording, the filters, the saved cohorts, the
+ * copilot conversation — so the panel is keyed by site and a switch
+ * remounts it clean rather than leaving one site's session list under
+ * another site's name.
+ */
+export function SessionReplayPanel() {
+  const { sites, site, siteId, ready, setSiteId } = useSites();
+
   // Arriving from "Sessions sur cette page" on the heatmap view carries
-  // ?site= and ?path= — read once on mount so the list opens already
-  // scoped to what was clicked, rather than making the visitor redo the
-  // filtering.
-  const initial = useSearchParams();
-  const [siteId, setSiteId] = useState(
-    initial.get("site") && sites.some((s) => s.id === initial.get("site"))
-      ? initial.get("site")!
-      : (sites[0]?.id ?? "")
+  // ?site= and ?path=. The site part points the rail's shared selection
+  // at that site so every screen follows, not just this one.
+  const params = useSearchParams();
+  const linked = params.get("site");
+  const path = params.get("path");
+
+  useEffect(() => {
+    if (linked && linked !== siteId && sites.some((s) => s.id === linked)) {
+      setSiteId(linked);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linked, sites]);
+
+  if (!ready) return null;
+
+  if (!siteId) {
+    return (
+      <div className="app-card flex flex-col items-center justify-center py-16 text-center">
+        <Video className="h-7 w-7 text-muted-light" />
+        <h2 className="mt-3 text-[15px] font-semibold">Aucun site pour l&apos;instant</h2>
+        <p className="mt-1 max-w-sm text-[13px] text-muted">
+          Session Replay rejoue les visites d&apos;un site. Ajoutez-en un pour
+          commencer à enregistrer.
+        </p>
+        <Link href="/dashboard/sites/new" className="btn btn-brand mt-4">
+          Ajouter un site
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <SiteReplays
+      key={siteId}
+      siteId={siteId}
+      siteDomain={site?.domain ?? ""}
+      initialPath={path}
+    />
   );
-  const [path, setPath] = useState<string | null>(initial.get("path"));
+}
+
+function SiteReplays({
+  siteId,
+  siteDomain,
+  initialPath,
+}: {
+  siteId: string;
+  siteDomain: string;
+  initialPath: string | null;
+}) {
+  const [path, setPath] = useState<string | null>(initialPath);
   const [period, setPeriod] = useState("30d");
   const [device, setDevice] = useState<string | null>(null);
   const [rageOnly, setRageOnly] = useState(false);
@@ -227,7 +272,6 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
   const [events, setEvents] = useState<any[] | null>(null);
   const [eventsError, setEventsError] = useState<string | null>(null);
 
-  const site = useMemo(() => sites.find((s) => s.id === siteId), [sites, siteId]);
 
   // Funnels and the site's Stripe connection state, for the "abandon de
   // funnel" and "sans conversion" filter options. RLS on both tables
@@ -270,15 +314,21 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
     };
   }, [siteId]);
 
-  function loadCohorts(site: string) {
+  function loadCohorts(site: string, alive?: () => boolean) {
     fetch(`/api/cohorts?site_id=${site}`)
       .then((r) => r.json())
-      .then((d) => setCohorts(d.cohorts ?? []));
+      .then((d) => {
+        if (!alive || alive()) setCohorts(d.cohorts ?? []);
+      });
   }
 
   useEffect(() => {
     if (!siteId) return;
-    loadCohorts(siteId);
+    let cancelled = false;
+    loadCohorts(siteId, () => !cancelled);
+    return () => {
+      cancelled = true;
+    };
   }, [siteId]);
 
   function applyCohort(c: Cohort) {
@@ -488,22 +538,6 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
     }
   }
 
-  if (sites.length === 0) {
-    return (
-      <div className="rounded-lg border border-border bg-surface p-12 text-center">
-        <Video className="mx-auto h-8 w-8 text-muted-light" />
-        <h2 className="mt-4 text-lg font-medium">Ajoutez d&apos;abord un site</h2>
-        <p className="mx-auto mt-2 max-w-sm text-[13.5px] text-muted">
-          Les enregistrements de session apparaissent ici dès que des
-          visiteurs parcourent votre site avec le script installé.
-        </p>
-        <Link href="/dashboard/sites/new" className="btn btn-brand mt-6">
-          Ajouter un site
-        </Link>
-      </div>
-    );
-  }
-
   if (locked) {
     return (
       <div className="rounded-lg border border-border bg-surface p-12 text-center">
@@ -526,28 +560,6 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
     <div className="space-y-5">
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-2">
-        {sites.length > 1 && (
-          <select
-            value={siteId}
-            onChange={(e) => {
-              setSiteId(e.target.value);
-              setSelected(null);
-              setPath(null);
-              setConditions([]);
-              setShowBuilder(false);
-              setChat([]);
-              setCohorts([]);
-            }}
-            className="rounded-sm border border-border bg-surface px-3 py-2 text-[13px] outline-none focus:border-primary"
-          >
-            {sites.map((st) => (
-              <option key={st.id} value={st.id}>
-                {st.name}
-              </option>
-            ))}
-          </select>
-        )}
-
         <div className="flex gap-0.5 rounded-sm border border-border bg-surface p-0.5">
           {[
             { value: null, label: "Tous" },
@@ -1135,7 +1147,7 @@ export function SessionReplayPanel({ sites }: { sites: Site[] }) {
                 <div>
                   <p className="text-[13px] font-medium">{selected.path || "/"}</p>
                   <p className="text-[11.5px] text-muted-light">
-                    {site?.domain} · {selected.browser} · {selected.country}
+                    {siteDomain} · {selected.browser} · {selected.country}
                   </p>
                 </div>
                 {selected.path && (

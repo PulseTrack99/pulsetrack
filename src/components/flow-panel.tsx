@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Workflow, LogOut } from "lucide-react";
+import { useSites } from "@/components/site-context";
 
 interface Site {
   id: string;
@@ -54,8 +55,10 @@ function edgePath(x1: number, y1: number, x2: number, y2: number): string {
   return `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
 }
 
-export function FlowPanel({ sites }: { sites: Site[] }) {
-  const [siteId, setSiteId] = useState(sites[0]?.id ?? "");
+export function FlowPanel() {
+  // Site comes from the rail's switcher (src/components/site-context.tsx).
+  const { sites, siteId: selected } = useSites();
+  const siteId = selected ?? "";
   const [period, setPeriod] = useState("30d");
   const [startPath, setStartPath] = useState<string | null>(null);
   const [depth, setDepth] = useState(4);
@@ -171,20 +174,6 @@ export function FlowPanel({ sites }: { sites: Site[] }) {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2">
-        {sites.length > 1 && (
-          <select
-            value={siteId}
-            onChange={(e) => setSiteId(e.target.value)}
-            className="rounded-sm border border-border bg-surface px-3 py-2 text-[13px] outline-none focus:border-primary"
-          >
-            {sites.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        )}
-
         <div className="flex gap-0.5 rounded-sm border border-border bg-surface p-0.5">
           {["24h", "7d", "30d", "90d"].map((p) => (
             <button

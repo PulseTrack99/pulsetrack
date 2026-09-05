@@ -66,15 +66,16 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
   const [period, setPeriod] = useState("30d");
   const [error, setError] = useState("");
 
+  // Callers remount this panel with key={siteId} (src/components/
+  // revenue-screen.tsx), so a site change gives a fresh instance rather
+  // than one carrying the previous site's revenue while its request is
+  // still in flight. Only the period can change under a live request.
   const fetchStats = useCallback(async () => {
     try {
       const res = await fetch(
         `/api/revenue/stats?site_id=${siteId}&period=${period}`
       );
-      if (res.ok) {
-        const data = await res.json();
-        setStats(data);
-      }
+      if (res.ok) setStats(await res.json());
     } catch {
       // silent
     } finally {

@@ -21,6 +21,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { RealtimePanel } from "@/components/realtime-panel";
+import { useSites } from "@/components/site-context";
 
 interface Site {
   id: string;
@@ -292,10 +293,10 @@ function EmptyState() {
   );
 }
 
-export function DashboardContent({ sites }: { sites: Site[] }) {
-  const [selectedSite, setSelectedSite] = useState<string | null>(
-    sites[0]?.id || null
-  );
+export function DashboardContent() {
+  // Site selection lives in the rail now (src/components/site-context.tsx),
+  // shared by every screen instead of one selector per page.
+  const { sites, siteId: selectedSite } = useSites();
   const [stats, setStats] = useState<Stats | null>(null);
   const [period, setPeriod] = useState("30d");
   const [loading, setLoading] = useState(false);
@@ -368,8 +369,14 @@ export function DashboardContent({ sites }: { sites: Site[] }) {
     }
   }
 
+  // Every fetch below is keyed on the selected site, so a response that
+  // arrives after the user has switched away must be dropped — otherwise
+  // a slow request for the previous site overwrites the numbers of the
+  // one now named in the rail, and the screen shows one site's name
+  // above another site's data.
   useEffect(() => {
     if (!selectedSite) return;
+    let current = true;
 
     async function fetchStats() {
       setLoading(true);
@@ -379,33 +386,44 @@ export function DashboardContent({ sites }: { sites: Site[] }) {
         );
         if (res.ok) {
           const data = await res.json();
-          setStats(data);
+          if (current) setStats(data);
         }
       } catch (err) {
         console.error("Failed to fetch stats:", err);
       } finally {
-        setLoading(false);
+        if (current) setLoading(false);
       }
     }
 
     fetchStats();
+    return () => {
+      current = false;
+    };
   }, [selectedSite, period]);
 
   useEffect(() => {
     if (!selectedSite) return;
+    let current = true;
     const since = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
     fetch(`/api/annotations?site_id=${selectedSite}&since=${since}`)
       .then((r) => r.json())
-      .then((d) => setAnnotations(d.annotations ?? []))
-      .catch(() => setAnnotations([]));
+      .then((d) => current && setAnnotations(d.annotations ?? []))
+      .catch(() => current && setAnnotations([]));
+    return () => {
+      current = false;
+    };
   }, [selectedSite]);
 
   useEffect(() => {
     if (!selectedSite) return;
+    let current = true;
     fetch(`/api/insights?site_id=${selectedSite}`)
       .then((r) => (r.ok ? r.json() : { digest: null }))
-      .then((d) => setInsightDigest(d.digest ?? null))
-      .catch(() => setInsightDigest(null));
+      .then((d) => current && setInsightDigest(d.digest ?? null))
+      .catch(() => current && setInsightDigest(null));
+    return () => {
+      current = false;
+    };
   }, [selectedSite]);
 
   if (sites.length === 0) {
@@ -431,21 +449,9 @@ export function DashboardContent({ sites }: { sites: Site[] }) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Site selector + Period */}
+    <div className="space-y-4">
+      {/* Period — the site is chosen once in the rail. */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <select
-          value={selectedSite || ""}
-          onChange={(e) => setSelectedSite(e.target.value)}
-          className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-        >
-          {sites.map((site) => (
-            <option key={site.id} value={site.id}>
-              {site.name} — {site.domain}
-            </option>
-          ))}
-        </select>
-
         <div className="flex gap-1 rounded-lg border border-border bg-background p-0.5">
           {[
             { value: "24h", label: "24h" },

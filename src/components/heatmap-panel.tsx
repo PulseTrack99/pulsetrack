@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useSites } from "@/components/site-context";
 import {
   MousePointerClick,
   AlertTriangle,
@@ -114,17 +115,24 @@ interface ReplayRow {
   has_rage: boolean;
 }
 
-export function HeatmapPanel({ sites }: { sites: Site[] }) {
+export function HeatmapPanel() {
+  const { sites, siteId: selected, setSiteId } = useSites();
+  const siteId = selected ?? "";
+
   // Arriving from "Heatmap de cette page" on a replay carries ?site= and
-  // ?path= — read once on mount so the map opens already scoped to the
-  // page that was being watched.
+  // ?path=. The site part now points the rail's shared selection at that
+  // site, so the whole app follows rather than just this panel.
   const initial = useSearchParams();
-  const [siteId, setSiteId] = useState(
-    initial.get("site") && sites.some((s) => s.id === initial.get("site"))
-      ? initial.get("site")!
-      : (sites[0]?.id ?? "")
-  );
   const [path, setPath] = useState<string | null>(initial.get("path"));
+
+  useEffect(() => {
+    const linked = initial.get("site");
+    if (linked && linked !== selected && sites.some((s) => s.id === linked)) {
+      setSiteId(linked);
+    }
+    // Only when the link's own parameter changes — not on every selection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initial, sites]);
   // null lets the server pick the breakpoint with the most data.
   const [device, setDevice] = useState<string | null>(null);
   const [period, setPeriod] = useState("30d");
@@ -259,22 +267,6 @@ export function HeatmapPanel({ sites }: { sites: Site[] }) {
     <div className="space-y-5">
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-2">
-        {sites.length > 1 && (
-          <select
-            value={siteId}
-            onChange={(e) => {
-              setSiteId(e.target.value);
-              setPath(null);
-            }}
-            className="rounded-sm border border-border bg-surface px-3 py-2 text-[13px] outline-none focus:border-primary"
-          >
-            {sites.map((st) => (
-              <option key={st.id} value={st.id}>
-                {st.name}
-              </option>
-            ))}
-          </select>
-        )}
 
         <select
           value={s?.path ?? ""}

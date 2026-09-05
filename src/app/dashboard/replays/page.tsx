@@ -1,42 +1,23 @@
 import { Suspense } from "react";
-import { createClient } from "@/lib/supabase/server";
 import { SessionReplayPanel } from "@/components/session-replay-panel";
 
 export const metadata = {
   title: "Session Replay",
 };
 
-export default async function ReplaysPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return null;
-
-  // No .eq("user_id", user.id) — RLS already scopes this to sites the
-  // caller owns or was added to as a team member.
-  const { data: sites } = await supabase
-    .from("sites")
-    .select("id, name, domain")
-    .order("created_at", { ascending: true });
-
+export default function ReplaysPage() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-medium tracking-[-0.02em]">Session Replay</h1>
-        <p className="mt-1 text-[13.5px] text-muted">
-          Regardez vos visiteurs naviguer réellement sur votre site — chaque
-          clic, chaque scroll, chaque hésitation.
-        </p>
-      </div>
+    <div className="space-y-4">
+      <p className="text-[13px] text-muted">
+        Regardez vos visiteurs naviguer réellement sur votre site — chaque clic,
+        chaque scroll, chaque hésitation.
+      </p>
 
       {/* useSearchParams (for the ?site=&path= cross-link from the
           heatmap view) requires a Suspense boundary around whatever
           reads it. */}
       <Suspense fallback={null}>
-        <SessionReplayPanel sites={sites ?? []} />
+        <SessionReplayPanel />
       </Suspense>
     </div>
   );
