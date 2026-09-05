@@ -18,6 +18,48 @@ import "rrweb/dist/style.css";
 
 const SPEEDS = [1, 2, 4, 8];
 
+/**
+ * rrweb renders the recording at the viewport size it was captured at —
+ * often 1280×900 — and the stage had no height of its own, so the player
+ * grew to whatever the recorded page was. The play button ended up
+ * around 1300px down the page: you had to scroll past the entire
+ * recording to start it, and once there you could no longer see which
+ * session you were watching.
+ *
+ * The stage now has a fixed height and the recording is scaled to fit
+ * inside it, the way every replay tool does it. Scaling is applied
+ * straight to the DOM rather than through React state: it is pure
+ * layout, it has to react to container resizes, and routing it through
+ * a render would buy nothing but re-renders.
+ */
+function fitToStage(stage: HTMLElement, recorded: { width: number; height: number }) {
+  const wrapper = stage.querySelector<HTMLElement>(".replayer-wrapper");
+  if (!wrapper || !recorded.width || !recorded.height) return;
+
+  const scale = Math.min(
+    stage.clientWidth / recorded.width,
+    stage.clientHeight / recorded.height,
+    1 // never blow a small recording up past its real size
+  );
+
+  wrapper.style.transform = `scale(${scale})`;
+  wrapper.style.transformOrigin = "top left";
+  // Centre what's left over, so a narrow recording isn't glued to the edge.
+  wrapper.style.left = `${Math.max(0, (stage.clientWidth - recorded.width * scale) / 2)}px`;
+  wrapper.style.top = `${Math.max(0, (stage.clientHeight - recorded.height * scale) / 2)}px`;
+  wrapper.style.position = "absolute";
+}
+
+/** The capture's viewport, from rrweb's Meta event (type 4). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function recordedViewport(events: any[]): { width: number; height: number } {
+  const meta = events.find((e) => e?.type === 4 && e?.data?.width);
+  return {
+    width: Number(meta?.data?.width ?? 0),
+    height: Number(meta?.data?.height ?? 0),
+  };
+}
+
 function formatTime(ms: number): string {
   const s = Math.floor(ms / 1000);
   const m = Math.floor(s / 60);
@@ -40,6 +82,7 @@ export function SessionReplayPlayer({
   const progressRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
   const skipInactiveRef = useRef(true);
+  const observerRef = useRef<ResizeObserver | null>(null);
 
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
   const [playing, setPlaying] = useState(false);
@@ -93,6 +136,14 @@ export function SessionReplayPlayer({
           blockClass: "pt-block",
         });
 
+        // Scale the freshly-mounted recording into the stage, and keep
+        // it fitted when the window (or the rail) changes the width.
+        const recorded = recordedViewport(events);
+        fitToStage(wrap, recorded);
+        const observer = new ResizeObserver(() => fitToStage(wrap, recorded));
+        observer.observe(wrap);
+        observerRef.current = observer;
+
         replayer.on("finish", () => setPlaying(false));
         replayer.on("pause", () => setPlaying(false));
         replayer.on("resume", () => setPlaying(true));
@@ -110,6 +161,8 @@ export function SessionReplayPlayer({
 
     return () => {
       cancelled = true;
+      observerRef.current?.disconnect();
+      observerRef.current = null;
       if (replayerRef.current) {
         try {
           replayerRef.current.pause();
@@ -167,11 +220,20 @@ export function SessionReplayPlayer({
 
   return (
     <div className={`overflow-hidden rounded-lg border border-border bg-surface ${className}`}>
-      <div className="relative bg-surface-sunken" style={{ minHeight: 360 }}>
-        <div
-          ref={wrapRef}
-          className="pt-replay-stage flex items-center justify-center overflow-hidden [&_iframe]:border-0"
-        />
+      {/* A fixed stage, not a container that grows to the recorded page.
+          The clamp keeps the controls on screen on a laptop while still
+          using the room a big display has.
+
+          The rrweb mount node carries no React children of its own: the
+          effect calls replaceChildren() on it, which would delete an
+          element React still believes it owns — React then throws
+          NotFoundError on the next removal. Hence the overlay being a
+          sibling rather than a child. */}
+      <div
+        className="relative overflow-hidden bg-surface-sunken"
+        style={{ height: "clamp(320px, 52vh, 620px)" }}
+      >
+        <div ref={wrapRef} className="absolute inset-0 [&_iframe]:border-0" />
         {state !== "ready" && (
           <div className="absolute inset-0 flex items-center justify-center">
             {state === "loading" ? (

@@ -911,17 +911,19 @@ function SiteReplays({
       {/* Saved cohorts — a name attached to the filter combination
           above, nothing more. Applying one sets the same state the
           manual controls set, so it stays editable afterwards. */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Hidden entirely when there is nothing to show — it used to
+          spend a whole row announcing that it was empty. It reappears as
+          soon as a filter is set (so the choice can be saved) or a
+          cohort exists. */}
+      <div
+        className={`flex-wrap items-center gap-2 ${
+          cohorts.length === 0 && conditions.length === 0 ? "hidden" : "flex"
+        }`}
+      >
         <span className="flex items-center gap-1.5 text-[11.5px] text-muted-light">
           <Bookmark className="h-3.5 w-3.5" />
           Cohorts :
         </span>
-
-        {cohorts.length === 0 && conditions.length === 0 && (
-          <span className="text-[12px] text-muted-light">
-            Aucun cohort sauvegardé pour l&apos;instant.
-          </span>
-        )}
 
         {cohorts.map((c) => (
           <span
@@ -970,8 +972,96 @@ function SiteReplays({
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
-        {/* Left column: copilot chat, then the session list under it */}
+        {/* Left column: the session list first — it is what the screen is
+            for — with the copilot underneath as an accessory. It used to
+            be the other way round, so the recordings started halfway
+            down the column. */}
         <div className="flex flex-col gap-4">
+          {/* Session list */}
+          <div className="flex max-h-[460px] flex-col overflow-hidden rounded-lg border border-border bg-surface">
+            {/* Always, not only when a filter is set: a list with no
+                count leaves you guessing whether you're looking at
+                everything or at a filtered subset. */}
+            {!loading && (
+              <p className="border-b border-border px-4 py-2 text-[11.5px] text-muted-light">
+                <span className="font-medium text-foreground">{replays.length}</span>{" "}
+                enregistrement{replays.length > 1 ? "s" : ""}
+                {conditions.length > 0 || rageOnly || device || path
+                  ? " correspondant aux filtres"
+                  : ` sur ${period === "24h" ? "24 h" : period.replace("d", " jours")}`}
+              </p>
+            )}
+            <div className="overflow-y-auto">
+          {loading && (
+            <div className="flex justify-center py-10">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+            </div>
+          )}
+
+          {!loading && replays.length === 0 && (
+            <div className="p-8 text-center">
+              <Video className="mx-auto h-6 w-6 text-muted-light" />
+              <p className="mt-3 text-[13px] font-medium">Aucun enregistrement</p>
+              <p className="mt-1.5 text-[12px] text-muted">
+                Ils apparaîtront dès qu&apos;un visiteur sera enregistré.
+              </p>
+            </div>
+          )}
+
+          <ul className="divide-y divide-border">
+            {replays.map((r) => {
+              const Icon = DEVICE_ICON[r.device ?? ""] ?? Monitor;
+              const active = selected?.id === r.id;
+              return (
+                <li key={r.id}>
+                  <button
+                    onClick={() => setSelected(r)}
+                    className={`block w-full px-4 py-3 text-left transition-colors ${
+                      active ? "bg-primary-pale/50" : "hover:bg-surface-hover"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-1.5 text-[13px] font-medium">
+                        <Icon className="h-3.5 w-3.5 shrink-0 text-muted-light" />
+                        <span className="truncate">{r.path || "/"}</span>
+                      </span>
+                      {/* Labelled, not a bare triangle: an unexplained
+                          warning icon is the kind of thing you have to
+                          hover to understand. */}
+                      {r.has_rage && (
+                        <span className="flex shrink-0 items-center gap-1 rounded-xs bg-coral-pale px-1.5 py-0.5 text-[10px] font-medium text-coral">
+                          <AlertTriangle className="h-2.5 w-2.5" />
+                          rage
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-muted-light">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatDuration(r.duration_ms)}
+                      </span>
+                      {/* event_count is deliberately not shown: it counts
+                          rrweb frames (DOM mutations, mouse moves), not
+                          pages or clicks — 92 of them for a 28-second
+                          single-page visit. It means nothing to a reader. */}
+                      {r.country && r.country !== "Unknown" && <span>{r.country}</span>}
+                      {r.browser && <span>{r.browser}</span>}
+                      <span>{timeAgo(r.started_at)}</span>
+                      {r.status === "recording" && (
+                        <span className="flex items-center gap-1 text-emerald">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald" />
+                          en cours
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+            </div>
+          </div>
+
           {/* Copilot — sets the same filters as the manual controls
               above, never a new query path of its own. Always shown
               here: every plan that reaches this panel (session_replay
@@ -1054,75 +1144,6 @@ function SiteReplays({
               >
                 {aiLoading ? "…" : "Envoyer"}
               </button>
-            </div>
-          </div>
-
-          {/* Session list */}
-          <div className="flex max-h-[460px] flex-col overflow-hidden rounded-lg border border-border bg-surface">
-            {conditions.length > 0 && !loading && (
-              <p className="border-b border-border px-4 py-2 text-[11.5px] text-muted-light">
-                <span className="font-medium text-foreground">{replays.length}</span>{" "}
-                session{replays.length > 1 ? "s" : ""} trouvée{replays.length > 1 ? "s" : ""}
-              </p>
-            )}
-            <div className="overflow-y-auto">
-          {loading && (
-            <div className="flex justify-center py-10">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
-            </div>
-          )}
-
-          {!loading && replays.length === 0 && (
-            <div className="p-8 text-center">
-              <Video className="mx-auto h-6 w-6 text-muted-light" />
-              <p className="mt-3 text-[13px] font-medium">Aucun enregistrement</p>
-              <p className="mt-1.5 text-[12px] text-muted">
-                Ils apparaîtront dès qu&apos;un visiteur sera enregistré.
-              </p>
-            </div>
-          )}
-
-          <ul className="divide-y divide-border">
-            {replays.map((r) => {
-              const Icon = DEVICE_ICON[r.device ?? ""] ?? Monitor;
-              const active = selected?.id === r.id;
-              return (
-                <li key={r.id}>
-                  <button
-                    onClick={() => setSelected(r)}
-                    className={`block w-full px-4 py-3 text-left transition-colors ${
-                      active ? "bg-primary-pale/50" : "hover:bg-surface-hover"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="flex min-w-0 items-center gap-1.5 text-[13px] font-medium">
-                        <Icon className="h-3.5 w-3.5 shrink-0 text-muted-light" />
-                        <span className="truncate">{r.path || "/"}</span>
-                      </span>
-                      {r.has_rage && (
-                        <span title="Clic de rage détecté">
-                          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-coral" />
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-1 flex items-center gap-2.5 text-[11px] text-muted-light">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatDuration(r.duration_ms)}
-                      </span>
-                      <span>{timeAgo(r.started_at)}</span>
-                      {r.status === "recording" && (
-                        <span className="flex items-center gap-1 text-emerald">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald" />
-                          en cours
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
             </div>
           </div>
         </div>
