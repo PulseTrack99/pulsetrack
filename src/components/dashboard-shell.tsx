@@ -49,10 +49,20 @@ const navItems = [
   { href: "/dashboard/settings", label: "Paramètres", icon: Settings },
 ];
 
+/* Screens reached from the site switcher rather than the rail — they
+   need a breadcrumb label like any other page, but no nav entry of
+   their own. Without them /dashboard/sites falls back to the longest
+   remaining match, /dashboard, and calls itself "Accueil". */
+const secondaryItems = [
+  { href: "/dashboard/sites/new", label: "Ajouter un site" },
+  { href: "/dashboard/sites", label: "Mes sites" },
+  { href: "/dashboard/upgrade", label: "Offres" },
+];
+
 /** Longest matching href wins, so /dashboard/revenue doesn't also
  *  light up /dashboard. */
 function currentItem(pathname: string) {
-  return navItems
+  return [...navItems, ...secondaryItems]
     .filter((i) => pathname === i.href || pathname.startsWith(i.href + "/"))
     .sort((a, b) => b.href.length - a.href.length)[0];
 }

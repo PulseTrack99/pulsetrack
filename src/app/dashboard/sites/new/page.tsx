@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { resolveAccountOwner } from "@/lib/team";
-import { ArrowRight, Globe, Loader2, Copy, Check, Lock } from "lucide-react";
+import { Globe, Loader2, Lock } from "lucide-react";
+import { SetupGuide } from "@/components/setup-guide";
 
 /**
  * The site-count cap lives in a database trigger (supabase/quotas.sql),
@@ -26,7 +27,6 @@ export default function NewSitePage() {
   const [created, setCreated] = useState<{ id: string; domain: string } | null>(
     null
   );
-  const [copied, setCopied] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -81,67 +81,25 @@ export default function NewSitePage() {
     }
   }
 
-  function getTrackingScript(siteId: string) {
-    return `<script defer src="${window.location.origin}/t.js" data-site="${siteId}"></script>`;
-  }
-
-  async function copyScript() {
-    if (!created) return;
-    await navigator.clipboard.writeText(getTrackingScript(created.id));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  // Success state — show tracking script
+  // Success state — the guided install, which verifies itself rather
+  // than handing over a snippet and wishing you luck.
   if (created) {
     return (
-      <div className="mx-auto max-w-lg py-8">
-        <div className="text-center mb-8">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 mb-4">
-            <Check className="h-7 w-7 text-emerald-600" />
-          </div>
-          <h1 className="text-2xl font-bold">Site ajouté !</h1>
-          <p className="mt-2 text-sm text-muted">
-            Copiez ce script et collez-le dans le{" "}
-            <code className="rounded bg-surface px-1.5 py-0.5 text-xs font-mono">
-              &lt;head&gt;
-            </code>{" "}
-            de votre site <strong>{created.domain}</strong>
+      <div className="mx-auto max-w-2xl py-6">
+        <div className="mb-5">
+          <h1 className="text-[17px] font-semibold">
+            {created.domain} est prêt à recevoir des données
+          </h1>
+          <p className="mt-1 text-[13px] text-muted">
+            Trois étapes, dont la dernière se coche toute seule.
           </p>
         </div>
 
-        {/* Script to copy */}
-        <div className="relative rounded-xl border border-border bg-surface p-4">
-          <code className="block text-sm font-mono text-primary break-all leading-relaxed">
-            {getTrackingScript(created.id)}
-          </code>
-          <button
-            onClick={copyScript}
-            className="absolute top-3 right-3 flex items-center gap-1.5 rounded-lg bg-background border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-surface-hover"
-          >
-            {copied ? (
-              <>
-                <Check className="h-3.5 w-3.5 text-emerald-500" />
-                Copié !
-              </>
-            ) : (
-              <>
-                <Copy className="h-3.5 w-3.5" />
-                Copier
-              </>
-            )}
-          </button>
-        </div>
-
-        <div className="mt-8 flex gap-3">
-          <a
-            href="/dashboard"
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
-          >
-            Aller au Dashboard
-            <ArrowRight className="h-4 w-4" />
-          </a>
-        </div>
+        <SetupGuide
+          siteId={created.id}
+          domain={created.domain}
+          origin={process.env.NEXT_PUBLIC_SITE_URL ?? "https://pulsetrack.eu"}
+        />
       </div>
     );
   }
