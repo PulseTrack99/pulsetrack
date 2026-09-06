@@ -185,12 +185,12 @@ export default async function Home() {
               <div className="mt-8 overflow-x-auto rounded-lg border border-border bg-surface-inverse p-5 text-left">
                 <code className="whitespace-pre font-mono text-[12.5px] leading-relaxed text-white/85">
                   {/* The one string in the product a visitor is meant to
-                      copy. It named pulsetrack.io while everything else
-                      serves from pulsetrack.eu, so the snippet fetched an
-                      HTML page instead of the tracker — a 200 with the
-                      wrong MIME type, which browsers refuse to execute and
-                      nobody sees fail. It comes from the same place as the
-                      guided install now. */}
+                      copy, so it comes from the same place as the guided
+                      install rather than being typed out here. It used to
+                      name a .io domain nobody on this project owns — a
+                      stranger's app — which answered 200 with an HTML page.
+                      Browsers refuse to execute that, nothing was ever
+                      recorded, and no error surfaced anywhere. */}
                   {`<script src="${scriptOrigin}/t.js"\n        data-site="YOUR_SITE_ID" defer></script>`}
                 </code>
               </div>

@@ -1,5 +1,5 @@
 // PulseTrack — cookie-free analytics
-// <script defer src="https://pulsetrack.io/t.js" data-site="SITE_ID"></script>
+// <script defer src="https://pulsetrack.eu/t.js" data-site="SITE_ID"></script>
 //
 // Writes nothing to the visitor's device: no cookie, no localStorage, no
 // sessionStorage. Visitors are identified server-side from a daily-rotating
