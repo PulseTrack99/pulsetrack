@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useSites } from "@/components/site-context";
@@ -28,6 +28,7 @@ import {
   Sparkles,
   Bell,
   Radio,
+  Database,
   ChevronDown,
   Share2,
   KeyRound,
@@ -42,6 +43,9 @@ import { AssistantPanel } from "@/components/assistant-panel";
 // Shared with the filter controls so there is one implementation.
 import { useOutsideClose } from "@/components/filters";
 import { useT } from "@/components/locale-context";
+import type { AppStrings } from "@/i18n/app-strings";
+
+type NavKey = keyof AppStrings["shell"]["nav"];
 
 /**
  * Rail structure follows Mixpanel's: the project (here, site)
@@ -55,7 +59,16 @@ import { useT } from "@/components/locale-context";
  * that exists for the resemblance is worse than no button.
  */
 
-const navItems = [
+/* The rail is flat except for one drawer. "Données" earns the
+   grouping the way Mixpanel's does: those screens are where you go to
+   inspect and manage the raw material, not to analyse it — the reports
+   above consume what the drawer holds. It is the only grouping here
+   that describes something real rather than tidying the list. */
+type NavIcon = React.ComponentType<{ className?: string }>;
+type NavLeafEntry = { href: string; key: NavKey; icon: NavIcon };
+type NavEntry = NavLeafEntry | { key: NavKey; icon: NavIcon; items: NavLeafEntry[] };
+
+const navItems: NavEntry[] = [
   { href: "/dashboard", key: "home", icon: BarChart3 },
   { href: "/dashboard/agent", key: "agent", icon: Sparkles },
   { href: "/dashboard/revenue", key: "revenue", icon: DollarSign },
@@ -63,8 +76,22 @@ const navItems = [
   { href: "/dashboard/flows", key: "flows", icon: Workflow },
   { href: "/dashboard/replays", key: "replays", icon: Video },
   { href: "/dashboard/heatmaps", key: "heatmaps", icon: MousePointerClick },
+  {
+    key: "data",
+    icon: Database,
+    items: [
+      { href: "/dashboard/events", key: "events", icon: Activity },
+      { href: "/dashboard/visitors", key: "visitors", icon: Users },
+    ],
+  },
   { href: "/dashboard/settings", key: "settings", icon: Settings },
-] as const;
+];
+
+/** Every destination with the drawer opened out — what breadcrumbs and
+ *  the command palette need, neither of which cares about the nesting. */
+const navLeaves: NavLeafEntry[] = navItems.flatMap((e) =>
+  "items" in e ? e.items : [e]
+);
 
 /* Screens reached from the site switcher rather than the rail — they
    need a breadcrumb label like any other page, but no nav entry of
@@ -79,9 +106,136 @@ const secondaryItems = [
 /** Longest matching href wins, so /dashboard/revenue doesn't also
  *  light up /dashboard. */
 function currentItem(pathname: string) {
-  return [...navItems, ...secondaryItems]
+  return [...navLeaves, ...secondaryItems]
     .filter((i) => pathname === i.href || pathname.startsWith(i.href + "/"))
     .sort((a, b) => b.href.length - a.href.length)[0];
+}
+
+/* ── Rail entries ── */
+
+function NavLink({
+  href,
+  label,
+  icon: Icon,
+  active,
+  nested,
+}: {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  active: boolean;
+  nested?: boolean;
+}) {
+  return (
+    <a
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`flex items-center gap-2.5 rounded-md py-1.5 pr-2 text-[13px] transition-colors ${
+        nested ? "pl-8" : "px-2"
+      } ${
+        active
+          ? "bg-primary-pale font-medium text-primary"
+          : "text-muted hover:bg-surface-hover hover:text-foreground"
+      }`}
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+      {label}
+    </a>
+  );
+}
+
+/* Every rail entry is a plain <a>, so moving around the app reloads the
+   document and nothing in memory outlives the click. A drawer that
+   slams shut each time you go somewhere is worse than no drawer, so the
+   choice is written down. Reading it needs useSyncExternalStore rather
+   than an effect: the server has no localStorage, so it renders the
+   default and React swaps in the stored value during hydration instead
+   of warning about a mismatch. */
+const NAV_GROUP_KEY = "pulsetrack:nav-group";
+
+function subscribeToNavStorage(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  return () => window.removeEventListener("storage", onChange);
+}
+
+const noNavSnapshot = () => null;
+
+/**
+ * A drawer of destinations.
+ *
+ * Open by default when you are already inside it — arriving on Events
+ * from a link should not leave you looking at a closed door. After that
+ * it remembers whichever way you last left it.
+ */
+function NavGroup({
+  entry,
+  activeHref,
+}: {
+  entry: { key: NavKey; icon: NavIcon; items: NavLeafEntry[] };
+  activeHref?: string;
+}) {
+  const { t } = useT();
+  const pathname = usePathname();
+  const holdsCurrent = entry.items.some(
+    (i) => pathname === i.href || pathname.startsWith(i.href + "/")
+  );
+  const storedRaw = useSyncExternalStore(
+    subscribeToNavStorage,
+    () => {
+      try {
+        return localStorage.getItem(`${NAV_GROUP_KEY}:${entry.key}`);
+      } catch {
+        return null;
+      }
+    },
+    noNavSnapshot
+  );
+  // Set the moment it is toggled, so the click lands before the write.
+  const [override, setOverride] = useState<boolean | null>(null);
+  const open = override ?? (storedRaw === null ? holdsCurrent : storedRaw === "1");
+  const Icon = entry.icon;
+
+  function toggle() {
+    const next = !open;
+    setOverride(next);
+    try {
+      localStorage.setItem(`${NAV_GROUP_KEY}:${entry.key}`, next ? "1" : "0");
+    } catch {
+      /* Private mode. The drawer still works, it just forgets. */
+    }
+  }
+
+  return (
+    <div>
+      <button
+        onClick={toggle}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
+      >
+        <Icon className="h-4 w-4 shrink-0" />
+        {t.shell.nav[entry.key]}
+        <ChevronDown
+          className={`ml-auto h-3.5 w-3.5 shrink-0 text-muted-light transition-transform ${
+            open ? "" : "-rotate-90"
+          }`}
+        />
+      </button>
+      {open && (
+        <div className="space-y-px pt-px">
+          {entry.items.map((i) => (
+            <NavLink
+              key={i.href}
+              href={i.href}
+              label={t.shell.nav[i.key]}
+              icon={i.icon}
+              active={activeHref === i.href}
+              nested
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /* ── Site switcher ── */
@@ -343,7 +497,7 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
   if (!open) return null;
 
   const q = query.trim().toLowerCase();
-  const pages = navItems.filter(
+  const pages = navLeaves.filter(
     (i) => !q || t.shell.nav[i.key].toLowerCase().includes(q)
   );
   const matchedSites = sites.filter(
@@ -512,24 +666,19 @@ export function DashboardShell({
 
         <nav className="flex-1 overflow-y-auto px-3 pt-2">
           <div className="space-y-px">
-            {navItems.map((item) => {
-              const isActive = active?.href === item.href;
-              return (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors ${
-                    isActive
-                      ? "bg-primary-pale font-medium text-primary"
-                      : "text-muted hover:bg-surface-hover hover:text-foreground"
-                  }`}
-                >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  {t.shell.nav[item.key]}
-                </a>
-              );
-            })}
+            {navItems.map((entry) =>
+              "items" in entry ? (
+                <NavGroup key={entry.key} entry={entry} activeHref={active?.href} />
+              ) : (
+                <NavLink
+                  key={entry.href}
+                  href={entry.href}
+                  label={t.shell.nav[entry.key]}
+                  icon={entry.icon}
+                  active={active?.href === entry.href}
+                />
+              )
+            )}
           </div>
         </nav>
 

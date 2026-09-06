@@ -42,6 +42,9 @@ export interface AppStrings {
       replays: string;
       heatmaps: string;
       agent: string;
+      events: string;
+      visitors: string;
+      data: string;
       settings: string;
       mySites: string;
       addSite: string;
@@ -301,7 +304,65 @@ export interface AppStrings {
       sessions: string;
       clicks: string;
     };
-    intros: { flows: string; heatmaps: string; replays: string };
+    intros: {
+      flows: string;
+      heatmaps: string;
+      replays: string;
+      events: string;
+      visitors: string;
+    };
+    visitors: {
+      noSiteBody: string;
+      colVisitor: string;
+      colSeen: string;
+      colActivity: string;
+      colContext: string;
+      colSource: string;
+      sessions: string;
+      pageviews: string;
+      events: string;
+      pages: string;
+      identified: string;
+      anonymous: string;
+      emptyTitle: string;
+      emptyBody: string;
+      timeline: string;
+      timelineEmpty: string;
+      rotationTitle: string;
+      rotationBody: string;
+      rotationLink: string;
+      truncated: string;
+      loading: string;
+    };
+    events: {
+      noSiteBody: string;
+      kindAll: string;
+      kindCustom: string;
+      kindPageview: string;
+      eventName: string;
+      allNames: string;
+      searchPath: string;
+      colTime: string;
+      colEvent: string;
+      colPage: string;
+      colVisitor: string;
+      colContext: string;
+      properties: string;
+      noProperties: string;
+      loadMore: string;
+      loading: string;
+      emptyTitle: string;
+      emptyBody: string;
+      emptyFilteredTitle: string;
+      emptyFilteredBody: string;
+      howtoTitle: string;
+      howtoBody: string;
+      howtoNote: string;
+      pageview: string;
+      leave: string;
+      identify: string;
+      countSuffix: string;
+    };
     flows: {
       noSiteBody: string;
       legendPage: string;
@@ -549,6 +610,9 @@ const fr: AppStrings = {
       replays: "Session Replay",
       heatmaps: "Heatmaps",
       agent: "Agent PulseTrack",
+      events: "Événements",
+      visitors: "Visiteurs",
+      data: "Données",
       settings: "Paramètres",
       mySites: "Mes sites",
       addSite: "Ajouter un site",
@@ -854,6 +918,68 @@ const fr: AppStrings = {
       flows: "Le parcours réel de vos visiteurs entre les pages — pas un funnel défini à l'avance, ce qui se passe vraiment.",
       heatmaps: "Où vos visiteurs cliquent, jusqu'où ils scrollent, et ce sur quoi ils s'acharnent sans résultat.",
       replays: "Regardez vos visiteurs naviguer réellement sur votre site — chaque clic, chaque scroll, chaque hésitation.",
+      events: "Le flux brut de ce que votre site envoie — chaque page vue et chaque événement que vous déclenchez vous-même.",
+      visitors: "Qui est passé, ce qu'il a regardé, d'où il venait — regroupé par visiteur plutôt que par page.",
+    },
+    visitors: {
+      noSiteBody: "Choisissez un site pour voir qui le visite.",
+      colVisitor: "Visiteur",
+      colSeen: "Vu",
+      colActivity: "Activité",
+      colContext: "Contexte",
+      colSource: "Source",
+      sessions: "sessions",
+      pageviews: "pages vues",
+      events: "événements",
+      pages: "pages",
+      identified: "Identifié",
+      anonymous: "Anonyme",
+      emptyTitle: "Personne sur cette période",
+      emptyBody:
+        "Dès qu'une visite est enregistrée, le visiteur apparaît ici avec ce qu'il a consulté.",
+      timeline: "Ce qu'il a fait",
+      timelineEmpty: "Aucun détail à afficher.",
+      rotationTitle: "Pourquoi un visiteur ne dure qu'une journée",
+      rotationBody:
+        "PulseTrack ne pose aucun cookie et n'écrit rien sur l'appareil de vos visiteurs. L'identifiant est recalculé chaque jour à partir d'un sel qui est ensuite détruit — donc la même personne revenue demain apparaîtra comme un nouveau visiteur, et personne, nous compris, ne peut refaire le lien. C'est ce qui vous dispense de bandeau de consentement.",
+      rotationLink:
+        "Pour relier une personne à travers plusieurs jours, appelez pulsetrack.identify(email) : l'e-mail que vous fournissez, lui, reste attaché.",
+      truncated:
+        "Période trop chargée pour être groupée en entier : voici les visiteurs les plus récents.",
+      loading: "Chargement…",
+    },
+    events: {
+      noSiteBody: "Choisissez un site pour voir ce qu'il envoie.",
+      kindAll: "Tout",
+      kindCustom: "Événements",
+      kindPageview: "Pages vues",
+      eventName: "Nom",
+      allNames: "Tous les noms",
+      searchPath: "Filtrer par page…",
+      colTime: "Quand",
+      colEvent: "Événement",
+      colPage: "Page",
+      colVisitor: "Visiteur",
+      colContext: "Contexte",
+      properties: "Propriétés",
+      noProperties: "Aucune propriété",
+      loadMore: "Charger la suite",
+      loading: "Chargement…",
+      emptyTitle: "Rien reçu pour l'instant",
+      emptyBody:
+        "Dès que le script tourne sur votre site, chaque page vue apparaît ici en quelques secondes.",
+      emptyFilteredTitle: "Rien ne correspond",
+      emptyFilteredBody:
+        "Des événements sont bien arrivés, mais aucun ne remplit ce filtre. Élargissez-le pour en voir.",
+      howtoTitle: "Envoyer vos propres événements",
+      howtoBody:
+        "Les pages vues arrivent toutes seules. Pour tout le reste — une inscription, un ajout au panier, un clic qui compte — appelez cette fonction depuis votre code :",
+      howtoNote:
+        "Le nom est libre, les propriétés aussi. Elles s'affichent ici telles quelles, et l'assistant peut les lire.",
+      pageview: "Page vue",
+      leave: "Fin de visite",
+      identify: "Identification",
+      countSuffix: "événements",
     },
     flows: {
       noSiteBody:
@@ -1194,6 +1320,9 @@ const en: AppStrings = {
       replays: "Session Replay",
       heatmaps: "Heatmaps",
       agent: "PulseTrack Agent",
+      events: "Events",
+      visitors: "Visitors",
+      data: "Data",
       settings: "Settings",
       mySites: "My sites",
       addSite: "Add a site",
@@ -1494,6 +1623,68 @@ const en: AppStrings = {
       flows: "The real journeys your visitors take between pages — not a funnel defined in advance, what actually happens.",
       heatmaps: "Where your visitors click, how far they scroll, and what they keep hitting to no effect.",
       replays: "Watch your visitors actually move through your site — every click, every scroll, every hesitation.",
+      events: "The raw stream of what your site sends — every pageview, and every event you fire yourself.",
+      visitors: "Who came by, what they looked at, where they came from — grouped by visitor rather than by page.",
+    },
+    visitors: {
+      noSiteBody: "Pick a site to see who visits it.",
+      colVisitor: "Visitor",
+      colSeen: "Seen",
+      colActivity: "Activity",
+      colContext: "Context",
+      colSource: "Source",
+      sessions: "sessions",
+      pageviews: "pageviews",
+      events: "events",
+      pages: "pages",
+      identified: "Identified",
+      anonymous: "Anonymous",
+      emptyTitle: "Nobody in this period",
+      emptyBody:
+        "As soon as a visit is recorded, the visitor shows up here with what they looked at.",
+      timeline: "What they did",
+      timelineEmpty: "Nothing to show.",
+      rotationTitle: "Why a visitor only lasts a day",
+      rotationBody:
+        "PulseTrack sets no cookie and writes nothing to your visitors' devices. The id is recomputed each day from a salt that is then destroyed — so the same person coming back tomorrow appears as a new visitor, and nobody, us included, can rebuild the link. That is what spares you a consent banner.",
+      rotationLink:
+        "To follow one person across several days, call pulsetrack.identify(email): the email you supply does stay attached.",
+      truncated:
+        "Too busy a period to group in full — these are the most recent visitors.",
+      loading: "Loading…",
+    },
+    events: {
+      noSiteBody: "Pick a site to see what it sends.",
+      kindAll: "All",
+      kindCustom: "Events",
+      kindPageview: "Pageviews",
+      eventName: "Name",
+      allNames: "All names",
+      searchPath: "Filter by page…",
+      colTime: "When",
+      colEvent: "Event",
+      colPage: "Page",
+      colVisitor: "Visitor",
+      colContext: "Context",
+      properties: "Properties",
+      noProperties: "No properties",
+      loadMore: "Load more",
+      loading: "Loading…",
+      emptyTitle: "Nothing received yet",
+      emptyBody:
+        "As soon as the script runs on your site, every pageview shows up here within seconds.",
+      emptyFilteredTitle: "Nothing matches",
+      emptyFilteredBody:
+        "Events have arrived, but none meet this filter. Widen it to see some.",
+      howtoTitle: "Send your own events",
+      howtoBody:
+        "Pageviews arrive on their own. For everything else — a signup, an add to cart, a click that matters — call this from your code:",
+      howtoNote:
+        "The name is yours to choose, and so are the properties. They show up here as they are, and the assistant can read them.",
+      pageview: "Pageview",
+      leave: "Visit ended",
+      identify: "Identify",
+      countSuffix: "events",
     },
     flows: {
       noSiteBody:
