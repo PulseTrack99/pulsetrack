@@ -13,6 +13,8 @@ import {
   ActiveFilterChip,
   usePeriodOptions,
 } from "@/components/filters";
+import { useT } from "@/components/locale-context";
+import { relativeTime } from "@/lib/relative-time";
 import {
   Video,
   AlertTriangle,
@@ -64,54 +66,46 @@ interface Condition {
 
 type Match = "AND" | "OR";
 
-const FIELD_LABELS: Record<string, string> = {
-  scroll_pct: "Scroll max",
-  duration: "Durée de session",
-  pageview_count: "Nombre de pages vues",
-  rage_click: "Clic de rage",
-  converted: "A converti",
-  device: "Appareil",
-  source: "Source de trafic",
-  country: "Pays",
-  funnel_step: "Étape de funnel",
-};
+/* Field and operator labels come from the dictionary; the comparison
+   symbols (<, ≥) are not language and stay as they are. */
+type OpKey = "exists" | "not_exists" | "yes" | "no" | "eq" | "contains" | "dropped" | "reached";
 
-const OPERATORS_FOR: Record<string, { value: string; label: string }[]> = {
+const OPERATORS_FOR: Record<string, { value: string; symbol?: string; key?: OpKey }[]> = {
   scroll_pct: [
-    { value: "lt", label: "<" },
-    { value: "lte", label: "≤" },
-    { value: "gt", label: ">" },
-    { value: "gte", label: "≥" },
+    { value: "lt", symbol: "<" },
+    { value: "lte", symbol: "≤" },
+    { value: "gt", symbol: ">" },
+    { value: "gte", symbol: "≥" },
   ],
   duration: [
-    { value: "gt", label: ">" },
-    { value: "gte", label: "≥" },
-    { value: "lt", label: "<" },
-    { value: "lte", label: "≤" },
+    { value: "gt", symbol: ">" },
+    { value: "gte", symbol: "≥" },
+    { value: "lt", symbol: "<" },
+    { value: "lte", symbol: "≤" },
   ],
   pageview_count: [
-    { value: "gt", label: ">" },
-    { value: "gte", label: "≥" },
-    { value: "lt", label: "<" },
-    { value: "lte", label: "≤" },
+    { value: "gt", symbol: ">" },
+    { value: "gte", symbol: "≥" },
+    { value: "lt", symbol: "<" },
+    { value: "lte", symbol: "≤" },
   ],
   rage_click: [
-    { value: "exists", label: "a eu lieu" },
-    { value: "not_exists", label: "n'a pas eu lieu" },
+    { value: "exists", key: "exists" },
+    { value: "not_exists", key: "not_exists" },
   ],
   converted: [
-    { value: "exists", label: "oui" },
-    { value: "not_exists", label: "non" },
+    { value: "exists", key: "yes" },
+    { value: "not_exists", key: "no" },
   ],
-  device: [{ value: "eq", label: "est" }],
+  device: [{ value: "eq", key: "eq" }],
   source: [
-    { value: "eq", label: "est" },
-    { value: "contains", label: "contient" },
+    { value: "eq", key: "eq" },
+    { value: "contains", key: "contains" },
   ],
-  country: [{ value: "eq", label: "est" }],
+  country: [{ value: "eq", key: "eq" }],
   funnel_step: [
-    { value: "dropped", label: "bloqué après" },
-    { value: "reached", label: "a atteint" },
+    { value: "dropped", key: "dropped" },
+    { value: "reached", key: "reached" },
   ],
 };
 
@@ -153,14 +147,6 @@ const DEVICE_ICON: Record<string, typeof Monitor> = {
   Tablet: Tablet,
 };
 
-function timeAgo(iso: string): string {
-  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
-  if (s < 60) return "à l'instant";
-  if (s < 3600) return `il y a ${Math.round(s / 60)} min`;
-  if (s < 86400) return `il y a ${Math.round(s / 3600)} h`;
-  return `il y a ${Math.round(s / 86400)} j`;
-}
-
 function formatDuration(ms: number): string {
   const s = Math.round(ms / 1000);
   const m = Math.floor(s / 60);
@@ -177,6 +163,7 @@ function formatDuration(ms: number): string {
  */
 export function SessionReplayPanel() {
   const { sites, site, siteId, ready, setSiteId } = useSites();
+  const { t } = useT();
 
   // Arriving from "Sessions sur cette page" on the heatmap view carries
   // ?site= and ?path=. The site part points the rail's shared selection
@@ -198,13 +185,12 @@ export function SessionReplayPanel() {
     return (
       <div className="app-card flex flex-col items-center justify-center py-16 text-center">
         <Video className="h-7 w-7 text-muted-light" />
-        <h2 className="mt-3 text-[15px] font-semibold">Aucun site pour l&apos;instant</h2>
+        <h2 className="mt-3 text-[15px] font-semibold">{t.screens.common.noSiteTitle}</h2>
         <p className="mt-1 max-w-sm text-[13px] text-muted">
-          Session Replay rejoue les visites d&apos;un site. Ajoutez-en un pour
-          commencer à enregistrer.
+          {t.screens.replays.noSiteBody}
         </p>
         <Link href="/dashboard/sites/new" className="btn btn-brand mt-4">
-          Ajouter un site
+          {t.screens.common.addSite}
         </Link>
       </div>
     );
@@ -229,6 +215,7 @@ function SiteReplays({
   siteDomain: string;
   initialPath: string | null;
 }) {
+  const { t, intl } = useT();
   const [path, setPath] = useState<string | null>(initialPath);
   const periodOptions = usePeriodOptions();
   const [period, setPeriod] = useState("30d");
@@ -469,11 +456,13 @@ function SiteReplays({
   // Quick-start chips — only the ones that would actually do something on
   // this site, mirroring which manual filter buttons are shown below.
   const suggestions = useMemo(() => {
-    const s = ["Sessions qui n'ont presque pas scrollé"];
-    if (hasRevenue) s.push("Sessions qui n'ont pas converti");
-    if (funnels.length > 0) s.push(`Abandon du funnel ${funnels[0].name}`);
+    const s = [t.screens.replays.chipLowScroll];
+    if (hasRevenue) s.push(t.screens.replays.chipNoConversion);
+    if (funnels.length > 0)
+      s.push(`${t.screens.replays.chipFunnelDropoff} ${funnels[0].name}`);
     return s;
-  }, [hasRevenue, funnels]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasRevenue, funnels, t]);
 
   async function askCopilot(preset?: string) {
     const q = (preset ?? question).trim();
@@ -552,13 +541,13 @@ function SiteReplays({
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-primary-pale">
           <Lock className="h-5 w-5 text-primary" />
         </div>
-        <h2 className="mt-4 text-lg font-medium">Le Session Replay est sur Starter</h2>
+        <h2 className="mt-4 text-lg font-medium">{t.screens.replays.lockedTitle}</h2>
         <p className="mx-auto mt-2 max-w-sm text-[13.5px] text-muted">
           Passez sur Starter pour regarder vos visiteurs naviguer réellement
           sur votre site — clics, scroll, hésitations, clics de rage.
         </p>
         <Link href="/dashboard/upgrade" className="btn btn-brand mt-6">
-          Voir les offres
+          {t.screens.common.seePlans}
         </Link>
       </div>
     );
@@ -572,10 +561,10 @@ function SiteReplays({
           value={device}
           onChange={setDevice}
           options={[
-            { value: null, label: "Tous" },
+            { value: null, label: t.screens.replays.all },
             { value: "Desktop", label: "Desktop" },
             { value: "Mobile", label: "Mobile" },
-            { value: "Tablet", label: "Tablette" },
+            { value: "Tablet", label: t.screens.replays.fields.device === "Device" ? "Tablet" : "Tablette" },
           ]}
         />
 
@@ -592,11 +581,11 @@ function SiteReplays({
           icon={AlertTriangle}
           tone="coral"
         >
-          Clics de rage uniquement
+          {t.screens.replays.rageOnly}
         </ToggleFilter>
 
         {path && (
-          <ActiveFilterChip label="Page" value={path} onClear={() => setPath(null)} />
+          <ActiveFilterChip label={t.screens.common.page} value={path} onClear={() => setPath(null)} />
         )}
       </FilterBar>
 
@@ -605,7 +594,7 @@ function SiteReplays({
       <div className="flex flex-wrap items-center gap-2">
         <span className="flex items-center gap-1.5 text-[11.5px] text-muted-light">
           <Filter className="h-3.5 w-3.5" />
-          Comportement :
+          {t.screens.replays.behaviour}
         </span>
 
         <div className="flex flex-wrap gap-0.5 rounded-sm border border-border bg-surface p-0.5">
@@ -618,7 +607,7 @@ function SiteReplays({
               conditions.length === 0 ? "bg-primary-pale text-primary" : "text-muted hover:text-foreground"
             }`}
           >
-            Tous
+            {t.screens.replays.all}
           </button>
           <button
             onClick={() => {
@@ -632,7 +621,7 @@ function SiteReplays({
             }`}
           >
             <ArrowDownToLine className="h-3.5 w-3.5" />
-            N&apos;ont presque pas scrollé
+            {t.screens.replays.lowScroll}
           </button>
           {hasRevenue && (
             <button
@@ -663,7 +652,7 @@ function SiteReplays({
               }`}
             >
               <Filter className="h-3.5 w-3.5" />
-              Abandon de funnel
+              {t.screens.replays.funnelDropoff}
             </button>
           )}
           <button
@@ -673,7 +662,7 @@ function SiteReplays({
             }`}
           >
             <Plus className="h-3.5 w-3.5" />
-            Condition avancée
+            {t.screens.replays.advancedCondition}
           </button>
         </div>
 
@@ -745,7 +734,7 @@ function SiteReplays({
                   }}
                   className="rounded-sm border border-border bg-background px-2 py-1 text-[12px] outline-none focus:border-primary"
                 >
-                  {Object.entries(FIELD_LABELS).map(([value, label]) => (
+                  {Object.entries(t.screens.replays.fields).map(([value, label]) => (
                     <option key={value} value={value}>
                       {label}
                     </option>
@@ -763,7 +752,7 @@ function SiteReplays({
                 >
                   {OPERATORS_FOR[c.field]?.map((op) => (
                     <option key={op.value} value={op.value}>
-                      {op.label}
+                      {op.symbol ?? t.screens.replays.operators[op.key!]}
                     </option>
                   ))}
                 </select>
@@ -851,7 +840,7 @@ function SiteReplays({
                 <button
                   onClick={() => setConditions(conditions.filter((_, x) => x !== i))}
                   className="rounded-sm p-1 text-muted-light hover:bg-coral-pale hover:text-coral"
-                  title="Retirer cette condition"
+                  title={t.screens.replays.removeCondition}
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -865,7 +854,7 @@ function SiteReplays({
               className="flex items-center gap-1 rounded-sm border border-border px-2 py-1 text-[12px] text-muted hover:border-primary/40 hover:text-primary"
             >
               <Plus className="h-3 w-3" />
-              Ajouter une condition
+              {t.screens.replays.addCondition}
             </button>
 
             {conditions.length > 1 && (
@@ -878,7 +867,7 @@ function SiteReplays({
                       match === m ? "bg-primary-pale text-primary" : "text-muted hover:text-foreground"
                     }`}
                   >
-                    {m === "AND" ? "ET (toutes)" : "OU (au moins une)"}
+                    {m === "AND" ? t.screens.replays.matchAll : t.screens.replays.matchAny}
                   </button>
                 ))}
               </div>
@@ -901,7 +890,7 @@ function SiteReplays({
       >
         <span className="flex items-center gap-1.5 text-[11.5px] text-muted-light">
           <Bookmark className="h-3.5 w-3.5" />
-          Cohorts :
+          {t.screens.replays.cohorts}
         </span>
 
         {cohorts.map((c) => (
@@ -915,7 +904,7 @@ function SiteReplays({
             <button
               onClick={() => deleteCohort(c.id)}
               className="rounded-full p-0.5 text-muted-light opacity-0 transition-opacity hover:bg-coral-pale hover:text-coral group-hover:opacity-100"
-              title="Supprimer ce cohort"
+              title={t.screens.replays.deleteCohort}
             >
               <X className="h-3 w-3" />
             </button>
@@ -924,7 +913,7 @@ function SiteReplays({
 
         {conditions.length > 0 && isTrivialDefault && (
           <span className="text-[11.5px] text-muted-light">
-            Déjà accessible en un clic ci-dessus — inutile à sauvegarder.
+            {t.screens.replays.alreadyOneClick}
           </span>
         )}
 
@@ -944,7 +933,7 @@ function SiteReplays({
               className="flex items-center gap-1 rounded-sm border border-border px-2 py-1 text-[12px] text-muted transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-40"
             >
               <Save className="h-3 w-3" />
-              Sauvegarder
+              {t.screens.replays.save}
             </button>
           </div>
         )}
@@ -964,10 +953,10 @@ function SiteReplays({
             {!loading && (
               <p className="border-b border-border px-4 py-2 text-[11.5px] text-muted-light">
                 <span className="font-medium text-foreground">{replays.length}</span>{" "}
-                enregistrement{replays.length > 1 ? "s" : ""}
+                {t.screens.replays.recordings}
                 {conditions.length > 0 || rageOnly || device || path
-                  ? " correspondant aux filtres"
-                  : ` sur ${period === "24h" ? "24 h" : period.replace("d", " jours")}`}
+                  ? ` ${t.screens.replays.matchingFilters}`
+                  : ` ${t.screens.replays.overPeriod[period]}`}
               </p>
             )}
             <div className="overflow-y-auto">
@@ -980,9 +969,9 @@ function SiteReplays({
           {!loading && replays.length === 0 && (
             <div className="p-8 text-center">
               <Video className="mx-auto h-6 w-6 text-muted-light" />
-              <p className="mt-3 text-[13px] font-medium">Aucun enregistrement</p>
+              <p className="mt-3 text-[13px] font-medium">{t.screens.replays.emptyTitle}</p>
               <p className="mt-1.5 text-[12px] text-muted">
-                Ils apparaîtront dès qu&apos;un visiteur sera enregistré.
+                {t.screens.replays.emptyBody}
               </p>
             </div>
           )}
@@ -1025,7 +1014,7 @@ function SiteReplays({
                           single-page visit. It means nothing to a reader. */}
                       {r.country && r.country !== "Unknown" && <span>{r.country}</span>}
                       {r.browser && <span>{r.browser}</span>}
-                      <span>{timeAgo(r.started_at)}</span>
+                      <span>{relativeTime(r.started_at, intl)}</span>
                       {r.status === "recording" && (
                         <span className="flex items-center gap-1 text-emerald">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald" />
@@ -1051,14 +1040,13 @@ function SiteReplays({
           <div className="flex flex-col overflow-hidden rounded-lg border border-primary/20 bg-surface">
             <div className="flex items-center gap-2 border-b border-border bg-primary-pale/40 px-3.5 py-2.5">
               <Sparkles className="h-4 w-4 shrink-0 text-primary" />
-              <span className="text-[13px] font-medium text-primary">Copilote IA</span>
+              <span className="text-[13px] font-medium text-primary">{t.screens.replays.copilot}</span>
             </div>
 
             <div className="flex max-h-[220px] min-h-[80px] flex-col gap-2 overflow-y-auto px-3 py-2.5">
               {chat.length === 0 && (
                 <p className="px-0.5 text-[12px] text-muted-light">
-                  Posez une question sur vos sessions enregistrées — je choisis
-                  le filtre qui correspond.
+                  {t.screens.replays.copilotBlurb}
                 </p>
               )}
               {chat.map((m, i) => (
@@ -1078,7 +1066,7 @@ function SiteReplays({
                       href="/dashboard/upgrade"
                       className="ml-1.5 font-medium underline"
                     >
-                      Voir les offres
+                      {t.screens.common.seePlans}
                     </Link>
                   )}
                 </div>
@@ -1113,7 +1101,7 @@ function SiteReplays({
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && askCopilot()}
-                placeholder="Posez votre question…"
+                placeholder={t.screens.replays.askPlaceholder}
                 className="min-w-0 flex-1 rounded-sm bg-surface-sunken px-2.5 py-1.5 text-[12.5px] outline-none placeholder:text-muted-light"
               />
               <button
@@ -1121,7 +1109,7 @@ function SiteReplays({
                 disabled={aiLoading || !question.trim()}
                 className="shrink-0 rounded-sm bg-primary px-3 py-1.5 text-[12px] font-medium text-white transition-opacity disabled:opacity-40"
               >
-                {aiLoading ? "…" : "Envoyer"}
+                {aiLoading ? "…" : t.screens.replays.send}
               </button>
             </div>
           </div>
@@ -1131,7 +1119,7 @@ function SiteReplays({
         <div>
           {!selected && (
             <div className="flex min-h-[420px] items-center justify-center rounded-lg border border-border bg-surface-sunken text-[13px] text-muted">
-              Sélectionnez un enregistrement à gauche
+              {t.screens.replays.selectOne}
             </div>
           )}
 
@@ -1156,7 +1144,7 @@ function SiteReplays({
                     className="flex shrink-0 items-center gap-1.5 rounded-sm border border-border px-2.5 py-1.5 text-[11.5px] text-muted transition-colors hover:border-primary/40 hover:text-primary"
                   >
                     <Flame className="h-3.5 w-3.5" />
-                    Heatmap de cette page
+                    {t.screens.replays.heatmapOfPage}
                   </Link>
                 )}
               </div>

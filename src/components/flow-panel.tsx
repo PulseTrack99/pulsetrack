@@ -10,6 +10,7 @@ import {
   SearchableSelect,
   usePeriodOptions,
 } from "@/components/filters";
+import { useT } from "@/components/locale-context";
 
 interface Row {
   step: number;
@@ -38,8 +39,8 @@ const NODE_MIN_H = 48;
 const NODE_MAX_H = 128;
 const HEADER_H = 34;
 
-function label(path: string): string {
-  if (path === "Autres") return "Autres pages";
+function label(path: string, otherLabel: string): string {
+  if (path === "Autres") return otherLabel;
   return path || "/";
 }
 
@@ -75,6 +76,7 @@ function edgePath(x1: number, y1: number, x2: number, y2: number): string {
 export function FlowPanel() {
   // Site comes from the rail's switcher (src/components/site-context.tsx).
   const { siteId, ready } = useSites();
+  const { t, intl } = useT();
   const periodOptions = usePeriodOptions();
   const [period, setPeriod] = useState("30d");
   const [startPath, setStartPath] = useState<string | null>(null);
@@ -247,13 +249,12 @@ export function FlowPanel() {
     return (
       <div className="app-card flex flex-col items-center justify-center py-16 text-center">
         <Workflow className="h-7 w-7 text-muted-light" />
-        <h2 className="mt-3 text-[15px] font-semibold">Aucun site pour l&apos;instant</h2>
+        <h2 className="mt-3 text-[15px] font-semibold">{t.screens.common.noSiteTitle}</h2>
         <p className="mt-1 max-w-sm text-[13px] text-muted">
-          Les parcours se reconstituent à partir des pages vues d&apos;un site.
-          Ajoutez-en un pour commencer.
+          {t.screens.flows.noSiteBody}
         </p>
         <Link href="/dashboard/sites/new" className="btn btn-brand mt-4">
-          Ajouter un site
+          {t.screens.common.addSite}
         </Link>
       </div>
     );
@@ -273,20 +274,20 @@ export function FlowPanel() {
 
         <SearchableSelect
           value={startPath ?? ""}
-          placeholder="Toutes les entrées"
+          placeholder={t.screens.flows.allEntries}
           minWidth={200}
           options={[
-            { value: "", label: "Toutes les entrées" },
+            { value: "", label: t.screens.flows.allEntries },
             ...topPaths.map((p) => ({
               value: p,
-              label: `À partir de ${p || "/"}`,
+              label: `${t.screens.flows.fromPage} ${p || "/"}`,
             })),
           ]}
           onChange={(v) => setStartPath(v || null)}
         />
 
         <label className="flex items-center gap-1.5 text-[12px] text-muted">
-          Profondeur
+          {t.screens.flows.depth}
           <input
             type="number"
             min={1}
@@ -304,18 +305,18 @@ export function FlowPanel() {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11.5px] text-muted">
           <span className="flex items-center gap-1.5">
             <span className="h-3 w-3 rounded-xs border border-primary/50 bg-primary-pale" />
-            Page vue à cette étape
+            {t.screens.flows.legendPage}
           </span>
           <span className="flex items-center gap-1.5">
             <span className="h-3 w-3 rounded-xs border border-coral/50 bg-coral-pale" />
-            Sessions qui se sont arrêtées là
+            {t.screens.flows.legendExit}
           </span>
           <span className="flex items-center gap-1.5">
             <ArrowRight className="h-3 w-3" />
-            Trait épais = beaucoup de sessions ont suivi ce chemin
+            {t.screens.flows.legendThick}
           </span>
           <span className="text-muted-light">
-            Survolez une page pour isoler son parcours.
+            {t.screens.flows.legendHover}
           </span>
         </div>
       )}
@@ -329,26 +330,25 @@ export function FlowPanel() {
           <div className="flex h-[320px] flex-col items-center justify-center px-6 text-center">
             <Workflow className="h-7 w-7 text-muted-light" />
             <h3 className="mt-3 text-[15px] font-semibold">
-              Pas encore de parcours à reconstituer
+              {t.screens.flows.emptyTitle}
             </h3>
             <p className="mt-1.5 max-w-md text-[13px] text-muted">
-              Cet écran a besoin de sessions ayant vu <strong>au moins deux
-              pages</strong> pour dessiner un enchaînement. Sur cette période il
-              n&apos;y en a pas encore — c&apos;est normal sur un site récent ou
-              peu visité.
+              {t.screens.flows.emptyBody1}{" "}
+              <strong>{t.screens.flows.emptyBodyStrong}</strong>{" "}
+              {t.screens.flows.emptyBody2}
             </p>
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
               <button
                 onClick={() => setPeriod("90d")}
                 className="rounded-[var(--app-radius-sm)] bg-primary px-3 py-2 text-[13px] font-medium text-white transition-colors hover:bg-primary-hover"
               >
-                Élargir à 90 jours
+                {t.screens.flows.widen}
               </button>
               <Link
                 href="/dashboard/settings"
                 className="rounded-[var(--app-radius-sm)] border border-border px-3 py-2 text-[13px] font-medium transition-colors hover:bg-surface-hover"
               >
-                Vérifier l&apos;installation du script
+                {t.screens.flows.checkScript}
               </Link>
             </div>
           </div>
@@ -369,10 +369,10 @@ export function FlowPanel() {
                     className="fill-muted-light text-[10px] font-semibold uppercase"
                     style={{ letterSpacing: "0.05em" }}
                   >
-                    {step === 0 ? "Entrée" : `Étape ${step}`}
+                    {step === 0 ? t.screens.flows.entry : `${t.screens.flows.step} ${step}`}
                   </text>
                   <text x={0} y={25} className="fill-muted text-[11px]">
-                    {totals[step]} session{totals[step] > 1 ? "s" : ""}
+                    {totals[step]} {t.screens.flows.sessionsCount}
                   </text>
                 </g>
               )
@@ -413,16 +413,16 @@ export function FlowPanel() {
                       <div className="flex h-full flex-col justify-center gap-0.5 overflow-hidden px-2.5">
                         <span
                           className={`truncate text-[11.5px] font-medium ${n.exit ? "text-coral" : "text-primary"}`}
-                          title={n.exit ? "Sessions terminées ici" : n.path}
+                          title={n.exit ? t.screens.flows.legendExit : n.path}
                         >
                           {n.exit && <LogOut className="mr-1 inline h-3 w-3" />}
-                          {n.exit ? "Sortie du site" : label(n.path)}
+                          {n.exit ? t.screens.flows.exit : label(n.path, t.screens.flows.otherPages)}
                         </span>
                         {/* Both numbers, always: a raw count with no
                             denominator was the main thing making this
                             diagram unreadable. */}
                         <span className="text-[10.5px] tabular-nums text-muted">
-                          {n.sessions} session{n.sessions > 1 ? "s" : ""}
+                          {n.sessions} {t.screens.flows.sessionsCount}
                           <span className="mx-1 text-muted-light">·</span>
                           {Math.round(n.share * 100)}%
                         </span>

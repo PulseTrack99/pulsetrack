@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, Copy, Radio, ArrowRight, CircleAlert } from "lucide-react";
+import { useT } from "@/components/locale-context";
 
 /**
  * The guided install, modelled on Mixpanel's Set Up Guide: numbered
@@ -38,6 +39,7 @@ export function SetupGuide({
    *  the guide right above it. */
   onDataReceived?: (lastEventAt: string) => void;
 }) {
+  const { t, intl } = useT();
   const [copied, setCopied] = useState(false);
   const [status, setStatus] = useState<Status>("waiting");
   const [lastEventAt, setLastEventAt] = useState<string | null>(null);
@@ -98,17 +100,16 @@ export function SetupGuide({
     <div className="space-y-4">
       <Step
         n={1}
-        title="Copiez le script"
+        title={t.screens.setup.step1}
         done
         body={
           <>
             <p className="text-[13px] text-muted">
-              Une seule ligne, à coller dans le{" "}
+              {t.screens.setup.step1Body1}{" "}
               <code className="rounded bg-surface-sunken px-1 py-0.5 font-mono text-[12px]">
                 &lt;head&gt;
               </code>{" "}
-              de <strong>{domain}</strong>. Aucun cookie, aucun bandeau de
-              consentement à ajouter.
+              <strong>{domain}</strong>. {t.screens.setup.step1Body2}
             </p>
             <div className="relative mt-3 rounded-md border border-border bg-surface-sunken p-3">
               <code className="block break-all pr-20 font-mono text-[12px] leading-relaxed text-primary">
@@ -121,12 +122,12 @@ export function SetupGuide({
                 {copied ? (
                   <>
                     <Check className="h-3.5 w-3.5 text-emerald-500" />
-                    Copié
+                    {t.screens.setup.copied}
                   </>
                 ) : (
                   <>
                     <Copy className="h-3.5 w-3.5" />
-                    Copier
+                    {t.screens.setup.copy}
                   </>
                 )}
               </button>
@@ -137,21 +138,18 @@ export function SetupGuide({
 
       <Step
         n={2}
-        title="Collez-le dans vos pages"
+        title={t.screens.setup.step2}
         done={status === "received"}
         body={
           <p className="text-[13px] text-muted">
-            Sur un site classique, dans le template partagé par toutes les pages.
-            Sur Webflow, Shopify ou WordPress, dans le champ « code
-            personnalisé&nbsp;/&nbsp;head » des paramètres du thème. Publiez, puis
-            ouvrez une page du site.
+            {t.screens.setup.step2Body}
           </p>
         }
       />
 
       <Step
         n={3}
-        title="On vérifie que ça remonte"
+        title={t.screens.setup.step3}
         done={status === "received"}
         body={<LiveCheck status={status} lastEventAt={lastEventAt} domain={domain} />}
       />
@@ -200,19 +198,21 @@ function LiveCheck({
   lastEventAt: string | null;
   domain: string;
 }) {
+  const { t, intl } = useT();
+
   if (status === "received") {
     return (
       <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3">
         <p className="flex items-center gap-2 text-[13px] font-medium text-emerald-600">
           <Check className="h-4 w-4" />
-          Données reçues — le script fonctionne
+          {t.screens.setup.received}
         </p>
         {/* last_event_at, not the first one — on a site that has been
             running a while this is the most recent visit. */}
         {lastEventAt && (
           <p className="mt-1 pl-6 text-[12px] text-muted">
-            Dernière visite enregistrée le{" "}
-            {new Date(lastEventAt).toLocaleString("fr-FR", {
+            {t.screens.setup.lastVisitOn}{" "}
+            {new Date(lastEventAt).toLocaleString(intl, {
               day: "numeric",
               month: "long",
               hour: "2-digit",
@@ -225,7 +225,7 @@ function LiveCheck({
           href="/dashboard"
           className="mt-3 ml-6 inline-flex items-center gap-1.5 rounded-[var(--app-radius-sm)] bg-primary px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-primary-hover"
         >
-          Voir mes statistiques
+          {t.screens.setup.seeStats}
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>
@@ -237,27 +237,24 @@ function LiveCheck({
       <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
         <p className="flex items-center gap-2 text-[13px] font-medium text-amber-600">
           <CircleAlert className="h-4 w-4" />
-          Toujours rien reçu
+          {t.screens.setup.nothingYet}
         </p>
         <ul className="mt-2 list-disc space-y-1 pl-10 text-[12px] leading-relaxed text-muted">
           <li>
-            Le script est-il bien publié en ligne sur {domain} ? Un aperçu local
-            ou une prévisualisation non publiée ne compte pas.
+            {t.screens.setup.tip1} {domain}{t.screens.setup.tip1b}
           </li>
           <li>
-            Ouvrez une page du site, faites un clic droit → « Code source », et
-            cherchez <code className="font-mono">t.js</code>.
+            {t.screens.setup.tip2} <code className="font-mono">t.js</code>.
           </li>
           <li>
-            Un bloqueur de publicité sur votre propre navigateur peut masquer
-            votre visite : testez en navigation privée ou depuis un téléphone.
+            {t.screens.setup.tip3}
           </li>
         </ul>
         <button
           onClick={() => window.location.reload()}
           className="mt-3 ml-6 rounded-[var(--app-radius-sm)] border border-border px-3 py-1.5 text-[13px] font-medium transition-colors hover:bg-surface-hover"
         >
-          Relancer la vérification
+          {t.screens.setup.retry}
         </button>
       </div>
     );
@@ -267,12 +264,10 @@ function LiveCheck({
     <div className="rounded-md border border-border bg-surface-sunken p-3">
       <p className="flex items-center gap-2 text-[13px] font-medium">
         <Radio className="h-4 w-4 animate-pulse text-primary" />
-        En écoute des données…
+        {t.screens.setup.listening}
       </p>
       <p className="mt-1 pl-6 text-[12px] leading-relaxed text-muted">
-        Cette page se met à jour toute seule dès la première visite sur{" "}
-        {domain}. Vous pouvez la laisser ouverte — ou ouvrir votre site dans un
-        autre onglet pour déclencher la première.
+        {t.screens.setup.listeningBody1} {domain}{t.screens.setup.listeningBody2}
       </p>
     </div>
   );

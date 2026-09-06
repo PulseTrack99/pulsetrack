@@ -5,19 +5,13 @@ import Link from "next/link";
 import { Globe, Plus, Loader2, Radio, Check, Trash2 } from "lucide-react";
 import { useSites, type Site } from "@/components/site-context";
 import { SetupGuide } from "@/components/setup-guide";
+import { useT } from "@/components/locale-context";
+import { relativeTime } from "@/lib/relative-time";
 
 interface Status {
   id: string;
   last_event_at: string | null;
   events_30d: number;
-}
-
-function relative(iso: string): string {
-  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
-  if (s < 60) return "à l'instant";
-  if (s < 3600) return `il y a ${Math.round(s / 60)} min`;
-  if (s < 86400) return `il y a ${Math.round(s / 3600)} h`;
-  return `il y a ${Math.round(s / 86400)} j`;
 }
 
 /**
@@ -31,6 +25,7 @@ function relative(iso: string): string {
  */
 export function SitesManager({ origin }: { origin: string }) {
   const { sites, siteId, setSiteId, ready } = useSites();
+  const { t, intl } = useT();
   const [statuses, setStatuses] = useState<Record<string, Status> | null>(null);
   const [openGuide, setOpenGuide] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -53,7 +48,9 @@ export function SitesManager({ origin }: { origin: string }) {
 
   async function remove(site: Site) {
     const confirmed = window.confirm(
-      `Supprimer « ${site.name} » ?\n\nToutes ses statistiques, sessions et funnels seront définitivement effacés. Cette action est irréversible.`
+      `${site.name}
+
+${t.screens.sitesPage.deleteConfirm}`
     );
     if (!confirmed) return;
     setDeleting(site.id);
@@ -72,30 +69,29 @@ export function SitesManager({ origin }: { origin: string }) {
     <div className="space-y-4">
       <div className="app-toolbar justify-between">
         <p className="text-[13px] text-muted">
-          Les sites que PulseTrack suit pour vous, et l&apos;état de leur script.
+          {t.screens.sitesPage.intro}
         </p>
         <Link
           href="/dashboard/sites/new"
           className="flex items-center gap-1.5 rounded-[var(--app-radius-sm)] bg-primary px-2.5 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-primary-hover"
         >
           <Plus className="h-3.5 w-3.5" />
-          Ajouter un site
+          {t.screens.sitesPage.addSite}
         </Link>
       </div>
 
       {sites.length === 0 ? (
         <div className="app-card flex flex-col items-center justify-center py-16 text-center">
           <Globe className="h-7 w-7 text-muted-light" />
-          <h2 className="mt-3 text-[15px] font-semibold">Aucun site pour l&apos;instant</h2>
+          <h2 className="mt-3 text-[15px] font-semibold">{t.screens.sitesPage.emptyTitle}</h2>
           <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-muted">
-            Déclarez un domaine, collez une ligne de script, et PulseTrack vous
-            dit lui-même quand les premières données arrivent.
+            {t.screens.sitesPage.emptyBody}
           </p>
           <Link
             href="/dashboard/sites/new"
             className="mt-4 rounded-[var(--app-radius-sm)] bg-primary px-3 py-2 text-[13px] font-medium text-white transition-colors hover:bg-primary-hover"
           >
-            Ajouter mon premier site
+            {t.screens.sitesPage.addFirst}
           </Link>
         </div>
       ) : (
@@ -121,7 +117,7 @@ export function SitesManager({ origin }: { origin: string }) {
                     <span className="truncate">{site.name}</span>
                     {current && (
                       <span className="shrink-0 rounded-xs bg-primary-pale px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                        Affiché
+                        {t.screens.sitesPage.shown}
                       </span>
                     )}
                   </p>
@@ -133,28 +129,28 @@ export function SitesManager({ origin }: { origin: string }) {
                   {statuses === null ? (
                     <span className="flex items-center gap-1.5 text-[12px] text-muted-light">
                       <Loader2 className="h-3 w-3 animate-spin" />
-                      Vérification…
+                      {t.screens.sitesPage.checking}
                     </span>
                   ) : live ? (
                     <>
                       <span className="flex items-center gap-1.5 text-[12px] font-medium text-emerald-600">
                         <Check className="h-3.5 w-3.5" />
-                        Données reçues
+                        {t.screens.sitesPage.dataReceived}
                       </span>
                       <span className="text-[11px] text-muted-light">
-                        Dernière visite {relative(status!.last_event_at!)} ·{" "}
-                        {status!.events_30d.toLocaleString("fr-FR")} évt
-                        {status!.events_30d > 1 ? "s" : ""} / 30 j
+                        {t.screens.sitesPage.lastVisit} {relativeTime(status!.last_event_at!, intl)} ·{" "}
+                        {status!.events_30d.toLocaleString(intl)} {t.screens.sitesPage.events}{" "}
+                        {t.screens.sitesPage.over30d}
                       </span>
                     </>
                   ) : (
                     <>
                       <span className="flex items-center gap-1.5 text-[12px] font-medium text-amber-600">
                         <Radio className="h-3.5 w-3.5" />
-                        En attente de données
+                        {t.screens.sitesPage.waiting}
                       </span>
                       <span className="text-[11px] text-muted-light">
-                        Le script n&apos;a encore rien envoyé.
+                        {t.screens.sitesPage.waitingBody}
                       </span>
                     </>
                   )}
@@ -166,7 +162,7 @@ export function SitesManager({ origin }: { origin: string }) {
                       onClick={() => setSiteId(site.id)}
                       className="rounded-[var(--app-radius-sm)] border border-border px-2.5 py-1.5 text-[12px] font-medium transition-colors hover:bg-surface-hover"
                     >
-                      Afficher
+                      {t.screens.sitesPage.show}
                     </button>
                   )}
                   <button
@@ -175,12 +171,12 @@ export function SitesManager({ origin }: { origin: string }) {
                     }
                     className="rounded-[var(--app-radius-sm)] border border-border px-2.5 py-1.5 text-[12px] font-medium transition-colors hover:bg-surface-hover"
                   >
-                    {openGuide === site.id ? "Masquer" : "Installation"}
+                    {openGuide === site.id ? t.screens.sitesPage.hide : t.screens.sitesPage.install}
                   </button>
                   <button
                     onClick={() => remove(site)}
                     disabled={deleting === site.id}
-                    title="Supprimer ce site et toutes ses données"
+                    title={t.screens.sitesPage.deleteSite}
                     className="rounded-[var(--app-radius-sm)] border border-border px-2 py-1.5 text-muted-light transition-colors hover:border-red-300 hover:text-red-500 disabled:opacity-50"
                   >
                     {deleting === site.id ? (

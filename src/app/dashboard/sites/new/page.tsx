@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { resolveAccountOwner } from "@/lib/team";
 import { Globe, Loader2, Lock } from "lucide-react";
 import { SetupGuide } from "@/components/setup-guide";
+import { useT } from "@/components/locale-context";
 
 /**
  * The site-count cap lives in a database trigger (supabase/quotas.sql),
@@ -19,6 +20,7 @@ function readLimitError(message: string): number | null {
 }
 
 export default function NewSitePage() {
+  const { t } = useT();
   const [name, setName] = useState("");
   const [domain, setDomain] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export default function NewSitePage() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      setError("Vous devez être connecté.");
+      setError(t.screens.newSite.mustBeSignedIn);
       setLoading(false);
       return;
     }
@@ -88,10 +90,10 @@ export default function NewSitePage() {
       <div className="mx-auto max-w-2xl py-6">
         <div className="mb-5">
           <h1 className="text-[17px] font-semibold">
-            {created.domain} est prêt à recevoir des données
+            {created.domain} {t.screens.setup.readyTitle}
           </h1>
           <p className="mt-1 text-[13px] text-muted">
-            Trois étapes, dont la dernière se coche toute seule.
+            {t.screens.setup.readySubtitle}
           </p>
         </div>
 
@@ -112,25 +114,23 @@ export default function NewSitePage() {
           <Lock className="h-7 w-7 text-primary" />
         </div>
         <h1 className="mt-4 text-2xl font-bold">
-          Limite de {limitReached} site{limitReached > 1 ? "s" : ""} atteinte
+          {t.screens.newSite.limitReached}
         </h1>
         <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
-          Votre offre actuelle permet {limitReached} site
-          {limitReached > 1 ? "s" : ""}. Passez à une offre supérieure pour en
-          ajouter un nouveau.
+          {t.screens.newSite.limitBody}
         </p>
         <div className="mt-8 flex justify-center gap-3">
           <a
             href="/dashboard/upgrade"
             className="flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
           >
-            Voir les offres
+            {t.screens.common.seePlans}
           </a>
           <a
             href="/dashboard"
             className="flex items-center justify-center gap-2 rounded-lg border border-border px-5 py-2.5 text-sm font-medium transition-colors hover:bg-surface-hover"
           >
-            Retour au dashboard
+            {t.screens.newSite.backToDashboard}
           </a>
         </div>
       </div>
@@ -141,9 +141,9 @@ export default function NewSitePage() {
   return (
     <div className="mx-auto max-w-lg py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold">Ajouter un site</h1>
+        <h1 className="text-[17px] font-semibold">{t.screens.newSite.title}</h1>
         <p className="mt-2 text-sm text-muted">
-          Entrez les informations de votre site web pour commencer le tracking.
+          {t.screens.newSite.intro}
         </p>
       </div>
 
@@ -156,7 +156,7 @@ export default function NewSitePage() {
 
         <div>
           <label htmlFor="name" className="block text-sm font-medium mb-1.5">
-            Nom du site
+            {t.screens.newSite.nameLabel}
           </label>
           <input
             id="name"
@@ -164,14 +164,14 @@ export default function NewSitePage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            placeholder="Mon super site"
+            placeholder={t.screens.newSite.namePlaceholder}
             className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </div>
 
         <div>
           <label htmlFor="domain" className="block text-sm font-medium mb-1.5">
-            Domaine
+            {t.screens.newSite.domainLabel}
           </label>
           <div className="flex items-center rounded-lg border border-border bg-surface overflow-hidden focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
             <span className="pl-3.5 text-sm text-muted">https://</span>
@@ -181,7 +181,7 @@ export default function NewSitePage() {
               value={domain}
               onChange={(e) => setDomain(e.target.value)}
               required
-              placeholder="monsite.com"
+              placeholder={t.screens.newSite.domainPlaceholder}
               className="flex-1 bg-transparent px-1 py-2.5 text-sm outline-none"
             />
           </div>
@@ -197,7 +197,7 @@ export default function NewSitePage() {
           ) : (
             <>
               <Globe className="h-4 w-4" />
-              Ajouter ce site
+              {t.screens.newSite.submit}
             </>
           )}
         </button>

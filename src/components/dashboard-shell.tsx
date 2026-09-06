@@ -147,7 +147,7 @@ function SiteSwitcher() {
               href="/dashboard/sites/new"
               className="block px-2.5 py-1.5 text-[12.5px] text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
             >
-              Ajouter un site
+              {t.shell.addSite}
             </a>
           </div>
         </div>

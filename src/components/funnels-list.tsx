@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useSites } from "@/components/site-context";
 import { SegmentedFilter, usePeriodOptionsNoDay } from "@/components/filters";
+import { useT } from "@/components/locale-context";
 
 interface FunnelStep {
   id: string;
@@ -50,6 +51,7 @@ interface FunnelStepResult {
  */
 export function FunnelsList({ funnels }: { funnels: Funnel[] }) {
   const { site, siteId, ready } = useSites();
+  const { t } = useT();
 
   // Don't flash "ajoutez un site" before the stored selection is read.
   if (!ready) return null;
@@ -58,13 +60,12 @@ export function FunnelsList({ funnels }: { funnels: Funnel[] }) {
     return (
       <div className="app-card flex flex-col items-center justify-center py-16 text-center">
         <Filter className="h-7 w-7 text-muted-light" />
-        <h2 className="mt-3 text-[15px] font-semibold">Ajoutez d&apos;abord un site</h2>
+        <h2 className="mt-3 text-[15px] font-semibold">{t.screens.funnels.noSiteTitle}</h2>
         <p className="mt-1 max-w-sm text-[13px] text-muted">
-          Un funnel suit le parcours des visiteurs d&apos;un site précis. Ajoutez
-          un site pour en créer un.
+          {t.screens.funnels.noSiteBody}
         </p>
         <Link href="/dashboard/sites/new" className="btn btn-brand mt-4">
-          Ajouter un site
+          {t.screens.common.addSite}
         </Link>
       </div>
     );
@@ -89,6 +90,7 @@ function SiteFunnels({
   siteName: string;
   funnels: Funnel[];
 }) {
+  const { t, intl } = useT();
   const [funnels, setFunnels] = useState(initialFunnels);
   const [showCreate, setShowCreate] = useState(false);
   const [selectedFunnel, setSelectedFunnel] = useState<string | null>(null);
@@ -128,15 +130,14 @@ function SiteFunnels({
     <div className="space-y-4">
       <div className="app-toolbar justify-between">
         <p className="text-[13px] text-muted">
-          Suivez le parcours de vos visiteurs étape par étape et identifiez où
-          ils décrochent.
+          {t.screens.funnels.intro}
         </p>
         <button
           onClick={() => setShowCreate(true)}
           className="flex items-center gap-1.5 rounded-[var(--app-radius-sm)] bg-primary px-2.5 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-primary-hover"
         >
           <Plus className="h-3.5 w-3.5" />
-          Créer un funnel
+          {t.screens.funnels.create}
         </button>
       </div>
 
@@ -157,19 +158,17 @@ function SiteFunnels({
         <div className="app-card flex flex-col items-center justify-center py-16 text-center">
           <Filter className="h-7 w-7 text-muted-light" />
           <h3 className="mt-3 text-[15px] font-semibold">
-            Aucun funnel sur {siteName}
+            {t.screens.funnels.emptyTitle} {siteName}
           </h3>
           <p className="mt-1 max-w-sm text-[13px] text-muted">
-            Un funnel est une suite d&apos;étapes — page d&apos;accueil, pricing,
-            inscription. PulseTrack compte combien de visiteurs franchissent
-            chacune et où ils abandonnent.
+            {t.screens.funnels.emptyBody}
           </p>
           <button
             onClick={() => setShowCreate(true)}
             className="mt-4 flex items-center gap-1.5 rounded-[var(--app-radius-sm)] bg-primary px-3 py-2 text-[13px] font-medium text-white transition-colors hover:bg-primary-hover"
           >
             <Plus className="h-3.5 w-3.5" />
-            Créer mon premier funnel
+            {t.screens.funnels.createFirst}
           </button>
         </div>
       ) : (
@@ -197,7 +196,7 @@ function SiteFunnels({
                     <div>
                       <h3 className="font-semibold">{funnel.name}</h3>
                       <p className="text-xs text-muted mt-0.5">
-                        {steps.length} étapes
+                        {steps.length} {t.screens.funnels.steps}
                       </p>
                     </div>
                     <ChevronRight
@@ -225,7 +224,7 @@ function SiteFunnels({
               <div className="app-card">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-[13.5px] font-semibold">
-                    Résultats du funnel
+                    {t.screens.funnels.results}
                   </h3>
                   <SegmentedFilter
                     ariaLabel="Période"
@@ -243,7 +242,7 @@ function SiteFunnels({
                   <FunnelVisualization steps={funnelResults} />
                 ) : (
                   <p className="text-center text-sm text-muted py-12">
-                    Sélectionnez un funnel pour voir les résultats
+                    {t.screens.funnels.selectFunnel}
                   </p>
                 )}
               </div>
@@ -265,6 +264,7 @@ function CreateFunnelForm({
   onCreated: (funnel: Funnel) => void;
   onCancel: () => void;
 }) {
+  const { t } = useT();
   const [name, setName] = useState("");
   const [steps, setSteps] = useState([
     { name: "Page d'accueil", match_type: "path", match_value: "/" },
@@ -326,7 +326,7 @@ function CreateFunnelForm({
 
   return (
     <div className="rounded-xl border border-primary/20 bg-background p-6">
-      <h3 className="text-lg font-semibold mb-4">Créer un funnel</h3>
+      <h3 className="mb-4 text-[13.5px] font-semibold">{t.screens.funnels.create}</h3>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
@@ -339,14 +339,14 @@ function CreateFunnelForm({
             the rail, the same scope the rest of the screen already shows. */}
         <div>
           <label className="block text-sm font-medium mb-1.5">
-            Nom du funnel
+            {t.screens.funnels.funnelName}
           </label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            placeholder="Ex: Inscription, Achat, Onboarding"
+            placeholder={t.screens.funnels.namePlaceholder}
             className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </div>
@@ -354,7 +354,7 @@ function CreateFunnelForm({
         {/* Steps */}
         <div>
           <label className="block text-sm font-medium mb-3">
-            Étapes du funnel
+            {t.screens.funnels.funnelSteps}
           </label>
           <div className="space-y-2">
             {steps.map((step, i) => (
@@ -367,7 +367,7 @@ function CreateFunnelForm({
                   value={step.name}
                   onChange={(e) => updateStep(i, "name", e.target.value)}
                   required
-                  placeholder="Nom de l'étape"
+                  placeholder={t.screens.funnels.stepName}
                   className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
                 <select
@@ -375,9 +375,9 @@ function CreateFunnelForm({
                   onChange={(e) => updateStep(i, "match_type", e.target.value)}
                   className="rounded-lg border border-border bg-surface px-2 py-2 text-sm outline-none focus:border-primary"
                 >
-                  <option value="path">URL exacte</option>
-                  <option value="path_contains">URL contient</option>
-                  <option value="event">Événement</option>
+                  <option value="path">{t.screens.funnels.exactUrl}</option>
+                  <option value="path_contains">{t.screens.funnels.urlContains}</option>
+                  <option value="event">{t.screens.funnels.event}</option>
                 </select>
                 <input
                   type="text"
@@ -412,7 +412,7 @@ function CreateFunnelForm({
             className="mt-2 flex items-center gap-1 text-sm text-primary hover:underline"
           >
             <Plus className="h-3.5 w-3.5" />
-            Ajouter une étape
+            {t.screens.funnels.addStep}
           </button>
         </div>
 
@@ -422,7 +422,7 @@ function CreateFunnelForm({
             onClick={onCancel}
             className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-surface-hover transition-colors"
           >
-            Annuler
+            {t.screens.funnels.cancel}
           </button>
           <button
             type="submit"
@@ -432,7 +432,7 @@ function CreateFunnelForm({
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              "Créer le funnel"
+              t.screens.funnels.createCta
             )}
           </button>
         </div>
@@ -443,14 +443,13 @@ function CreateFunnelForm({
 
 /* ─────────── FUNNEL VISUALIZATION ─────────── */
 function FunnelVisualization({ steps }: { steps: FunnelStepResult[] }) {
+  const { t, intl } = useT();
   if (steps.length === 0) {
     return (
       <div className="py-8 text-center">
-        <p className="text-[13px] font-medium">Aucun visiteur dans ce funnel</p>
+        <p className="text-[13px] font-medium">{t.screens.funnels.noVisitorsTitle}</p>
         <p className="mx-auto mt-1.5 max-w-sm text-[12px] leading-relaxed text-muted">
-          Personne n&apos;a franchi la première étape sur la période choisie.
-          Vérifiez que son URL correspond bien à une page réelle du site, ou
-          élargissez la période ci-dessus.
+          {t.screens.funnels.noVisitorsBody}
         </p>
       </div>
     );
@@ -479,7 +478,7 @@ function FunnelVisualization({ steps }: { steps: FunnelStepResult[] }) {
                   <span className="text-sm font-medium">{step.name}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-bold">
-                      {step.visitors.toLocaleString("fr-FR")} visiteurs
+                      {step.visitors.toLocaleString(intl)} {t.screens.funnels.visitors}
                     </span>
                     <span
                       className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
@@ -511,14 +510,14 @@ function FunnelVisualization({ steps }: { steps: FunnelStepResult[] }) {
               <div className="ml-3.5 flex items-center gap-3 py-2 pl-7 border-l-2 border-dashed border-border">
                 <ArrowDown className="h-3.5 w-3.5 text-red-400" />
                 <span className="text-xs text-red-400 font-medium">
-                  -{step.drop_off_rate}% abandons
+                  -{step.drop_off_rate}% {t.screens.funnels.dropoffs}
                   {steps[i + 1] && (
                     <span className="text-muted font-normal">
                       {" "}
                       ({(step.visitors - steps[i + 1].visitors).toLocaleString(
-                        "fr-FR"
+                        intl
                       )}{" "}
-                      visiteurs perdus)
+                      {t.screens.funnels.lostVisitors})
                     </span>
                   )}
                 </span>
@@ -531,7 +530,7 @@ function FunnelVisualization({ steps }: { steps: FunnelStepResult[] }) {
       {/* Summary */}
       <div className="mt-6 rounded-lg border border-border bg-surface p-4">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium">Conversion globale</span>
+          <span className="text-sm font-medium">{t.screens.funnels.overallConversion}</span>
           <span
             className={`text-lg font-bold ${
               steps.length > 0 &&
@@ -549,8 +548,8 @@ function FunnelVisualization({ steps }: { steps: FunnelStepResult[] }) {
           </span>
         </div>
         <p className="mt-1 text-xs text-muted">
-          {steps[0]?.visitors.toLocaleString("fr-FR")} visiteurs au départ →{" "}
-          {steps[steps.length - 1]?.visitors.toLocaleString("fr-FR")} à la fin
+          {steps[0]?.visitors.toLocaleString(intl)} {t.screens.funnels.startedWith}{" "}
+          {steps[steps.length - 1]?.visitors.toLocaleString(intl)} {t.screens.funnels.endedWith}
         </p>
       </div>
     </div>

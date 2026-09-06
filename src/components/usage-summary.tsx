@@ -1,4 +1,5 @@
 import { AlertTriangle } from "lucide-react";
+import { useT } from "@/components/locale-context";
 
 /**
  * Current month's usage against the plan's caps.
@@ -26,6 +27,7 @@ function Bar({
   used: number;
   limit: number;
 }) {
+  const { intl } = useT();
   const unlimited = limit < 0;
   const pct = unlimited ? 0 : Math.min(100, Math.round((used / Math.max(limit, 1)) * 100));
   const near = pct >= 80;
@@ -35,8 +37,8 @@ function Bar({
       <div className="mb-1.5 flex items-baseline justify-between text-[12.5px]">
         <span className="text-muted">{label}</span>
         <span className={near ? "font-medium text-coral" : "text-foreground"}>
-          {used.toLocaleString("fr-FR")}
-          {unlimited ? "" : ` / ${limit.toLocaleString("fr-FR")}`}
+          {used.toLocaleString(intl)}
+          {unlimited ? "" : ` / ${limit.toLocaleString(intl)}`}
         </span>
       </div>
       {!unlimited && (
@@ -55,6 +57,7 @@ function Bar({
 }
 
 export function UsageSummary({ usage }: { usage: Usage }) {
+  const { t } = useT();
   const anyNear =
     (usage.events_limit > 0 && usage.events_used / usage.events_limit >= 0.8) ||
     (usage.sites_limit > 0 && usage.sites_used / usage.sites_limit >= 0.8) ||
@@ -63,22 +66,22 @@ export function UsageSummary({ usage }: { usage: Usage }) {
   return (
     <div className="rounded-lg border border-border bg-surface p-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-[14px] font-medium">Utilisation ce mois-ci</h3>
+        <h3 className="text-[14px] font-medium">{t.screens.usage.title}</h3>
         <span className="rounded-sm bg-primary-pale px-2 py-0.5 text-[11px] font-medium text-primary">
           {usage.plan}
         </span>
       </div>
 
       <div className="mt-4 space-y-3.5">
-        <Bar label="Événements" used={usage.events_used} limit={usage.events_limit} />
-        <Bar label="Sites" used={usage.sites_used} limit={usage.sites_limit} />
-        <Bar label="Funnels" used={usage.funnels_used} limit={usage.funnels_limit} />
+        <Bar label={t.screens.usage.events} used={usage.events_used} limit={usage.events_limit} />
+        <Bar label={t.screens.usage.sites} used={usage.sites_used} limit={usage.sites_limit} />
+        <Bar label={t.screens.usage.funnels} used={usage.funnels_used} limit={usage.funnels_limit} />
       </div>
 
       {anyNear && (
         <p className="mt-4 flex items-start gap-1.5 text-[11.5px] text-coral">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          Vous approchez d&apos;une limite de votre offre.
+          {t.screens.usage.nearLimit}
         </p>
       )}
     </div>

@@ -27,6 +27,7 @@ import {
   SearchableSelect,
   usePeriodOptions,
 } from "@/components/filters";
+import { useT } from "@/components/locale-context";
 
 interface Site {
   id: string;
@@ -123,6 +124,7 @@ interface ReplayRow {
 
 export function HeatmapPanel() {
   const { sites, siteId: selected, setSiteId } = useSites();
+  const { t, intl } = useT();
   const siteId = selected ?? "";
 
   // Arriving from "Heatmap de cette page" on a replay carries ?site= and
@@ -221,24 +223,22 @@ export function HeatmapPanel() {
     return (
       <div className="app-card flex flex-col items-center justify-center py-16 text-center">
         <MousePointerClick className="h-7 w-7 text-muted-light" />
-        <h2 className="mt-3 text-[15px] font-semibold">Aucun site pour l&apos;instant</h2>
+        <h2 className="mt-3 text-[15px] font-semibold">{t.screens.common.noSiteTitle}</h2>
         <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-muted">
-          Une heatmap se construit à partir des clics et des scrolls que le
-          script enregistre sur une page. Ajoutez un site, installez le script,
-          et la première carte apparaît dès les premières visites.
+          {t.screens.heatmaps.noSiteBody}
         </p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           <Link
             href="/dashboard/sites/new"
             className="rounded-[var(--app-radius-sm)] bg-primary px-3 py-2 text-[13px] font-medium text-white transition-colors hover:bg-primary-hover"
           >
-            Ajouter un site
+            {t.screens.common.addSite}
           </Link>
           <Link
             href="/features/heatmaps"
             className="rounded-[var(--app-radius-sm)] border border-border px-3 py-2 text-[13px] font-medium transition-colors hover:bg-surface-hover"
           >
-            Comment ça marche
+            {t.screens.common.howItWorks}
           </Link>
         </div>
       </div>
@@ -251,13 +251,13 @@ export function HeatmapPanel() {
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-primary-pale">
           <Lock className="h-5 w-5 text-primary" />
         </div>
-        <h2 className="mt-4 text-lg font-medium">Les heatmaps sont sur Starter</h2>
+        <h2 className="mt-4 text-lg font-medium">{t.screens.heatmaps.lockedTitle}</h2>
         <p className="mx-auto mt-2 max-w-sm text-[13.5px] text-muted">
           Passez sur Starter pour voir où vos visiteurs cliquent, jusqu&apos;où ils
           scrollent et sur quoi ils s&apos;acharnent en vain.
         </p>
         <Link href="/dashboard/upgrade" className="btn btn-brand mt-6">
-          Voir les offres
+          {t.screens.common.seePlans}
         </Link>
       </div>
     );
@@ -289,13 +289,13 @@ export function HeatmapPanel() {
           value={s?.path ?? ""}
           onChange={setPath}
           minWidth={220}
-          placeholder="Choisir une page"
-          emptyLabel="Aucune page"
-          searchPlaceholder="Filtrer les pages…"
+          placeholder={t.screens.heatmaps.choosePage}
+          emptyLabel={t.screens.heatmaps.noPage}
+          searchPlaceholder={t.screens.heatmaps.filterPages}
           options={(s?.pages ?? []).map((p) => ({
             value: p.path,
             label: p.path,
-            hint: p.count.toLocaleString("fr-FR"),
+            hint: p.count.toLocaleString(intl),
           }))}
         />
 
@@ -324,12 +324,12 @@ export function HeatmapPanel() {
 
       {/* Summary */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric label="Clics" value={(s?.summary.clicks ?? 0).toLocaleString("fr-FR")} icon={MousePointerClick} />
-        <Metric label="Sessions" value={(s?.summary.sessions ?? 0).toLocaleString("fr-FR")} icon={Users} />
-        <Metric label="Scroll moyen" value={`${s?.summary.avg_scroll ?? 0}%`} icon={ArrowDownToLine} />
+        <Metric label={t.screens.common.clicks} value={(s?.summary.clicks ?? 0).toLocaleString(intl)} icon={MousePointerClick} />
+        <Metric label={t.screens.common.sessions} value={(s?.summary.sessions ?? 0).toLocaleString(intl)} icon={Users} />
+        <Metric label={t.screens.heatmaps.avgScroll} value={`${s?.summary.avg_scroll ?? 0}%`} icon={ArrowDownToLine} />
         <Metric
-          label="Clics de rage"
-          value={(s?.summary.rage_clicks ?? 0).toLocaleString("fr-FR")}
+          label={t.screens.heatmaps.rageClicks}
+          value={(s?.summary.rage_clicks ?? 0).toLocaleString(intl)}
           icon={AlertTriangle}
           tone={(s?.summary.rage_clicks ?? 0) > 0 ? "warn" : "default"}
         />
@@ -361,17 +361,17 @@ export function HeatmapPanel() {
                   onChange={(e) => setOverlay(e.target.checked)}
                   className="accent-[var(--primary)]"
                 />
-                Charger la page live
+                {t.screens.heatmaps.loadLive}
               </label>
               <div className="flex items-center gap-1.5 text-[10px] text-muted-light">
-                <span>Froid</span>
+                <span>{t.screens.heatmaps.cold}</span>
                 <span
                   className="h-1.5 w-14 rounded-full"
                   style={{
                     background: "linear-gradient(90deg,#3b82f6,#3ec88a,#f5d423,#ff9d2e,#ff3c00)",
                   }}
                 />
-                <span>Chaud</span>
+                <span>{t.screens.heatmaps.hot}</span>
               </div>
             </div>
           </div>
@@ -449,14 +449,10 @@ export function HeatmapPanel() {
                   <div>
                     <MousePointerClick className="mx-auto h-7 w-7 text-muted-light" />
                     <p className="mt-3 text-[14px] font-medium">
-                      Pas encore d&apos;interactions
+                      {t.screens.heatmaps.noInteractionTitle}
                     </p>
                     <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted">
-                      Aucun clic ni scroll enregistré sur cette page sur la
-                      période choisie. Essayez une autre page dans le sélecteur
-                      ci-dessus, ou élargissez la période — sur un site récent
-                      c&apos;est simplement qu&apos;il n&apos;y a pas encore eu
-                      de visite ici.
+                      {t.screens.heatmaps.noInteractionBody}
                     </p>
                   </div>
                 )}
@@ -477,7 +473,7 @@ export function HeatmapPanel() {
               {s?.snapshot ? (
                 <p>
                   Structure de la page relevée le{" "}
-                  {new Date(s.snapshot.captured_at).toLocaleDateString("fr-FR")} sur{" "}
+                  {new Date(s.snapshot.captured_at).toLocaleDateString(intl)} sur{" "}
                   {s.device} — {s.geometry.viewport_w} × {s.geometry.doc_h} px,{" "}
                   {s.snapshot.elements.length} éléments.
                 </p>
@@ -493,7 +489,7 @@ export function HeatmapPanel() {
               {s?.sampled && (
                 <p>
                   Carte et classement calculés sur les{" "}
-                  {s.sample_size.toLocaleString("fr-FR")} interactions les plus
+                  {s.sample_size.toLocaleString(intl)} interactions les plus
                   récentes. Les totaux ci-dessus portent sur la période entière.
                 </p>
               )}
@@ -508,11 +504,10 @@ export function HeatmapPanel() {
             <div className="rounded-lg border border-border bg-surface p-4">
               <h3 className="flex items-center gap-1.5 text-[13px] font-medium">
                 <Video className="h-3.5 w-3.5 text-primary" />
-                Sessions sur cette page
+                {t.screens.heatmaps.sessionsOnPage}
               </h3>
               <p className="mt-0.5 text-[11px] text-muted-light">
-                Regardez ce que ces visiteurs ont fait, pas juste où ils ont
-                cliqué
+                {t.screens.heatmaps.sessionsOnPageBody}
               </p>
               <div className="mt-3 space-y-1">
                 {replays.map((r) => (
@@ -526,7 +521,7 @@ export function HeatmapPanel() {
                       {Math.round(r.duration_ms / 1000)}s · {r.device ?? "—"}
                     </span>
                     {r.has_rage && (
-                      <span title="Clic de rage détecté">
+                      <span title={t.screens.heatmaps.rageDetected}>
                         <AlertTriangle className="h-3 w-3 text-coral" />
                       </span>
                     )}
@@ -537,16 +532,16 @@ export function HeatmapPanel() {
                 href={`/dashboard/replays?site=${siteId}&path=${encodeURIComponent(stats?.path ?? "")}`}
                 className="mt-3 block text-center text-[11.5px] text-primary hover:underline"
               >
-                Voir toutes les sessions →
+                {t.screens.heatmaps.seeAllSessions}
               </Link>
             </div>
           )}
 
           {/* Scroll depth */}
           <div className="rounded-lg border border-border bg-surface p-4">
-            <h3 className="text-[13px] font-medium">Profondeur de scroll</h3>
+            <h3 className="text-[13px] font-medium">{t.screens.heatmaps.scrollDepth}</h3>
             <p className="mt-0.5 text-[11px] text-muted-light">
-              Part des sessions atteignant chaque palier
+              {t.screens.heatmaps.scrollDepthBody}
             </p>
             <div className="mt-3 space-y-1.5">
               {(s?.scroll_bands ?? []).map((b) => (
@@ -581,10 +576,10 @@ export function HeatmapPanel() {
             <div className="rounded-lg border border-coral/30 bg-coral-pale/40 p-4">
               <h3 className="flex items-center gap-1.5 text-[13px] font-medium text-coral">
                 <AlertTriangle className="h-3.5 w-3.5" />
-                Clics de rage
+                {t.screens.heatmaps.rageClicks}
               </h3>
               <p className="mt-0.5 text-[11px] text-muted">
-                Éléments non cliquables sur lesquels on insiste
+                {t.screens.heatmaps.rageBody}
               </p>
               <div className="mt-3 space-y-2">
                 {s!.rage_spots.map((r) => (
@@ -608,12 +603,11 @@ export function HeatmapPanel() {
 
           {/* Elements */}
           <div className="rounded-lg border border-border bg-surface p-4">
-            <h3 className="text-[13px] font-medium">Éléments les plus cliqués</h3>
+            <h3 className="text-[13px] font-medium">{t.screens.heatmaps.topElements}</h3>
             <div className="mt-3 space-y-2.5">
               {(s?.elements ?? []).length === 0 && (
                 <p className="py-2 text-[12px] leading-relaxed text-muted-light">
-                  Les boutons et liens les plus cliqués de cette page se
-                  classeront ici.
+                  {t.screens.heatmaps.topElementsEmpty}
                 </p>
               )}
               {(s?.elements ?? []).map((el) => (
@@ -624,7 +618,7 @@ export function HeatmapPanel() {
                       {!el.interactive && (
                         <span
                           className="ml-1.5 rounded-xs bg-coral-pale px-1 py-px text-[9px] text-coral"
-                          title="Cet élément n'est pas cliquable"
+                          title={t.screens.heatmaps.notClickable}
                         >
                           inerte
                         </span>

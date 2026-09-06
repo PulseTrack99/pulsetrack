@@ -17,6 +17,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { SegmentedFilter, usePeriodOptionsNoDay } from "@/components/filters";
+import { useT } from "@/components/locale-context";
 
 interface RevenueStats {
   connected: boolean;
@@ -45,8 +46,8 @@ interface RevenueStats {
 /** Amounts, always with both decimals: minimumFractionDigits alone let
  *  Intl drop a trailing zero, so the same screen showed "919,74 €" next
  *  to "102,3 €". */
-function formatCurrency(cents: number, currency = "eur") {
-  return new Intl.NumberFormat("fr-FR", {
+function formatCurrency(cents: number, currency: string, intl: string) {
+  return new Intl.NumberFormat(intl, {
     style: "currency",
     currency: currency.toUpperCase(),
     minimumFractionDigits: 2,
@@ -55,8 +56,8 @@ function formatCurrency(cents: number, currency = "eur") {
 }
 
 /** Axis labels, where whole euros read better than centimes. */
-function formatAxis(cents: number, currency = "eur") {
-  return new Intl.NumberFormat("fr-FR", {
+function formatAxis(cents: number, currency: string, intl: string) {
+  return new Intl.NumberFormat(intl, {
     style: "currency",
     currency: currency.toUpperCase(),
     minimumFractionDigits: 0,
@@ -73,14 +74,15 @@ function niceMax(value: number): number {
   return step * magnitude;
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("fr-FR", {
+function formatDate(iso: string, intl: string) {
+  return new Date(iso).toLocaleDateString(intl, {
     day: "numeric",
     month: "short",
   });
 }
 
 export function RevenuePanel({ siteId }: { siteId: string }) {
+  const { t, intl } = useT();
   const [stats, setStats] = useState<RevenueStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -116,7 +118,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
   async function handleConnect() {
     if (!stripeKey.startsWith("rk_")) {
       setError(
-        "Cette clé doit être une clé restreinte Stripe : elle commence par rk_ et n'a que l'accès en lecture aux charges et aux clients."
+        t.screens.revenue.keyError
       );
       return;
     }
@@ -137,17 +139,17 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
         await fetchStats();
       } else {
         const data = await res.json();
-        setError(data.error || "Erreur de connexion");
+        setError(data.error || t.screens.revenue.connectError);
       }
     } catch {
-      setError("Erreur réseau");
+      setError(t.screens.revenue.networkError);
     } finally {
       setConnecting(false);
     }
   }
 
   async function handleDisconnect() {
-    if (!confirm("Déconnecter Stripe ? Les données de revenus seront supprimées.")) return;
+    if (!confirm(t.screens.revenue.disconnectConfirm)) return;
 
     try {
       await fetch("/api/revenue/connect", {
@@ -191,18 +193,16 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
     return (
       <div className="mx-auto max-w-2xl space-y-3">
         <p className="text-[13px] leading-relaxed text-muted">
-          Reliez votre compte Stripe pour savoir combien chaque source de
-          trafic vous rapporte réellement — pas seulement combien de visiteurs
-          elle envoie. PulseTrack lit vos paiements en lecture seule et ne peut
-          rien y modifier.
+          {t.screens.revenue.intro}
         </p>
 
         <div className="app-card space-y-3">
-          <h3 className="text-[13.5px] font-semibold">Connecter Stripe</h3>
+          <h3 className="text-[13.5px] font-semibold">{t.screens.revenue.connectTitle}</h3>
 
           <ol className="space-y-1.5 text-[12.5px] leading-relaxed text-muted">
             <li>
-              <span className="font-medium text-foreground">1.</span> Ouvrez{" "}
+              <span className="font-medium text-foreground">1.</span>{" "}
+              {t.screens.revenue.step1}{" "}
               <a
                 href="https://dashboard.stripe.com/apikeys"
                 target="_blank"
@@ -214,19 +214,20 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
               .
             </li>
             <li>
-              <span className="font-medium text-foreground">2.</span> Créez une{" "}
+              <span className="font-medium text-foreground">2.</span>{" "}
+              {t.screens.revenue.step2a}{" "}
               <strong className="font-medium text-foreground">
-                clé restreinte
+                {t.screens.revenue.restrictedKey}
               </strong>{" "}
-              avec l&apos;accès <em>lecture seule</em> sur{" "}
+              {t.screens.revenue.step2b} <em>{t.screens.revenue.readOnly}</em>{" "}
               <strong className="font-medium text-foreground">Charges</strong>{" "}
               et{" "}
               <strong className="font-medium text-foreground">Customers</strong>
-              , et rien d&apos;autre.
+              {t.screens.revenue.andNothingElse}
             </li>
             <li>
-              <span className="font-medium text-foreground">3.</span> Collez-la
-              ci-dessous — elle commence par{" "}
+              <span className="font-medium text-foreground">3.</span>{" "}
+              {t.screens.revenue.step3}{" "}
               <code className="rounded bg-surface-sunken px-1 py-0.5 font-mono text-[11.5px]">
                 rk_
               </code>
@@ -245,7 +246,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
             <button
               type="button"
               onClick={() => setShowKey(!showKey)}
-              title={showKey ? "Masquer la clé" : "Afficher la clé"}
+              title={showKey ? t.screens.revenue.hideKey : t.screens.revenue.showKey}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-light transition-colors hover:text-foreground"
             >
               {showKey ? (
@@ -268,26 +269,23 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
             ) : (
               <Link2 className="h-3.5 w-3.5" />
             )}
-            Connecter Stripe
+            {t.screens.revenue.connect}
           </button>
         </div>
 
         <div className="app-card space-y-2">
           <h3 className="text-[13.5px] font-semibold">
-            Comment PulseTrack relie un paiement à une source
+            {t.screens.revenue.attributionTitle}
           </h3>
           <p className="text-[12.5px] leading-relaxed text-muted">
-            Appelez{" "}
+            {t.screens.revenue.callVerb}{" "}
             <code className="rounded bg-surface-sunken px-1 py-0.5 font-mono text-[11.5px]">
               pulsetrack.identify(&quot;email@client.com&quot;)
             </code>{" "}
-            sur votre site au moment de la connexion ou de la commande.
-            PulseTrack rapproche cet e-mail des paiements Stripe, et sait donc
-            de quelle source venait la visite qui a produit le revenu.
+            {t.screens.revenue.attributionBody}
           </p>
           <p className="text-[12px] text-muted-light">
-            Sans cet appel, les paiements remontent quand même : c&apos;est
-            l&apos;attribution à une source qui manque.
+            {t.screens.revenue.attributionNote}
           </p>
         </div>
       </div>
@@ -321,8 +319,8 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
 
         {stats.last_synced_at && (
           <span className="text-[11.5px] text-muted-light">
-            Dernière synchro{" "}
-            {new Date(stats.last_synced_at).toLocaleString("fr-FR", {
+            {t.screens.revenue.lastSync}{" "}
+            {new Date(stats.last_synced_at).toLocaleString(intl, {
               day: "numeric",
               month: "short",
               hour: "2-digit",
@@ -337,7 +335,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
           className="ml-auto flex items-center gap-1.5 rounded-sm border border-border bg-surface px-2.5 py-1.5 text-[12px] font-medium text-muted transition-colors hover:text-foreground disabled:opacity-50"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
-          {syncing ? "Synchro…" : "Synchroniser"}
+          {syncing ? t.screens.revenue.syncing : t.screens.revenue.sync}
         </button>
 
         {/* Labelled: it deletes the revenue data, and an unlabelled icon
@@ -347,7 +345,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
           className="flex items-center gap-1.5 rounded-sm border border-border px-2.5 py-1.5 text-[12px] font-medium text-muted-light transition-colors hover:border-coral/40 hover:text-coral"
         >
           <Unlink className="h-3.5 w-3.5" />
-          Déconnecter
+          {t.screens.revenue.disconnect}
         </button>
       </div>
 
@@ -356,29 +354,29 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
           nothing, on a screen otherwise built in purple. */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
-          title="Revenu total"
-          value={formatCurrency(o.total_revenue, currency)}
+          title={t.screens.revenue.totalRevenue}
+          value={formatCurrency(o.total_revenue, currency, intl)}
           icon={DollarSign}
           change={o.revenue_growth}
-          hint="Somme des paiements Stripe encaissés sur la période."
+          hint={t.screens.revenue.totalRevenueHint}
         />
         <StatCard
-          title="Transactions"
+          title={t.screens.revenue.transactions}
           value={o.total_transactions.toString()}
           icon={ShoppingCart}
-          hint="Nombre de paiements réussis sur la période."
+          hint={t.screens.revenue.transactionsHint}
         />
         <StatCard
-          title="Panier moyen"
-          value={formatCurrency(o.avg_order_value, currency)}
+          title={t.screens.revenue.aov}
+          value={formatCurrency(o.avg_order_value, currency, intl)}
           icon={BarChart3}
-          hint="Revenu total divisé par le nombre de transactions."
+          hint={t.screens.revenue.aovHint}
         />
         <StatCard
-          title="Taux d'attribution"
+          title={t.screens.revenue.attributionRate}
           value={`${o.attribution_rate}%`}
           icon={Target}
-          hint="Part des paiements rattachés à une source de trafic, via pulsetrack.identify()."
+          hint={t.screens.revenue.attributionRateHint}
         />
       </div>
 
@@ -388,9 +386,9 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
       {chartData.length > 0 && (
         <div className="app-card">
           <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-            <h3 className="text-[13.5px] font-semibold">Revenus par jour</h3>
+            <h3 className="text-[13.5px] font-semibold">{t.screens.revenue.perDay}</h3>
             <p className="text-[11.5px] text-muted-light">
-              pic à {formatCurrency(maxRevenue, currency)}
+              {t.screens.revenue.peakAt} {formatCurrency(maxRevenue, currency, intl)}
             </p>
           </div>
 
@@ -402,7 +400,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
                   className="absolute right-0 -translate-y-1/2 text-[10px] tabular-nums text-muted-light"
                   style={{ top: `${(i / 2) * 100}%` }}
                 >
-                  {formatAxis(v, currency)}
+                  {formatAxis(v, currency, intl)}
                 </span>
               ))}
             </div>
@@ -446,11 +444,11 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
                     style={{ left: `${((hoverDay + 0.5) / chartData.length) * 100}%` }}
                   >
                     <span className="font-medium tabular-nums">
-                      {formatCurrency(chartData[hoverDay].revenue, currency)}
+                      {formatCurrency(chartData[hoverDay].revenue, currency, intl)}
                     </span>
                     <span className="text-muted-light">
                       {" "}
-                      · {formatDate(chartData[hoverDay].date)}
+                      · {formatDate(chartData[hoverDay].date, intl)}
                     </span>
                   </div>
                 )}
@@ -461,7 +459,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
                   <div key={d.date} className="min-w-0 flex-1 text-center">
                     {i % tickEvery === 0 && (
                       <span className="whitespace-nowrap text-[10px] text-muted-light">
-                        {formatDate(d.date)}
+                        {formatDate(d.date, intl)}
                       </span>
                     )}
                   </div>
@@ -475,7 +473,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Revenue by source */}
         <div className="app-card">
-          <h3 className="mb-3 text-[13.5px] font-semibold">Revenu par source</h3>
+          <h3 className="mb-3 text-[13.5px] font-semibold">{t.screens.revenue.bySource}</h3>
           {stats.revenue_by_source && stats.revenue_by_source.length > 0 ? (
             <div className="space-y-3">
               {stats.revenue_by_source.map((s) => {
@@ -488,7 +486,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium">{s.source}</span>
                       <span className="text-muted">
-                        {formatCurrency(s.revenue, currency)}{" "}
+                        {formatCurrency(s.revenue, currency, intl)}{" "}
                         <span className="text-xs">({s.count})</span>
                       </span>
                     </div>
@@ -504,16 +502,14 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
             </div>
           ) : (
             <p className="text-[13px] leading-relaxed text-muted">
-              Aucun paiement rattaché à une source sur cette période. Dès
-              qu&apos;un visiteur venu de Google ou d&apos;un réseau social
-              paiera, le revenu qu&apos;il a rapporté apparaîtra ici.
+              {t.screens.revenue.noSource}
             </p>
           )}
         </div>
 
         {/* Revenue by page */}
         <div className="app-card">
-          <h3 className="mb-3 text-[13.5px] font-semibold">Revenu par page</h3>
+          <h3 className="mb-3 text-[13.5px] font-semibold">{t.screens.revenue.byPage}</h3>
           {stats.revenue_by_page && stats.revenue_by_page.length > 0 ? (
             <div className="space-y-3">
               {stats.revenue_by_page.map((p) => {
@@ -528,7 +524,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
                         {p.page}
                       </span>
                       <span className="text-muted">
-                        {formatCurrency(p.revenue, currency)}{" "}
+                        {formatCurrency(p.revenue, currency, intl)}{" "}
                         <span className="text-xs">({p.count})</span>
                       </span>
                     </div>
@@ -544,7 +540,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
             </div>
           ) : (
             <p className="text-[13px] leading-relaxed text-muted">
-              Aucun revenu rattaché à une page. Appelez{" "}
+              {t.screens.revenue.noPage}{" "}
               <code className="rounded bg-surface-sunken px-1 py-0.5 font-mono text-[11.5px]">
                 pulsetrack.identify(email)
               </code>{" "}
@@ -559,47 +555,47 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
       {stats.recent_transactions && stats.recent_transactions.length > 0 && (
         <div className="app-card">
           <h3 className="mb-3 text-[13.5px] font-semibold">
-            Transactions récentes
+            {t.screens.revenue.recentTransactions}
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-muted border-b border-border">
-                  <th className="pb-2 font-medium">Montant</th>
-                  <th className="pb-2 font-medium">Client</th>
+                  <th className="pb-2 font-medium">{t.screens.revenue.amount}</th>
+                  <th className="pb-2 font-medium">{t.screens.revenue.customer}</th>
                   <th className="pb-2 font-medium">Source</th>
                   <th className="pb-2 font-medium">Page</th>
                   <th className="pb-2 font-medium">Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {stats.recent_transactions.map((t, i) => (
+                {stats.recent_transactions.map((tx, i) => (
                   <tr key={i}>
                     <td className="py-2.5 font-medium tabular-nums">
-                      {formatCurrency(t.amount, t.currency)}
+                      {formatCurrency(tx.amount, tx.currency, intl)}
                     </td>
                     <td className="py-2.5 text-muted truncate max-w-[150px]">
-                      {t.email || "—"}
+                      {tx.email || "—"}
                     </td>
                     <td className="py-2.5">
                       <span
                         className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-                          t.source === "Unattributed"
+                          tx.source === "Unattributed"
                             ? "bg-surface-sunken text-muted-light"
                             : "bg-primary-pale text-primary"
                         }`}
                       >
-                        {t.source !== "Unattributed" && (
+                        {tx.source !== "Unattributed" && (
                           <ArrowUpRight className="h-3 w-3" />
                         )}
-                        {t.source}
+                        {tx.source}
                       </span>
                     </td>
                     <td className="py-2.5 text-muted text-xs truncate max-w-[120px]">
-                      {t.landing_page || "—"}
+                      {tx.landing_page || "—"}
                     </td>
                     <td className="py-2.5 text-muted text-xs">
-                      {new Date(t.date).toLocaleDateString("fr-FR")}
+                      {new Date(tx.date).toLocaleDateString(intl)}
                     </td>
                   </tr>
                 ))}
