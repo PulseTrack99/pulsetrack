@@ -25,7 +25,7 @@ import {
   FilterBar,
   SegmentedFilter,
   SearchableSelect,
-  PERIOD_OPTIONS,
+  usePeriodOptions,
 } from "@/components/filters";
 
 interface Site {
@@ -141,6 +141,7 @@ export function HeatmapPanel() {
   }, [initial, sites]);
   // null lets the server pick the breakpoint with the most data.
   const [device, setDevice] = useState<string | null>(null);
+  const periodOptions = usePeriodOptions();
   const [period, setPeriod] = useState("30d");
   // Off by default: it only works when the domain is reachable and allows
   // framing, and a failed frame is more confusing than no frame.
@@ -316,7 +317,7 @@ export function HeatmapPanel() {
         <SegmentedFilter
           ariaLabel="Période"
           value={period}
-          options={PERIOD_OPTIONS}
+          options={periodOptions}
           onChange={setPeriod}
         />
       </FilterBar>

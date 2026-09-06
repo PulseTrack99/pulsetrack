@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useT } from "@/components/locale-context";
 import { Radio, Globe, Monitor, Smartphone, Tablet, Loader2 } from "lucide-react";
 
 interface RealtimeData {
@@ -77,6 +78,7 @@ function timeAgo(dateStr: string): string {
 }
 
 export function RealtimePanel({ siteId }: { siteId: string }) {
+  const { t } = useT();
   const [data, setData] = useState<RealtimeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [pulse, setPulse] = useState(false);
@@ -110,7 +112,7 @@ export function RealtimePanel({ siteId }: { siteId: string }) {
       // jump once the first poll lands.
       <div className="app-card flex items-center gap-2">
         <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-        <span className="app-label">Temps réel</span>
+        <span className="app-label">{t.realtime.title}</span>
       </div>
     );
   }
@@ -136,7 +138,7 @@ export function RealtimePanel({ siteId }: { siteId: string }) {
           )}
         </div>
 
-        <span className="app-label">Temps réel</span>
+        <span className="app-label">{t.realtime.title}</span>
 
         <span className="flex items-baseline gap-1.5">
           <span
@@ -147,20 +149,19 @@ export function RealtimePanel({ siteId }: { siteId: string }) {
             {data.active_visitors}
           </span>
           <span className="text-[12.5px] text-muted">
-            visiteur{data.active_visitors !== 1 ? "s" : ""} en ce moment
+            {t.realtime.visitorsNow}
           </span>
         </span>
 
         <div className="ml-auto flex items-center gap-3">
           <Sparkline data={data.sparkline} />
-          <span className="text-[11px] text-muted-light">MAJ 5s</span>
+          <span className="text-[11px] text-muted-light">{t.realtime.refresh}</span>
         </div>
       </div>
 
       {idle ? (
         <p className="mt-2 text-[12px] text-muted-light">
-          Personne sur le site à cette seconde. Les visites s&apos;affichent ici
-          en direct, sans rechargement.
+          {t.realtime.idle}
         </p>
       ) : (
       <div className="mt-4 grid gap-5 lg:grid-cols-2">
@@ -168,11 +169,11 @@ export function RealtimePanel({ siteId }: { siteId: string }) {
         <div>
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <Globe className="h-4 w-4 text-muted" />
-            Pages actives
+            {t.realtime.activePages}
           </h3>
           {data.active_pages.length === 0 ? (
             <p className="text-xs text-muted py-4 text-center">
-              Aucune page active
+              {t.realtime.noActivePage}
             </p>
           ) : (
             <div className="space-y-1.5">
@@ -198,11 +199,11 @@ export function RealtimePanel({ siteId }: { siteId: string }) {
         <div>
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <Radio className="h-4 w-4 text-muted" />
-            Dernières visites
+            {t.realtime.lastVisits}
           </h3>
           {data.live_feed.length === 0 ? (
             <p className="text-xs text-muted py-4 text-center">
-              Aucune visite récente
+              {t.realtime.noRecentVisit}
             </p>
           ) : (
             <div className="space-y-1.5 max-h-[240px] overflow-y-auto">

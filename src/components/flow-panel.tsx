@@ -8,7 +8,7 @@ import {
   FilterBar,
   SegmentedFilter,
   SearchableSelect,
-  PERIOD_OPTIONS,
+  usePeriodOptions,
 } from "@/components/filters";
 
 interface Row {
@@ -75,6 +75,7 @@ function edgePath(x1: number, y1: number, x2: number, y2: number): string {
 export function FlowPanel() {
   // Site comes from the rail's switcher (src/components/site-context.tsx).
   const { siteId, ready } = useSites();
+  const periodOptions = usePeriodOptions();
   const [period, setPeriod] = useState("30d");
   const [startPath, setStartPath] = useState<string | null>(null);
   const [depth, setDepth] = useState(4);
@@ -266,7 +267,7 @@ export function FlowPanel() {
         <SegmentedFilter
           ariaLabel="Période"
           value={period}
-          options={PERIOD_OPTIONS}
+          options={periodOptions}
           onChange={setPeriod}
         />
 

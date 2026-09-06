@@ -24,7 +24,8 @@ import {
 } from "lucide-react";
 import { RealtimePanel } from "@/components/realtime-panel";
 import { useSites } from "@/components/site-context";
-import { SegmentedFilter, PERIOD_OPTIONS } from "@/components/filters";
+import { SegmentedFilter, usePeriodOptions } from "@/components/filters";
+import { useT } from "@/components/locale-context";
 
 interface Site {
   id: string;
@@ -55,14 +56,6 @@ interface Annotation {
   label: string;
 }
 
-/** Spelled out once in the toolbar, so the cards can stay bare numbers. */
-const PERIOD_LABEL: Record<string, string> = {
-  "24h": "24 heures précédentes",
-  "7d": "7 jours précédents",
-  "30d": "30 jours précédents",
-  "90d": "90 jours précédents",
-};
-
 /** Period-over-period change, or null when there's nothing to compare
  *  against — a percentage off zero is either a divide-by-zero or a
  *  meaningless "+∞ %", and both are worse than saying nothing. */
@@ -88,6 +81,7 @@ function StatCard({
   lowerIsBetter?: boolean;
   icon: React.ComponentType<{ className?: string }>;
 }) {
+  const { t } = useT();
   const good = change === null || change === undefined
     ? null
     : lowerIsBetter
@@ -110,7 +104,7 @@ function StatCard({
         {change === null || change === undefined ? (
           <span
             className="text-[11px] text-muted-light"
-            title="Aucune donnée sur la période précédente, il n'y a rien à comparer."
+            title={t.home.metrics.noComparison}
           >
             —
           </span>
@@ -119,7 +113,7 @@ function StatCard({
             className={`flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[11px] font-medium tabular-nums ${
               good ? "text-emerald-600" : "text-coral"
             }`}
-            title={`${change > 0 ? "+" : ""}${change}% par rapport à la période précédente`}
+            title={`${change > 0 ? "+" : ""}${change}% ${t.home.metrics.vsPrevious}`}
           >
             {change >= 0 ? (
               <TrendingUp className="h-3 w-3" />
@@ -145,8 +139,8 @@ function niceMax(value: number): number {
   return step * magnitude;
 }
 
-function shortDate(iso: string): string {
-  return new Date(iso + "T00:00:00").toLocaleDateString("fr-FR", {
+function shortDate(iso: string, intl: string): string {
+  return new Date(iso + "T00:00:00").toLocaleDateString(intl, {
     day: "numeric",
     month: "short",
   });
@@ -177,6 +171,8 @@ function VisitorsChart({
   addBusy: boolean;
   deletingId: string | null;
 }) {
+  const { t, intl } = useT();
+  const periodOptions = usePeriodOptions();
   const [showForm, setShowForm] = useState(false);
   const [draftDate, setDraftDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [draftLabel, setDraftLabel] = useState("");
@@ -209,19 +205,19 @@ function VisitorsChart({
     <div className="app-card">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <h3 className="text-[13.5px] font-semibold">Visiteurs par jour</h3>
+          <h3 className="text-[13.5px] font-semibold">{t.home.chart.title}</h3>
           <p className="text-[11.5px] text-muted-light">
-            {total.toLocaleString("fr-FR")} au total sur la période · pic à{" "}
-            {peak.toLocaleString("fr-FR")}
+            {total.toLocaleString(intl)} {t.home.chart.totalAndPeak}{" "}
+            {peak.toLocaleString(intl)}
           </p>
         </div>
         <button
           onClick={() => setShowForm((v) => !v)}
           className="flex items-center gap-1 text-[12px] text-muted transition-colors hover:text-foreground"
-          title="Marquer un événement (lancement, campagne, déploiement…)"
+          title={t.home.chart.markEvent}
         >
           <Plus className="h-3.5 w-3.5" />
-          Annotation
+          {t.home.chart.annotation}
         </button>
       </div>
 
@@ -238,7 +234,7 @@ function VisitorsChart({
             value={draftLabel}
             onChange={(e) => setDraftLabel(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit()}
-            placeholder="Ex. « Lancement early bird »"
+            placeholder={t.home.chart.labelPlaceholder}
             maxLength={140}
             className="min-w-0 flex-1 rounded-[var(--app-radius-sm)] border border-border bg-surface px-2 py-1 text-[12px] outline-none focus:border-primary"
           />
@@ -247,7 +243,7 @@ function VisitorsChart({
             disabled={addBusy || !draftLabel.trim()}
             className="rounded-[var(--app-radius-sm)] bg-primary px-2.5 py-1 text-[12px] font-medium text-white hover:bg-primary-hover disabled:opacity-50"
           >
-            Ajouter
+            {t.home.chart.add}
           </button>
         </div>
       )}
@@ -261,7 +257,7 @@ function VisitorsChart({
               className="absolute right-0 -translate-y-1/2 text-[10px] tabular-nums text-muted-light"
               style={{ top: `${(i / 2) * 100}%` }}
             >
-              {v.toLocaleString("fr-FR")}
+              {v.toLocaleString(intl)}
             </span>
           ))}
         </div>
@@ -307,10 +303,9 @@ function VisitorsChart({
                 style={{ left: `${((hover + 0.5) / data.length) * 100}%` }}
               >
                 <span className="font-medium tabular-nums">
-                  {data[hover].count.toLocaleString("fr-FR")} visiteur
-                  {data[hover].count > 1 ? "s" : ""}
+                  {data[hover].count.toLocaleString(intl)} {t.home.chart.visitorsOn}
                 </span>
-                <span className="text-muted-light"> · {shortDate(data[hover].date)}</span>
+                <span className="text-muted-light"> · {shortDate(data[hover].date, intl)}</span>
                 {byDate.get(data[hover].date)?.map((a) => (
                   <span key={a.id} className="block text-coral">
                     {a.label}
@@ -341,7 +336,7 @@ function VisitorsChart({
               <div key={d.date} className="min-w-0 flex-1 text-center">
                 {i % tickEvery === 0 && (
                   <span className="text-[10px] whitespace-nowrap text-muted-light">
-                    {shortDate(d.date)}
+                    {shortDate(d.date, intl)}
                   </span>
                 )}
               </div>
@@ -355,7 +350,7 @@ function VisitorsChart({
           {annotations.map((a) => (
             <li key={a.id} className="flex items-center justify-between text-[12px]">
               <span className="text-muted">
-                <span className="tabular-nums text-muted-light">{shortDate(a.date)}</span>
+                <span className="tabular-nums text-muted-light">{shortDate(a.date, intl)}</span>
                 {" — "}
                 {a.label}
               </span>
@@ -363,7 +358,7 @@ function VisitorsChart({
                 onClick={() => onDelete(a.id)}
                 disabled={deletingId === a.id}
                 className="shrink-0 text-muted-light transition-colors hover:text-red-500 disabled:opacity-50"
-                title="Supprimer"
+                title={t.home.chart.remove}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -393,6 +388,10 @@ function RankingTable({
    *  one is for. */
   emptyHint: string;
 }) {
+  const { t, intl } = useT();
+  const periodOptions = usePeriodOptions();
+  const tTopOf = t.home.rankings.topOf;
+  const tTotalSuffix = t.home.rankings.totalSuffix;
   const max = Math.max(
     ...data.map((d) => Number(d[valueKey])),
     1
@@ -407,7 +406,7 @@ function RankingTable({
         <h3 className="text-[13.5px] font-semibold">{title}</h3>
         {data.length > rows.length && (
           <span className="text-[11px] text-muted-light">
-            top {rows.length} sur {data.length}
+            top {rows.length} {tTopOf} {data.length}
           </span>
         )}
       </div>
@@ -436,7 +435,7 @@ function RankingTable({
                   {String(item[labelKey])}
                 </span>
                 <span className="relative shrink-0 text-[12px] tabular-nums text-muted">
-                  {value.toLocaleString("fr-FR")}
+                  {value.toLocaleString(intl)}
                   {total > 0 && (
                     <span className="ml-1.5 text-muted-light">
                       {Math.round((value / total) * 100)}%
@@ -447,7 +446,7 @@ function RankingTable({
             );
           })}
           <p className="pt-1.5 text-[11px] text-muted-light">
-            {total.toLocaleString("fr-FR")} {valueLabel} au total
+            {total.toLocaleString(intl)} {valueLabel} {tTotalSuffix}
           </p>
         </div>
       )}
@@ -456,16 +455,15 @@ function RankingTable({
 }
 
 function EmptyState() {
+  const { t } = useT();
   return (
     <div className="app-card flex flex-col items-center justify-center py-16 text-center">
       <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary-pale">
         <Globe className="h-5 w-5 text-primary" />
       </div>
-      <h2 className="text-[15px] font-semibold">Ajoutez votre premier site</h2>
+      <h2 className="text-[15px] font-semibold">{t.home.empty.title}</h2>
       <p className="mt-1 max-w-md text-[13px] leading-relaxed text-muted">
-        Deux étapes : vous déclarez le domaine, puis vous collez une ligne de
-        script dans vos pages. Les premières visites remontent en quelques
-        secondes, sans cookie ni bandeau de consentement.
+        {t.home.empty.body}
       </p>
       <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
         <Link
@@ -473,13 +471,13 @@ function EmptyState() {
           className="flex items-center gap-1.5 rounded-[var(--app-radius-sm)] bg-primary px-3 py-2 text-[13px] font-medium text-white transition-colors hover:bg-primary-hover"
         >
           <Plus className="h-3.5 w-3.5" />
-          Ajouter un site
+          {t.home.empty.addSite}
         </Link>
         <Link
           href="/features/analytics"
           className="rounded-[var(--app-radius-sm)] border border-border px-3 py-2 text-[13px] font-medium transition-colors hover:bg-surface-hover"
         >
-          Voir ce que PulseTrack mesure
+          {t.home.empty.learnMore}
         </Link>
       </div>
     </div>
@@ -490,6 +488,8 @@ export function DashboardContent() {
   // Site selection lives in the rail now (src/components/site-context.tsx),
   // shared by every screen instead of one selector per page.
   const { sites, siteId: selectedSite } = useSites();
+  const { t, intl } = useT();
+  const periodOptions = usePeriodOptions();
   const [stats, setStats] = useState<Stats | null>(null);
   const [period, setPeriod] = useState("30d");
   const [loading, setLoading] = useState(false);
@@ -655,12 +655,12 @@ export function DashboardContent() {
         <SegmentedFilter
           ariaLabel="Période"
           value={period}
-          options={PERIOD_OPTIONS}
+          options={periodOptions}
           onChange={setPeriod}
         />
 
         <span className="text-[11.5px] text-muted-light">
-          Les écarts comparent aux {PERIOD_LABEL[period]}
+          {t.home.deltaBasis} {t.home.periods[period]}
         </span>
 
         <button
@@ -669,16 +669,16 @@ export function DashboardContent() {
           className="ml-auto flex items-center gap-1.5 rounded-sm border border-border bg-surface px-2.5 py-1.5 text-[12px] font-medium text-muted transition-colors hover:text-foreground disabled:opacity-50"
         >
           <Download className="h-3.5 w-3.5" />
-          {exporting ? "Export…" : "Export CSV"}
+          {exporting ? t.home.exporting : t.home.exportCsv}
         </button>
       </div>
 
       {exportLocked && (
         <div className="flex items-center gap-2 rounded-[var(--app-radius)] border border-primary/30 bg-primary-pale px-3 py-2 text-[12.5px] text-primary">
           <Lock className="h-3.5 w-3.5 shrink-0" />
-          L&apos;export CSV est disponible sur l&apos;offre Business.
+          {t.home.exportLocked}
           <Link href="/dashboard/upgrade" className="font-medium underline">
-            Voir les offres
+            {t.home.seePlans}
           </Link>
         </div>
       )}
@@ -691,8 +691,8 @@ export function DashboardContent() {
           <div className="flex items-center gap-2">
             <Sparkles className="h-3.5 w-3.5 text-primary" />
             <h3 className="text-[13px] font-semibold">
-              Insights de la semaine du{" "}
-              {new Date(insightDigest.week_start + "T00:00:00").toLocaleDateString("fr-FR", {
+              {t.home.insightsWeekOf}{" "}
+              {new Date(insightDigest.week_start + "T00:00:00").toLocaleDateString(intl, {
                 day: "numeric",
                 month: "long",
               })}
@@ -712,39 +712,39 @@ export function DashboardContent() {
           between a number and a number that means something. */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard
-          label="Visiteurs"
-          value={displayStats.visitors.toLocaleString("fr-FR")}
+          label={t.home.metrics.visitors}
+          value={displayStats.visitors.toLocaleString(intl)}
           change={delta(displayStats.visitors, displayStats.previous.visitors)}
-          hint="Personnes distinctes, identifiées par un hash sans cookie."
+          hint={t.home.metrics.visitorsHint}
           icon={Users}
         />
         <StatCard
-          label="Sessions"
-          value={displayStats.sessions.toLocaleString("fr-FR")}
+          label={t.home.metrics.sessions}
+          value={displayStats.sessions.toLocaleString(intl)}
           change={delta(displayStats.sessions, displayStats.previous.sessions)}
-          hint="Visites : une même personne qui revient compte plusieurs fois."
+          hint={t.home.metrics.sessionsHint}
           icon={Activity}
         />
         <StatCard
-          label="Pages vues"
-          value={displayStats.pageviews.toLocaleString("fr-FR")}
+          label={t.home.metrics.pageviews}
+          value={displayStats.pageviews.toLocaleString(intl)}
           change={delta(displayStats.pageviews, displayStats.previous.pageviews)}
-          hint="Total des pages chargées sur la période."
+          hint={t.home.metrics.pageviewsHint}
           icon={Eye}
         />
         <StatCard
-          label="Taux de rebond"
+          label={t.home.metrics.bounce}
           value={`${displayStats.bounce_rate}%`}
           change={delta(displayStats.bounce_rate, displayStats.previous.bounce_rate)}
-          hint="Part des sessions qui n'ont vu qu'une seule page."
+          hint={t.home.metrics.bounceHint}
           lowerIsBetter
           icon={MousePointerClick}
         />
         <StatCard
-          label="Durée moy."
+          label={t.home.metrics.duration}
           value={`${Math.floor(displayStats.avg_duration / 60)}m ${displayStats.avg_duration % 60}s`}
           change={delta(displayStats.avg_duration, displayStats.previous.avg_duration)}
-          hint="Temps moyen passé par session."
+          hint={t.home.metrics.durationHint}
           icon={Clock}
         />
       </div>
@@ -762,28 +762,28 @@ export function DashboardContent() {
       {/* Rankings */}
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         <RankingTable
-          title="Pages populaires"
+          title={t.home.rankings.topPages}
           data={displayStats.top_pages}
           labelKey="path"
           valueKey="views"
-          valueLabel="vues"
-          emptyHint="Vos pages les plus consultées apparaîtront ici dès la première visite enregistrée."
+          valueLabel={t.home.rankings.views}
+          emptyHint={t.home.rankings.emptyPages}
         />
         <RankingTable
-          title="Sources de trafic"
+          title={t.home.rankings.topSources}
           data={displayStats.top_sources}
           labelKey="source"
           valueKey="visitors"
-          valueLabel="visiteurs"
-          emptyHint="D'où arrivent vos visiteurs : Google, réseaux sociaux, IA, ou accès direct."
+          valueLabel={t.home.rankings.visitors}
+          emptyHint={t.home.rankings.emptySources}
         />
         <RankingTable
-          title="Pays"
+          title={t.home.rankings.countries}
           data={displayStats.top_countries}
           labelKey="country"
           valueKey="visitors"
-          valueLabel="visiteurs"
-          emptyHint="La répartition géographique de vos visiteurs, déduite de leur IP sans la stocker."
+          valueLabel={t.home.rankings.visitors}
+          emptyHint={t.home.rankings.emptyCountries}
         />
       </div>
     </div>

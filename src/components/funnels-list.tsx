@@ -11,7 +11,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useSites } from "@/components/site-context";
-import { SegmentedFilter, PERIOD_OPTIONS_NO_DAY } from "@/components/filters";
+import { SegmentedFilter, usePeriodOptionsNoDay } from "@/components/filters";
 
 interface FunnelStep {
   id: string;
@@ -94,6 +94,7 @@ function SiteFunnels({
   const [selectedFunnel, setSelectedFunnel] = useState<string | null>(null);
   const [funnelResults, setFunnelResults] = useState<FunnelStepResult[] | null>(null);
   const [loadingResults, setLoadingResults] = useState(false);
+  const periodOptions = usePeriodOptionsNoDay();
   const [period, setPeriod] = useState("30d");
 
   // Load funnel results when selected
@@ -229,7 +230,7 @@ function SiteFunnels({
                   <SegmentedFilter
                     ariaLabel="Période"
                     value={period}
-                    options={PERIOD_OPTIONS_NO_DAY}
+                    options={periodOptions}
                     onChange={setPeriod}
                   />
                 </div>

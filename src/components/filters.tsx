@@ -273,15 +273,20 @@ export function ActiveFilterChip({
   );
 }
 
-/** The periods every screen offers, so they can't drift apart. */
-export const PERIOD_OPTIONS: SegmentOption<string>[] = [
-  { value: "24h", label: "24h" },
-  { value: "7d", label: "7j" },
-  { value: "30d", label: "30j" },
-  { value: "90d", label: "90j" },
-];
+/**
+ * The periods every screen offers, so they can't drift apart. A hook
+ * rather than a constant because the labels are abbreviations that
+ * differ by language — "7j" in French, "7d" in English.
+ */
+export function usePeriodOptions(): SegmentOption<string>[] {
+  const { t } = useT();
+  return (["24h", "7d", "30d", "90d"] as const).map((value) => ({
+    value,
+    label: t.filters.periodShort[value],
+  }));
+}
 
 /** Revenue syncs from Stripe and has no 24h window. */
-export const PERIOD_OPTIONS_NO_DAY = PERIOD_OPTIONS.filter(
-  (p) => p.value !== "24h"
-);
+export function usePeriodOptionsNoDay(): SegmentOption<string>[] {
+  return usePeriodOptions().filter((p) => p.value !== "24h");
+}

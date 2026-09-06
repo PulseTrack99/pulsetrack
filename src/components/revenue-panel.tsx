@@ -16,7 +16,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { SegmentedFilter, PERIOD_OPTIONS_NO_DAY } from "@/components/filters";
+import { SegmentedFilter, usePeriodOptionsNoDay } from "@/components/filters";
 
 interface RevenueStats {
   connected: boolean;
@@ -87,6 +87,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
   const [connecting, setConnecting] = useState(false);
   const [stripeKey, setStripeKey] = useState("");
   const [showKey, setShowKey] = useState(false);
+  const periodOptions = usePeriodOptionsNoDay();
   const [period, setPeriod] = useState("30d");
   const [error, setError] = useState("");
   const [hoverDay, setHoverDay] = useState<number | null>(null);
@@ -314,7 +315,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
         <SegmentedFilter
           ariaLabel="Période"
           value={period}
-          options={PERIOD_OPTIONS_NO_DAY}
+          options={periodOptions}
           onChange={setPeriod}
         />
 

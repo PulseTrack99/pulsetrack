@@ -21,6 +21,7 @@ import {
   Bell,
 } from "lucide-react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
+import { useT } from "@/components/locale-context";
 
 interface Site {
   id: string;
@@ -31,10 +32,10 @@ interface Site {
 }
 
 const TABS = [
-  { id: "compte", label: "Compte" },
-  { id: "sites", label: "Sites & alertes" },
-  { id: "api", label: "Accès API" },
-  { id: "equipe", label: "Équipe" },
+  { id: "compte", key: "account" },
+  { id: "sites", key: "sites" },
+  { id: "api", key: "api" },
+  { id: "equipe", key: "team" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -55,6 +56,7 @@ export function SettingsPanel({
   hasApiAccess?: boolean;
   teamOwnerEmail?: string | null;
 }) {
+  const { t } = useT();
   const [sites, setSites] = useState(initialSites);
   const [tab, setTab] = useState<TabId>("compte");
 
@@ -66,17 +68,17 @@ export function SettingsPanel({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-0.5 border-b border-border">
-        {TABS.map((t) => (
+        {TABS.map((tab_) => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
+            key={tab_.id}
+            onClick={() => setTab(tab_.id)}
             className={`-mb-px border-b-2 px-3 py-2 text-[13px] transition-colors ${
-              tab === t.id
+              tab === tab_.id
                 ? "border-primary font-medium text-primary"
                 : "border-transparent text-muted hover:text-foreground"
             }`}
           >
-            {t.label}
+            {t.settings.tabs[tab_.key]}
           </button>
         ))}
       </div>
@@ -117,21 +119,22 @@ export function SettingsPanel({
 
 /* ─────────── ACCOUNT INFO ─────────── */
 function AccountSection({ user, plan }: { user: SupabaseUser; plan: string }) {
+  const { t, intl } = useT();
   const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
   return (
     <section className="app-card">
       <div className="flex items-center gap-3 mb-4">
         <User className="h-4 w-4 text-primary" />
-        <h2 className="text-[13.5px] font-semibold">Compte</h2>
+        <h2 className="text-[13.5px] font-semibold">{t.settings.account.title}</h2>
       </div>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between rounded-lg bg-surface px-4 py-3">
-          <span className="text-sm text-muted">Email</span>
+          <span className="text-sm text-muted">{t.settings.account.email}</span>
           <span className="text-sm font-medium">{user.email}</span>
         </div>
         <div className="flex items-center justify-between rounded-lg bg-surface px-4 py-3">
-          <span className="text-sm text-muted">Plan</span>
+          <span className="text-sm text-muted">{t.settings.account.plan}</span>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
               {planLabel}
@@ -141,15 +144,15 @@ function AccountSection({ user, plan }: { user: SupabaseUser; plan: string }) {
                 href="/dashboard/upgrade"
                 className="text-xs text-primary font-medium hover:underline"
               >
-                Upgrader →
+                {t.settings.account.upgrade}
               </a>
             )}
           </div>
         </div>
         <div className="flex items-center justify-between rounded-lg bg-surface px-4 py-3">
-          <span className="text-sm text-muted">Membre depuis</span>
+          <span className="text-sm text-muted">{t.settings.account.memberSince}</span>
           <span className="text-sm font-medium">
-            {new Date(user.created_at).toLocaleDateString("fr-FR", {
+            {new Date(user.created_at).toLocaleDateString(intl, {
               year: "numeric",
               month: "long",
               day: "numeric",
@@ -163,6 +166,7 @@ function AccountSection({ user, plan }: { user: SupabaseUser; plan: string }) {
 
 /* ─────────── PASSWORD ─────────── */
 function PasswordSection() {
+  const { t } = useT();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
@@ -178,7 +182,7 @@ function PasswordSection() {
     if (password !== confirm) {
       setMessage({
         type: "error",
-        text: "Les mots de passe ne correspondent pas",
+        text: t.settings.password.mismatch,
       });
       return;
     }
@@ -186,7 +190,7 @@ function PasswordSection() {
     if (password.length < 8) {
       setMessage({
         type: "error",
-        text: "Le mot de passe doit contenir au moins 8 caractères",
+        text: t.settings.password.tooShort,
       });
       return;
     }
@@ -202,7 +206,7 @@ function PasswordSection() {
       if (res.ok) {
         setMessage({
           type: "success",
-          text: "Mot de passe modifié avec succès",
+          text: t.settings.password.changed,
         });
         setPassword("");
         setConfirm("");
@@ -211,7 +215,7 @@ function PasswordSection() {
         setMessage({ type: "error", text: data.error || "Erreur" });
       }
     } catch {
-      setMessage({ type: "error", text: "Erreur réseau" });
+      setMessage({ type: "error", text: t.settings.password.networkError });
     } finally {
       setLoading(false);
     }
@@ -221,7 +225,7 @@ function PasswordSection() {
     <section className="app-card">
       <div className="flex items-center gap-3 mb-4">
         <Lock className="h-4 w-4 text-primary" />
-        <h2 className="text-[13.5px] font-semibold">Changer le mot de passe</h2>
+        <h2 className="text-[13.5px] font-semibold">{t.settings.password.title}</h2>
       </div>
 
       <form onSubmit={handleChangePassword} className="space-y-4">
@@ -239,7 +243,7 @@ function PasswordSection() {
 
         <div>
           <label className="block text-sm font-medium mb-1.5">
-            Nouveau mot de passe
+            {t.settings.password.newPassword}
           </label>
           <input
             type="password"
@@ -247,13 +251,13 @@ function PasswordSection() {
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={8}
-            placeholder="Minimum 8 caractères"
+            placeholder={t.settings.password.minChars}
             className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </div>
         <div>
           <label className="block text-sm font-medium mb-1.5">
-            Confirmer le mot de passe
+            {t.settings.password.confirm}
           </label>
           <input
             type="password"
@@ -261,7 +265,7 @@ function PasswordSection() {
             onChange={(e) => setConfirm(e.target.value)}
             required
             minLength={8}
-            placeholder="Retapez le mot de passe"
+            placeholder={t.settings.password.retype}
             className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </div>
@@ -275,7 +279,7 @@ function PasswordSection() {
           ) : (
             <Check className="h-4 w-4" />
           )}
-          Modifier le mot de passe
+          {t.settings.password.submit}
         </button>
       </form>
     </section>
@@ -299,6 +303,7 @@ function TeamSection({
   isMember: boolean;
   ownerEmail: string | null;
 }) {
+  const { t } = useT();
   const [members, setMembers] = useState<TeamMember[] | null>(null);
   const [inviting, setInviting] = useState(false);
   const [label, setLabel] = useState("");
@@ -356,20 +361,19 @@ function TeamSection({
     <section className="app-card">
       <div className="flex items-center gap-3 mb-4">
         <Users className="h-4 w-4 text-primary" />
-        <h2 className="text-[13.5px] font-semibold">Équipe</h2>
+        <h2 className="text-[13.5px] font-semibold">{t.settings.team.title}</h2>
       </div>
 
       {isMember ? (
         <div className="flex items-center gap-2 rounded-lg bg-surface px-4 py-3 text-sm text-muted">
           <Mail className="h-4 w-4 shrink-0" />
-          Vous faites partie de l&apos;équipe de <strong className="mx-1">{ownerEmail}</strong> —
-          accès complet à ses sites, sauf la facturation.
+          {t.settings.team.memberOf} <strong className="mx-1">{ownerEmail}</strong>{" "}
+          {t.settings.team.memberOfSuffix}
         </div>
       ) : (
         <>
           <p className="text-xs text-muted mb-4">
-            Un coéquipier invité a accès complet à vos sites, funnels, replays
-            et clés API — tout sauf changer l&apos;offre ou supprimer le compte.
+            {t.settings.team.blurb}
           </p>
 
           {!showForm && (
@@ -378,7 +382,7 @@ function TeamSection({
               className="mb-4 flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-surface-hover transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
-              Inviter un coéquipier
+              {t.settings.team.invite}
             </button>
           )}
 
@@ -388,7 +392,7 @@ function TeamSection({
                 type="text"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                placeholder="Nom (optionnel — ex. « Marie »)"
+                placeholder={t.settings.team.namePlaceholder}
                 className="flex-1 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm outline-none focus:border-primary"
               />
               <button
@@ -396,7 +400,7 @@ function TeamSection({
                 disabled={inviting}
                 className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
               >
-                {inviting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Générer le lien"}
+                {inviting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t.settings.team.generateLink}
               </button>
             </div>
           )}
@@ -404,7 +408,7 @@ function TeamSection({
           {revealUrl && (
             <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-900/20">
               <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                Envoyez ce lien à votre coéquipier — Slack, email, comme vous voulez.
+                {t.settings.team.shareLink}
               </p>
               <div className="mt-2 flex items-center gap-2">
                 <code className="flex-1 truncate rounded-md bg-white px-2.5 py-1.5 text-xs dark:bg-black/20">
@@ -427,10 +431,10 @@ function TeamSection({
           )}
 
           {members === null ? (
-            <p className="text-xs text-muted-light">Chargement…</p>
+            <p className="text-xs text-muted-light">{t.settings.team.loading}</p>
           ) : members.length === 0 ? (
             <p className="text-sm text-muted text-center py-4">
-              Aucun coéquipier pour l&apos;instant.
+              {t.settings.team.none}
             </p>
           ) : (
             <ul className="space-y-1.5">
@@ -444,7 +448,7 @@ function TeamSection({
                       <span className="font-medium">{m.email}</span>
                     ) : (
                       <span className="text-muted">
-                        Invitation en attente{m.label ? ` (${m.label})` : ""}
+                        {t.settings.team.pending}{m.label ? ` (${m.label})` : ""}
                       </span>
                     )}
                   </div>
@@ -453,7 +457,7 @@ function TeamSection({
                       <button
                         onClick={() => copyUrl(m.invite_url!)}
                         className="text-muted hover:text-foreground"
-                        title="Copier le lien"
+                        title={t.settings.team.copyLink}
                       >
                         <Copy className="h-3.5 w-3.5" />
                       </button>
@@ -468,7 +472,7 @@ function TeamSection({
                       ) : (
                         <Ban className="h-3 w-3" />
                       )}
-                      {m.status === "active" ? "Retirer" : "Annuler"}
+                      {m.status === "active" ? t.settings.team.removeMember : t.settings.team.cancel}
                     </button>
                   </div>
                 </li>
@@ -491,6 +495,7 @@ function SitesSection({
   origin: string;
   onSiteDeleted: (siteId: string) => void;
 }) {
+  const { t, intl } = useT();
   const [siteShareIds, setSiteShareIds] = useState<Record<string, string | null>>(
     Object.fromEntries(sites.map((s) => [s.id, s.public_share_id]))
   );
@@ -618,19 +623,19 @@ function SitesSection({
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <Globe className="h-4 w-4 text-primary" />
-          <h2 className="text-[13.5px] font-semibold">Mes sites</h2>
+          <h2 className="text-[13.5px] font-semibold">{t.settings.sites.title}</h2>
         </div>
         <a
           href="/dashboard/sites/new"
           className="text-sm text-primary font-medium hover:underline"
         >
-          + Ajouter un site
+          {t.settings.sites.addSite}
         </a>
       </div>
 
       {sites.length === 0 ? (
         <p className="text-sm text-muted text-center py-6">
-          Aucun site ajouté.
+          {t.settings.sites.none}
         </p>
       ) : (
         <div className="space-y-3">
@@ -648,17 +653,17 @@ function SitesSection({
                   <button
                     onClick={() => copyScript(site.id, site.domain)}
                     className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-surface-hover transition-colors"
-                    title="Copier le script de tracking"
+                    title={t.settings.sites.copyScript}
                   >
                     {copiedId === site.id ? (
                       <>
                         <Check className="h-3.5 w-3.5 text-emerald-500" />
-                        Copié
+                        {t.settings.sites.copied}
                       </>
                     ) : (
                       <>
                         <Copy className="h-3.5 w-3.5" />
-                        Script
+                        {t.settings.sites.script}
                       </>
                     )}
                   </button>
@@ -680,17 +685,17 @@ function SitesSection({
                         onClick={() => setConfirmDeleteId(null)}
                         className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-surface-hover"
                       >
-                        Annuler
+                        {t.settings.team.cancel}
                       </button>
                     </div>
                   ) : (
                     <button
                       onClick={() => setConfirmDeleteId(site.id)}
                       className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20 transition-colors"
-                      title="Supprimer ce site"
+                      title={t.settings.sites.confirmRemove}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
-                      Supprimer
+                      {t.settings.sites.remove}
                     </button>
                   )}
                 </div>
@@ -700,7 +705,7 @@ function SitesSection({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Share2 className="h-3.5 w-3.5 text-muted" />
-                    <span className="text-xs text-muted">Dashboard public</span>
+                    <span className="text-xs text-muted">{t.settings.sites.publicDashboard}</span>
                   </div>
                   <button
                     onClick={() => toggleShare(site.id)}
@@ -756,7 +761,7 @@ function SitesSection({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Bell className="h-3.5 w-3.5 text-muted" />
-                    <span className="text-xs text-muted">Alerte de chute de trafic</span>
+                    <span className="text-xs text-muted">{t.settings.sites.trafficAlert}</span>
                   </div>
                   <button
                     onClick={() => saveAlert(site.id, { enabled: !alertRules[site.id]?.enabled })}
@@ -779,7 +784,7 @@ function SitesSection({
                 {alertRules[site.id]?.enabled && (
                   <>
                     <label className="mt-2 flex items-center gap-1.5 text-xs text-muted">
-                      Nous alerter par email si le trafic chute de plus de
+                      {t.settings.sites.alertIntro}
                       <input
                         type="number"
                         min={1}
@@ -797,7 +802,7 @@ function SitesSection({
 
                     <div className="mt-2">
                       <label className="flex items-center gap-1.5 text-xs text-muted">
-                        Webhook Slack/Discord (optionnel)
+                        {t.settings.sites.webhook}
                       </label>
                       <div className="mt-1 flex items-center gap-2">
                         <input
@@ -825,8 +830,8 @@ function SitesSection({
               </div>
 
               <p className="mt-2 text-xs text-muted">
-                Ajouté le{" "}
-                {new Date(site.created_at).toLocaleDateString("fr-FR", {
+                {t.settings.sites.addedOn}{" "}
+                {new Date(site.created_at).toLocaleDateString(intl, {
                   year: "numeric",
                   month: "long",
                   day: "numeric",
@@ -857,6 +862,7 @@ function ApiKeysSection({
   sites: Site[];
   hasApiAccess: boolean;
 }) {
+  const { t, intl } = useT();
   const [keysBySite, setKeysBySite] = useState<Record<string, ApiKeyRow[]>>({});
   const [loaded, setLoaded] = useState(false);
   const [creatingSite, setCreatingSite] = useState<string | null>(null);
@@ -941,18 +947,18 @@ function ApiKeysSection({
     <section className="app-card">
       <div className="flex items-center gap-3 mb-4">
         <Code2 className="h-4 w-4 text-primary" />
-        <h2 className="text-[13.5px] font-semibold">Accès API</h2>
+        <h2 className="text-[13.5px] font-semibold">{t.settings.api.title}</h2>
       </div>
 
       {!hasApiAccess ? (
         <div className="rounded-lg bg-surface px-4 py-3 text-sm text-muted">
           Disponible à partir du plan Growth.{" "}
           <a href="/dashboard/upgrade" className="font-medium text-primary hover:underline">
-            Voir les offres →
+            {t.settings.api.seePlans}
           </a>
         </div>
       ) : sites.length === 0 ? (
-        <p className="text-sm text-muted text-center py-6">Ajoutez d&apos;abord un site.</p>
+        <p className="text-sm text-muted text-center py-6">{t.settings.api.addSiteFirst}</p>
       ) : (
         <div className="space-y-4">
           <p className="text-xs text-muted">
@@ -965,7 +971,7 @@ function ApiKeysSection({
           </p>
 
           <div className="rounded-lg border border-primary/20 bg-primary-pale/30 p-4">
-            <p className="text-sm font-semibold">Connecter Claude, ChatGPT ou Gemini (MCP)</p>
+            <p className="text-sm font-semibold">{t.settings.api.mcpTitle}</p>
             <p className="mt-1 text-xs text-muted">
               Posez vos questions d&apos;analytics en langage naturel directement depuis votre
               assistant IA. Dans Claude.ai ou ChatGPT, ajoutez un connecteur avec l&apos;URL
@@ -1011,7 +1017,7 @@ function ApiKeysSection({
                     className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-surface-hover transition-colors"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    Nouvelle clé
+                    {t.settings.api.newKey}
                   </button>
                 </div>
 
@@ -1021,7 +1027,7 @@ function ApiKeysSection({
                       type="text"
                       value={keyName}
                       onChange={(e) => setKeyName(e.target.value)}
-                      placeholder="Nom (optionnel — ex. « BI interne »)"
+                      placeholder={t.settings.api.keyNamePlaceholder}
                       className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-primary"
                     />
                     <button
@@ -1029,7 +1035,7 @@ function ApiKeysSection({
                       disabled={busy}
                       className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
                     >
-                      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Générer"}
+                      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t.settings.api.generate}
                     </button>
                   </div>
                 )}
@@ -1037,7 +1043,7 @@ function ApiKeysSection({
                 {reveal?.siteId === site.id && (
                   <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-900/20">
                     <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                      Copiez cette clé maintenant — elle ne sera plus jamais affichée.
+                      {t.settings.api.copyNow}
                     </p>
                     <div className="mt-2 flex items-center gap-2">
                       <code className="flex-1 truncate rounded-md bg-white px-2.5 py-1.5 text-xs dark:bg-black/20">
@@ -1094,7 +1100,7 @@ function ApiKeysSection({
                           {k.name && <span className="ml-2 text-muted">{k.name}</span>}
                           <span className="ml-2 text-muted-light">
                             {k.last_used_at
-                              ? `utilisée le ${new Date(k.last_used_at).toLocaleDateString("fr-FR")}`
+                              ? `${t.settings.api.usedOn} ${new Date(k.last_used_at).toLocaleDateString(intl)}`
                               : "jamais utilisée"}
                           </span>
                         </div>
@@ -1108,7 +1114,7 @@ function ApiKeysSection({
                           ) : (
                             <Ban className="h-3 w-3" />
                           )}
-                          Révoquer
+                          {t.settings.api.revoke}
                         </button>
                       </li>
                     ))}
@@ -1136,6 +1142,7 @@ interface Connection {
  *  companion list to ApiKeysSection's manual keys, so revoking access
  *  is never a hunt through a third-party app's own settings. */
 function ConnectedAppsSection() {
+  const { t, intl } = useT();
   const [connections, setConnections] = useState<Connection[] | null>(null);
   const [revoking, setRevoking] = useState<string | null>(null);
 
@@ -1159,7 +1166,7 @@ function ConnectedAppsSection() {
 
   return (
     <div>
-      <p className="text-xs font-medium text-muted mb-1.5">Applications connectées</p>
+      <p className="text-xs font-medium text-muted mb-1.5">{t.settings.api.connectedApps}</p>
       <ul className="space-y-1.5">
         {connections.map((c) => {
           const site = Array.isArray(c.sites) ? c.sites[0] : c.sites;
@@ -1173,7 +1180,7 @@ function ConnectedAppsSection() {
                 {site && <span className="ml-2 text-muted">{site.name}</span>}
                 <span className="ml-2 text-muted-light">
                   {c.last_used_at
-                    ? `utilisée le ${new Date(c.last_used_at).toLocaleDateString("fr-FR")}`
+                    ? `${t.settings.api.usedOn} ${new Date(c.last_used_at).toLocaleDateString(intl)}`
                     : "jamais utilisée"}
                 </span>
               </div>
@@ -1187,7 +1194,7 @@ function ConnectedAppsSection() {
                 ) : (
                   <Ban className="h-3 w-3" />
                 )}
-                Révoquer
+                {t.settings.api.revoke}
               </button>
             </li>
           );
@@ -1199,12 +1206,13 @@ function ConnectedAppsSection() {
 
 /* ─────────── DANGER ZONE ─────────── */
 function DangerZone() {
+  const { t } = useT();
   const [showConfirm, setShowConfirm] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleDeleteAccount() {
-    if (confirmText !== "SUPPRIMER") return;
+    if (confirmText !== t.settings.danger.confirmWord) return;
 
     setLoading(true);
     try {
@@ -1226,12 +1234,11 @@ function DangerZone() {
     <section className="app-card border-coral/30">
       <div className="mb-3 flex items-center gap-2">
         <AlertTriangle className="h-4 w-4 text-coral" />
-        <h2 className="text-[13.5px] font-semibold text-coral">Supprimer le compte</h2>
+        <h2 className="text-[13.5px] font-semibold text-coral">{t.settings.danger.title}</h2>
       </div>
 
       <p className="mb-3 text-[13px] leading-relaxed text-muted">
-        La suppression de votre compte est irréversible. Toutes vos données,
-        sites et analytics seront définitivement supprimés.
+        {t.settings.danger.body}
       </p>
 
       {!showConfirm ? (
@@ -1239,25 +1246,25 @@ function DangerZone() {
           onClick={() => setShowConfirm(true)}
           className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20 transition-colors"
         >
-          Supprimer mon compte
+          {t.settings.danger.deleteAccount}
         </button>
       ) : (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
           <p className="text-sm font-medium text-red-700 dark:text-red-400 mb-3">
-            Tapez <strong>SUPPRIMER</strong> pour confirmer la suppression
-            définitive de votre compte.
+            <strong>{t.settings.danger.confirmWord}</strong>{" "}
+            {t.settings.danger.typeToConfirm}
           </p>
           <input
             type="text"
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
-            placeholder="SUPPRIMER"
+            placeholder={t.settings.danger.confirmWord}
             className="w-full rounded-lg border border-red-300 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 dark:bg-red-900/30 dark:border-red-700 mb-3"
           />
           <div className="flex gap-2">
             <button
               onClick={handleDeleteAccount}
-              disabled={confirmText !== "SUPPRIMER" || loading}
+              disabled={confirmText !== t.settings.danger.confirmWord || loading}
               className="flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
             >
               {loading ? (
@@ -1274,7 +1281,7 @@ function DangerZone() {
               }}
               className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-surface-hover transition-colors"
             >
-              Annuler
+              {t.settings.danger.cancel}
             </button>
           </div>
         </div>

@@ -11,7 +11,7 @@ import {
   SegmentedFilter,
   ToggleFilter,
   ActiveFilterChip,
-  PERIOD_OPTIONS,
+  usePeriodOptions,
 } from "@/components/filters";
 import {
   Video,
@@ -230,6 +230,7 @@ function SiteReplays({
   initialPath: string | null;
 }) {
   const [path, setPath] = useState<string | null>(initialPath);
+  const periodOptions = usePeriodOptions();
   const [period, setPeriod] = useState("30d");
   const [device, setDevice] = useState<string | null>(null);
   const [rageOnly, setRageOnly] = useState(false);
@@ -581,7 +582,7 @@ function SiteReplays({
         <SegmentedFilter
           ariaLabel="Période"
           value={period}
-          options={PERIOD_OPTIONS}
+          options={periodOptions}
           onChange={setPeriod}
         />
 
