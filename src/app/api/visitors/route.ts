@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { scanRows } from "@/lib/scan";
 
 /**
  * Visitors, grouped from the event stream.
@@ -68,18 +69,30 @@ export async function GET(req: NextRequest) {
   const days = PERIODS[searchParams.get("period") ?? "24h"] ?? 1;
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
 
-  const { data: rows, error } = await supabase
-    .from("events")
-    .select("visitor_id, session_id, type, path, device, browser, country, source, created_at")
-    .eq("site_id", siteId)
-    .gte("created_at", since)
-    .not("visitor_id", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(SCAN);
+  const { rows: events, truncated, error } = await scanRows<{
+    visitor_id: string;
+    session_id: string | null;
+    type: string;
+    path: string | null;
+    device: string | null;
+    browser: string | null;
+    country: string | null;
+    source: string | null;
+    created_at: string;
+  }>(
+    (from, to) =>
+      supabase
+        .from("events")
+        .select("visitor_id, session_id, type, path, device, browser, country, source, created_at")
+        .eq("site_id", siteId)
+        .gte("created_at", since)
+        .not("visitor_id", "is", null)
+        .order("created_at", { ascending: false })
+        .range(from, to),
+    SCAN
+  );
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  const events = rows ?? [];
+  if (error) return NextResponse.json({ error }, { status: 500 });
   const byVisitor = new Map<string, Grouped>();
 
   // Rows arrive newest first, so the first one seen for a visitor is
@@ -152,8 +165,10 @@ export async function GET(req: NextRequest) {
       email: [...v.sessions].map((s) => emailBySession.get(s)).find(Boolean) ?? null,
     })),
     scanned: events.length,
-    // True when the scan filled up, so the screen can say the list is a
-    // slice of the period rather than all of it.
-    truncated: events.length >= SCAN,
+    // Straight from the scan, which knows whether the rows ran out
+    // before the cap did. Comparing events.length to SCAN here was the
+    // bug: one response is capped at 1000 whatever SCAN says, so a busy
+    // period looked complete.
+    truncated,
   });
 }

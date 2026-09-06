@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { scanRows } from "@/lib/scan";
 
 /**
  * The raw event stream for one site.
@@ -103,19 +104,21 @@ export async function GET(req: NextRequest) {
      function this deployment cannot add right now, and a name absent
      from the last two thousand events is not one you are looking for in
      a dropdown. The Lexicon screen is where exact counts belong. */
-  const { data: nameRows } = await supabase
-    .from("events")
-    .select("event_name")
-    .eq("site_id", siteId)
-    .eq("type", "event")
-    .gte("created_at", since)
-    .not("event_name", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(NAME_SCAN);
+  const { rows: nameRows } = await scanRows<{ event_name: string }>(
+    (from, to) =>
+      supabase
+        .from("events")
+        .select("event_name")
+        .eq("site_id", siteId)
+        .eq("type", "event")
+        .gte("created_at", since)
+        .not("event_name", "is", null)
+        .order("created_at", { ascending: false })
+        .range(from, to),
+    NAME_SCAN
+  );
 
-  const names = [
-    ...new Set((nameRows ?? []).map((r: { event_name: string }) => r.event_name)),
-  ]
+  const names = [...new Set(nameRows.map((r) => r.event_name))]
     .filter((n) => includeHidden || !hiddenNames.includes(n))
     .sort();
 

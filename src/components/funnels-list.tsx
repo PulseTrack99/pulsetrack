@@ -509,8 +509,15 @@ function FunnelVisualization({ steps }: { steps: FunnelStepResult[] }) {
             {!isLast && (
               <div className="ml-3.5 flex items-center gap-3 py-2 pl-7 border-l-2 border-dashed border-border">
                 <ArrowDown className="h-3.5 w-3.5 text-red-400" />
+                {/* The API measures drop-off looking backwards — a step's
+                    rate is the share lost *arriving* at it — while this sits
+                    in the gap after a step. So the rate for this gap belongs
+                    to the next step, which is also where the count below
+                    comes from. Reading step.drop_off_rate here showed every
+                    transition the previous transition's rate, and the first
+                    one a flat 0%. */}
                 <span className="text-xs text-red-400 font-medium">
-                  -{step.drop_off_rate}% {t.screens.funnels.dropoffs}
+                  -{steps[i + 1]?.drop_off_rate ?? 0}% {t.screens.funnels.dropoffs}
                   {steps[i + 1] && (
                     <span className="text-muted font-normal">
                       {" "}
