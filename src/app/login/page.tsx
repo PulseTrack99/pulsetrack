@@ -89,9 +89,19 @@ function LoginForm() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium mb-1.5">
-              Mot de passe
-            </label>
+            <div className="mb-1.5 flex items-baseline justify-between">
+              <label htmlFor="password" className="block text-sm font-medium">
+                Mot de passe
+              </label>
+              {/* The way back in. There was none: a customer who forgot
+                  their password had /login, /signup, and nothing else. */}
+              <a
+                href="/forgot-password"
+                className="text-[13px] text-muted transition-colors hover:text-primary"
+              >
+                Oublié ?
+              </a>
+            </div>
             <input
               id="password"
               type="password"
