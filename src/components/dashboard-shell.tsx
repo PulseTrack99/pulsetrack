@@ -24,8 +24,13 @@ import {
   ChevronsUpDown,
   HelpCircle,
   PanelLeftClose,
+  PanelLeftOpen,
+  Sparkles,
+  Bell,
+  Radio,
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
+import { AssistantPanel } from "@/components/assistant-panel";
 
 /**
  * Rail structure follows Mixpanel's: the project (here, site)
@@ -301,6 +306,14 @@ export function DashboardShell({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // Collapsing the rail on a wide screen, not just closing the mobile
+  // drawer — the two were the same control before, so there was no way
+  // to reclaim the 240px on a laptop.
+  const [railCollapsed, setRailCollapsed] = useState(false);
+  // Open by default: an assistant you have to find first doesn't help
+  // the person who most needs it. Remembered per browser afterwards.
+  const [assistantOpen, setAssistantOpen] = useState(true);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const pathname = usePathname();
   const active = currentItem(pathname);
 
@@ -336,7 +349,7 @@ export function DashboardShell({
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex w-60 flex-col border-r border-border bg-background transition-transform lg:static lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        } ${railCollapsed ? "lg:hidden" : ""}`}
       >
         <div className="flex items-center justify-between px-2 pt-2">
           <div className="min-w-0 flex-1">
@@ -401,8 +414,10 @@ export function DashboardShell({
           </a>
         </div>
 
-        {/* Utility row — the quiet controls, kept out of the navigation. */}
-        <div className="flex items-center gap-1 border-t border-border px-3 py-2">
+        {/* Utility row — the quiet controls, kept out of the navigation:
+            settings, help, the assistant toggle, notifications, and the
+            rail's own collapse, the way Mixpanel groups theirs. */}
+        <div className="relative flex items-center gap-0.5 border-t border-border px-2 py-2">
           <a
             href="/dashboard/settings"
             className="rounded p-1.5 text-muted-light transition-colors hover:bg-surface-hover hover:text-foreground"
@@ -413,18 +428,43 @@ export function DashboardShell({
           <a
             href="/features/analytics"
             className="rounded p-1.5 text-muted-light transition-colors hover:bg-surface-hover hover:text-foreground"
-            title="Aide"
+            title="Aide et documentation"
           >
             <HelpCircle className="h-4 w-4" />
           </a>
           <button
-            onClick={() => setSidebarOpen(false)}
-            className="rounded p-1.5 text-muted-light transition-colors hover:bg-surface-hover hover:text-foreground lg:hidden"
-            title="Replier"
+            onClick={() => setAssistantOpen((v) => !v)}
+            className={`rounded p-1.5 transition-colors hover:bg-surface-hover ${
+              assistantOpen
+                ? "bg-primary-pale text-primary"
+                : "text-muted-light hover:text-foreground"
+            }`}
+            title={assistantOpen ? "Fermer l'assistant" : "Ouvrir l'assistant"}
+          >
+            <Sparkles className="h-4 w-4" />
+          </button>
+          <NotificationsButton
+            open={notificationsOpen}
+            onToggle={() => setNotificationsOpen((v) => !v)}
+            onClose={() => setNotificationsOpen(false)}
+          />
+
+          <div className="flex-1" />
+
+          <button
+            onClick={() => setRailCollapsed(true)}
+            className="hidden rounded p-1.5 text-muted-light transition-colors hover:bg-surface-hover hover:text-foreground lg:block"
+            title="Replier le menu"
           >
             <PanelLeftClose className="h-4 w-4" />
           </button>
-          <div className="flex-1" />
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="rounded p-1.5 text-muted-light transition-colors hover:bg-surface-hover hover:text-foreground lg:hidden"
+            title="Fermer le menu"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
           <button
             onClick={handleLogout}
             className="rounded p-1.5 text-muted-light transition-colors hover:bg-surface-hover hover:text-foreground"
@@ -448,7 +488,7 @@ export function DashboardShell({
       </aside>
 
       {/* ── Main ── */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background px-4">
           <button
             onClick={() => setSidebarOpen(true)}
@@ -457,12 +497,214 @@ export function DashboardShell({
           >
             <Menu className="h-5 w-5" />
           </button>
+          {/* Collapsing the rail has to leave a way back. */}
+          {railCollapsed && (
+            <button
+              onClick={() => setRailCollapsed(false)}
+              className="hidden text-muted transition-colors hover:text-foreground lg:block"
+              title="Déplier le menu"
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </button>
+          )}
           {/* Breadcrumb, like theirs: which site, then which screen. */}
           <BreadcrumbTitle label={active?.label ?? "Accueil"} />
+
+          <div className="flex-1" />
+
+          {!assistantOpen && (
+            <button
+              onClick={() => setAssistantOpen(true)}
+              className="flex items-center gap-1.5 rounded-sm border border-border px-2 py-1 text-[12px] text-muted transition-colors hover:text-foreground"
+              title="Ouvrir l'assistant"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Assistant
+            </button>
+          )}
         </header>
 
-        <main className="flex-1 overflow-y-auto p-5">{children}</main>
+        <main className="flex-1 overflow-y-auto p-5">
+          <ConnectDataBanner />
+          {children}
+        </main>
       </div>
+
+      {/* ── Assistant ── */}
+      {assistantOpen && (
+        <div className="hidden lg:flex">
+          <AssistantPanel onClose={() => setAssistantOpen(false)} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * "Connectez vos données" — the banner Mixpanel keeps at the top of
+ * every screen until data arrives, and the single most useful thing on
+ * an empty account: every screen below it is going to be zeros, and
+ * this says why and what to do about it.
+ *
+ * It disappears for good once the first event lands, so it never
+ * becomes furniture.
+ */
+function ConnectDataBanner() {
+  const { site, siteId } = useSites();
+  const [silent, setSilent] = useState(false);
+
+  useEffect(() => {
+    if (!siteId) return;
+    let current = true;
+    fetch(`/api/sites/status?site_id=${siteId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (current) setSilent(Boolean(d) && !d.sites?.[0]?.last_event_at);
+      })
+      .catch(() => current && setSilent(false));
+    return () => {
+      current = false;
+    };
+  }, [siteId]);
+
+  if (!silent) return null;
+
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-4 rounded-[var(--app-radius)] border border-primary/25 bg-primary-pale/50 px-4 py-3.5">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+        <Radio className="h-5 w-5 text-primary" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[14px] font-semibold">Connectez vos données</p>
+        <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted">
+          {site?.name ?? "Ce site"} n&apos;a encore rien envoyé. Une ligne de
+          script à coller, et les écrans se remplissent en quelques secondes —
+          on vous dit dès qu&apos;on reçoit la première visite.
+        </p>
+      </div>
+      <a
+        href="/dashboard/sites"
+        className="shrink-0 rounded-[var(--app-radius-sm)] bg-primary px-3.5 py-2 text-[13px] font-medium text-white transition-colors hover:bg-primary-hover"
+      >
+        Installer le script
+      </a>
+    </div>
+  );
+}
+
+/**
+ * Notification centre. Deliberately fed only by things that already
+ * exist and are true: whether this site's script has ever reported, and
+ * the latest weekly insights digest. An empty bell that admits it is
+ * empty is better than one inventing activity to look alive.
+ */
+function NotificationsButton({
+  open,
+  onToggle,
+  onClose,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+}) {
+  const { site, siteId } = useSites();
+  const ref = useOutsideClose(onClose);
+  const [silent, setSilent] = useState<boolean | null>(null);
+  const [digest, setDigest] = useState<{ week_start: string; summary: string } | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (!siteId) return;
+    let current = true;
+
+    fetch(`/api/sites/status?site_id=${siteId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (current) setSilent(d ? !d.sites?.[0]?.last_event_at : null);
+      })
+      .catch(() => current && setSilent(null));
+
+    // 402 when the plan has no insights — treated as "nothing to show".
+    fetch(`/api/insights?site_id=${siteId}`)
+      .then((r) => (r.ok ? r.json() : { digest: null }))
+      .then((d) => current && setDigest(d.digest ?? null))
+      .catch(() => current && setDigest(null));
+
+    return () => {
+      current = false;
+    };
+  }, [siteId]);
+
+  const count = (silent ? 1 : 0) + (digest ? 1 : 0);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={onToggle}
+        className={`relative rounded p-1.5 transition-colors hover:bg-surface-hover ${
+          open ? "bg-primary-pale text-primary" : "text-muted-light hover:text-foreground"
+        }`}
+        title="Notifications"
+      >
+        <Bell className="h-4 w-4" />
+        {count > 0 && (
+          <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-coral" />
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute bottom-full left-0 z-50 mb-1 w-[280px] overflow-hidden rounded-[var(--app-radius)] border border-border bg-surface shadow-lg">
+          <p className="border-b border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-light">
+            Notifications
+          </p>
+
+          {count === 0 ? (
+            <p className="px-3 py-3 text-[12px] leading-relaxed text-muted-light">
+              Rien à signaler sur {site?.name ?? "ce site"}. Les alertes de
+              chute de trafic et le résumé hebdomadaire apparaîtront ici.
+            </p>
+          ) : (
+            <ul className="max-h-72 divide-y divide-border overflow-y-auto">
+              {silent && (
+                <li className="px-3 py-2.5">
+                  <p className="flex items-center gap-1.5 text-[12.5px] font-medium text-amber-600">
+                    <Radio className="h-3.5 w-3.5" />
+                    Aucune donnée reçue
+                  </p>
+                  <p className="mt-0.5 text-[11.5px] leading-relaxed text-muted">
+                    Le script de {site?.name ?? "ce site"} n&apos;a encore rien
+                    envoyé.
+                  </p>
+                  <a
+                    href="/dashboard/sites"
+                    className="mt-1 inline-block text-[11.5px] font-medium text-primary hover:underline"
+                  >
+                    Vérifier l&apos;installation
+                  </a>
+                </li>
+              )}
+              {digest && (
+                <li className="px-3 py-2.5">
+                  <p className="flex items-center gap-1.5 text-[12.5px] font-medium">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    Insights de la semaine
+                  </p>
+                  <p className="mt-0.5 line-clamp-3 text-[11.5px] leading-relaxed text-muted">
+                    {digest.summary}
+                  </p>
+                  <a
+                    href="/dashboard"
+                    className="mt-1 inline-block text-[11.5px] font-medium text-primary hover:underline"
+                  >
+                    Voir sur l&apos;accueil
+                  </a>
+                </li>
+              )}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }

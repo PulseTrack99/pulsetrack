@@ -171,3 +171,95 @@ export function getAssistantFaq(locale: Locale): FaqEntry[] {
   const extra = locale === "fr" ? extraFr : extraEn;
   return [...extra, ...flattenFeatureFaqs(locale)];
 }
+
+/**
+ * Screen help for the in-app assistant (src/components/assistant-panel.tsx).
+ *
+ * Kept apart from the bank above, which answers a prospect's questions
+ * on the marketing site. These answer the questions someone has with a
+ * dashboard screen already in front of them — what a number counts, how
+ * to read a diagram — which the marketing FAQ never had to cover. The
+ * assistant suggests these questions by screen, so every one of them
+ * has to be answerable: a suggestion that returns the fallback makes
+ * the assistant look broken on its own prompt.
+ */
+const appHelpFr: FaqEntry[] = [
+  {
+    q: "Comment lire le diagramme des parcours (Flows) ?",
+    a: "Chaque colonne est une étape du parcours : « Entrée » est la page d'arrivée, « Étape 1 » la page suivante, et ainsi de suite. Un bloc = une page, avec le nombre de sessions et sa part de l'étape. L'épaisseur d'un trait indique combien de sessions ont suivi ce chemin. Survolez une page pour n'allumer que son parcours.",
+    keywords: ["flows", "parcours", "diagramme", "colonnes", "lire", "comprendre", "etape"],
+  },
+  {
+    q: "Que veut dire « Sortie du site » dans les Flows ?",
+    a: "C'est le nombre de sessions qui se sont arrêtées à cette étape : le visiteur n'a pas ouvert de page suivante. Les blocs de sortie sont en orange et placés en bas de leur colonne, pour séparer d'un coup d'œil ceux qui ont continué de ceux qui sont partis.",
+    keywords: ["sortie", "exit", "quitte", "parti", "abandon", "flows", "orange"],
+  },
+  {
+    q: "Quelle différence entre Flows et Funnels ?",
+    a: "Un funnel, vous le définissez à l'avance : vous listez les étapes attendues et PulseTrack compte qui les franchit. Les Flows font l'inverse — ils reconstituent le parcours réel des visiteurs, sans que vous ayez rien déclaré. Le funnel vérifie une hypothèse, les Flows la font émerger.",
+    keywords: ["difference", "flows", "funnel", "entonnoir", "versus", "comparaison"],
+  },
+  {
+    q: "Que compte exactement « visiteurs » et en quoi diffère-t-il de « sessions » ?",
+    a: "« Visiteurs » compte les personnes distinctes, identifiées par un hash sans cookie. « Sessions » compte les visites : une même personne qui revient trois fois dans la période compte pour 1 visiteur et 3 sessions. C'est pour cela que le second chiffre est toujours supérieur ou égal au premier.",
+    keywords: ["visiteurs", "sessions", "difference", "unique", "compte", "distinct"],
+  },
+  {
+    q: "Comment est calculé le taux de rebond ?",
+    a: "C'est la part des sessions qui n'ont vu qu'une seule page avant de partir. Un taux élevé n'est pas mauvais en soi : sur un article de blog ou une page de contact, lire puis repartir est le comportement normal.",
+    keywords: ["rebond", "bounce", "taux", "calcul", "une seule page"],
+  },
+  {
+    q: "À quoi correspondent les écarts en pourcentage sur l'accueil ?",
+    a: "Chaque carte se compare à la période de même durée qui précède : sur 30 jours, aux 30 jours d'avant. Un tiret à la place du pourcentage signifie qu'il n'y avait rien sur la période précédente — il n'y a donc rien à comparer.",
+    keywords: ["ecart", "pourcentage", "comparaison", "periode", "precedente", "evolution", "vs"],
+  },
+  {
+    q: "Que sont les clics de rage ?",
+    a: "Plusieurs clics rapprochés au même endroit, signe qu'un visiteur insiste sur quelque chose qui ne réagit pas — un faux bouton, un lien mort, une image qui semble cliquable. C'est le signal le plus direct d'une frustration sur une page.",
+    keywords: ["rage", "clics", "frustration", "colere", "insiste", "faux bouton"],
+  },
+  {
+    q: "Comment lire la profondeur de scroll ?",
+    a: "Chaque palier indique la part des sessions qui sont descendues au moins jusque-là. Si 30 % seulement atteignent la moitié de la page, tout ce qui se trouve en dessous n'est vu que par une minorité — utile pour décider où placer un bouton important.",
+    keywords: ["scroll", "profondeur", "defilement", "palier", "descendu", "heatmap"],
+  },
+  {
+    q: "Comment créer un funnel ?",
+    a: "Écran Funnels, bouton « Créer un funnel ». Donnez-lui un nom, puis décrivez chaque étape par une URL exacte, une URL qui contient un mot, ou un événement. Le funnel est créé sur le site affiché dans le menu de gauche. Vous verrez ensuite combien de visiteurs franchissent chaque étape et où ils abandonnent.",
+    keywords: ["creer", "funnel", "entonnoir", "etapes", "nouveau", "ajouter"],
+  },
+  {
+    q: "Comment brancher Claude ou ChatGPT sur mes données ?",
+    a: "Paramètres → Accès API. Copiez l'URL du connecteur MCP et collez-la dans Claude ou ChatGPT : vous vous connectez en un clic avec votre compte PulseTrack, aucune clé n'est jamais visible. Vous pouvez ensuite poser vos questions d'analytics directement à votre assistant.",
+    keywords: ["claude", "chatgpt", "gemini", "mcp", "connecteur", "brancher", "assistant", "ia"],
+  },
+  {
+    q: "Quelle clé Stripe dois-je créer pour le suivi du revenu ?",
+    a: "Une clé restreinte (elle commence par rk_), avec l'accès en lecture seule sur Charges et Customers, et rien d'autre. PulseTrack lit vos paiements et ne peut rien y modifier. Vous la créez dans Stripe → Developers → API keys.",
+    keywords: ["stripe", "cle", "restreinte", "rk", "lecture", "revenu", "charges", "customers"],
+  },
+  {
+    q: "Comment installer le script de suivi ?",
+    a: "Menu de gauche → « Gérer mes sites » → « Installation », ou « + Créer » → « Nouveau site » pour un nouveau domaine. Vous copiez une ligne de script et la collez dans le <head> de vos pages — sur Webflow, Shopify ou WordPress, dans le champ « code personnalisé / head » du thème. Le guide se coche tout seul dès la première visite reçue.",
+    keywords: ["installer", "installation", "script", "suivi", "tracking", "coller", "poser", "mettre", "balise", "tag", "head"],
+  },
+  {
+    q: "Comment vérifier que mon script est bien installé ?",
+    a: "Menu de gauche → « Gérer mes sites ». Chaque site affiche son état : « Données reçues » avec la date de la dernière visite, ou « En attente de données » si rien n'est encore arrivé. Le bouton « Installation » ouvre un guide qui se coche tout seul dès que la première visite est enregistrée.",
+    keywords: ["script", "installation", "installe", "verifier", "fonctionne", "marche", "donnees"],
+  },
+  {
+    q: "Où changer de site quand j'en ai plusieurs ?",
+    a: "En haut du menu de gauche : le sélecteur affiche le site courant et son domaine. Ce choix pilote tous les écrans à la fois — accueil, funnels, flows, replays, heatmaps et revenu suivent le site sélectionné.",
+    keywords: ["changer", "site", "selecteur", "plusieurs", "basculer", "switch", "projet"],
+  },
+];
+
+/** The in-app assistant's bank: screen help first, then everything the
+ *  marketing chatbot already answers. */
+export function getAppHelpFaq(locale: Locale): FaqEntry[] {
+  return locale === "fr"
+    ? [...appHelpFr, ...getAssistantFaq(locale)]
+    : getAssistantFaq(locale);
+}
