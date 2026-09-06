@@ -41,12 +41,35 @@ interface RevenueStats {
   }[];
 }
 
+/** Amounts, always with both decimals: minimumFractionDigits alone let
+ *  Intl drop a trailing zero, so the same screen showed "919,74 €" next
+ *  to "102,3 €". */
 function formatCurrency(cents: number, currency = "eur") {
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
     currency: currency.toUpperCase(),
-    minimumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(cents / 100);
+}
+
+/** Axis labels, where whole euros read better than centimes. */
+function formatAxis(cents: number, currency = "eur") {
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: currency.toUpperCase(),
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(cents / 100);
+}
+
+/** Rounds an axis top up to 1, 2 or 5 x 10^n. */
+function niceMax(value: number): number {
+  if (value <= 0) return 100;
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  const scaled = value / magnitude;
+  const step = scaled <= 1 ? 1 : scaled <= 2 ? 2 : scaled <= 5 ? 5 : 10;
+  return step * magnitude;
 }
 
 function formatDate(iso: string) {
@@ -65,6 +88,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
   const [showKey, setShowKey] = useState(false);
   const [period, setPeriod] = useState("30d");
   const [error, setError] = useState("");
+  const [hoverDay, setHoverDay] = useState<number | null>(null);
 
   // Callers remount this panel with key={siteId} (src/components/
   // revenue-screen.tsx), so a site change gives a fresh instance rather
@@ -90,7 +114,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
   async function handleConnect() {
     if (!stripeKey.startsWith("rk_")) {
       setError(
-        "Utilise une clé restreinte (rk_...) avec accès en lecture seule aux charges et clients."
+        "Cette clé doit être une clé restreinte Stripe : elle commence par rk_ et n'a que l'accès en lecture aux charges et aux clients."
       );
       return;
     }
@@ -159,94 +183,109 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
     );
   }
 
-  // Not connected — show connection form
+  // Not connected — the guided setup, on the same model as the tracking
+  // script's: say what it does, number the steps, give the action.
   if (!stats?.connected) {
     return (
-      <div className="mx-auto max-w-lg space-y-6">
-        <div className="text-center space-y-2">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10">
-            <DollarSign className="h-8 w-8 text-emerald-500" />
-          </div>
-          <h2 className="text-2xl font-bold">Revenue Tracking</h2>
-          <p className="text-muted text-sm">
-            Connecte ton Stripe pour voir combien chaque source de trafic te
-            rapporte en €.
-          </p>
-        </div>
+      <div className="mx-auto max-w-2xl space-y-3">
+        <p className="text-[13px] leading-relaxed text-muted">
+          Reliez votre compte Stripe pour savoir combien chaque source de
+          trafic vous rapporte réellement — pas seulement combien de visiteurs
+          elle envoie. PulseTrack lit vos paiements en lecture seule et ne peut
+          rien y modifier.
+        </p>
 
-        <div className="rounded-xl border border-border bg-background p-6 space-y-4">
-          <h3 className="font-semibold">Connecter ton Stripe</h3>
+        <div className="app-card space-y-3">
+          <h3 className="text-[13.5px] font-semibold">Connecter Stripe</h3>
 
-          <div className="space-y-2">
-            <p className="text-xs text-muted">
-              1. Va dans ton{" "}
+          <ol className="space-y-1.5 text-[12.5px] leading-relaxed text-muted">
+            <li>
+              <span className="font-medium text-foreground">1.</span> Ouvrez{" "}
               <a
                 href="https://dashboard.stripe.com/apikeys"
                 target="_blank"
                 rel="noopener"
                 className="text-primary hover:underline"
               >
-                Dashboard Stripe → Developers → API Keys
+                Stripe → Developers → API keys
               </a>
-            </p>
-            <p className="text-xs text-muted">
-              2. Crée une <strong>Restricted Key</strong> avec accès en
-              lecture uniquement aux <strong>Charges</strong> et{" "}
-              <strong>Customers</strong>
-            </p>
-            <p className="text-xs text-muted">
-              3. Colle la clé ci-dessous (commence par <code>rk_</code>)
-            </p>
-          </div>
+              .
+            </li>
+            <li>
+              <span className="font-medium text-foreground">2.</span> Créez une{" "}
+              <strong className="font-medium text-foreground">
+                clé restreinte
+              </strong>{" "}
+              avec l&apos;accès <em>lecture seule</em> sur{" "}
+              <strong className="font-medium text-foreground">Charges</strong>{" "}
+              et{" "}
+              <strong className="font-medium text-foreground">Customers</strong>
+              , et rien d&apos;autre.
+            </li>
+            <li>
+              <span className="font-medium text-foreground">3.</span> Collez-la
+              ci-dessous — elle commence par{" "}
+              <code className="rounded bg-surface-sunken px-1 py-0.5 font-mono text-[11.5px]">
+                rk_
+              </code>
+              .
+            </li>
+          </ol>
 
           <div className="relative">
             <input
               type={showKey ? "text" : "password"}
               value={stripeKey}
               onChange={(e) => setStripeKey(e.target.value)}
-              placeholder="rk_test_..."
-              className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 pr-10 text-sm focus:border-primary focus:outline-none"
+              placeholder="rk_live_…"
+              className="w-full rounded-[var(--app-radius-sm)] border border-border bg-surface px-3 py-2 pr-10 font-mono text-[12.5px] outline-none focus:border-primary"
             />
             <button
               type="button"
               onClick={() => setShowKey(!showKey)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
+              title={showKey ? "Masquer la clé" : "Afficher la clé"}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-light transition-colors hover:text-foreground"
             >
               {showKey ? (
-                <EyeOff className="h-4 w-4" />
+                <EyeOff className="h-3.5 w-3.5" />
               ) : (
-                <Eye className="h-4 w-4" />
+                <Eye className="h-3.5 w-3.5" />
               )}
             </button>
           </div>
 
-          {error && (
-            <p className="text-xs text-red-500">{error}</p>
-          )}
+          {error && <p className="text-[12px] text-coral">{error}</p>}
 
           <button
             onClick={handleConnect}
             disabled={connecting || !stripeKey}
-            className="w-full flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-600 transition-colors disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-1.5 rounded-[var(--app-radius-sm)] bg-primary px-3 py-2 text-[13px] font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
           >
             {connecting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <Link2 className="h-4 w-4" />
+              <Link2 className="h-3.5 w-3.5" />
             )}
             Connecter Stripe
           </button>
         </div>
 
-        <div className="rounded-xl border border-border bg-background p-6 space-y-3">
-          <h3 className="font-semibold text-sm">
-            📊 Comment fonctionne l&apos;attribution ?
+        <div className="app-card space-y-2">
+          <h3 className="text-[13.5px] font-semibold">
+            Comment PulseTrack relie un paiement à une source
           </h3>
-          <p className="text-xs text-muted">
-            Ajoute <code className="bg-surface px-1.5 py-0.5 rounded">pulsetrack.identify(&quot;email@client.com&quot;)</code>{" "}
-            sur ton site quand un utilisateur se connecte ou passe commande.
-            PulseTrack match l&apos;email avec les paiements Stripe pour savoir
-            quelle source de trafic a généré le revenu.
+          <p className="text-[12.5px] leading-relaxed text-muted">
+            Appelez{" "}
+            <code className="rounded bg-surface-sunken px-1 py-0.5 font-mono text-[11.5px]">
+              pulsetrack.identify(&quot;email@client.com&quot;)
+            </code>{" "}
+            sur votre site au moment de la connexion ou de la commande.
+            PulseTrack rapproche cet e-mail des paiements Stripe, et sait donc
+            de quelle source venait la visite qui a produit le revenu.
+          </p>
+          <p className="text-[12px] text-muted-light">
+            Sans cet appel, les paiements remontent quand même : c&apos;est
+            l&apos;attribution à une source qui manque.
           </p>
         </div>
       </div>
@@ -259,135 +298,191 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
 
   // Chart
   const chartData = stats.revenue_chart || [];
-  const maxRevenue = Math.max(...chartData.map((d) => d.revenue), 1);
-  const chartWidth = 700;
-  const chartHeight = 200;
-  const barWidth = chartData.length > 0 ? Math.max(chartWidth / chartData.length - 2, 2) : 10;
+  const maxRevenue = Math.max(...chartData.map((d) => d.revenue), 0);
+  // Axis top rounded up to a readable figure, so the two gridline labels
+  // are amounts someone would actually write down.
+  const axisTop = niceMax(maxRevenue);
+  // Four dates along the bottom: enough to place a spike in time.
+  const tickEvery = Math.max(1, Math.floor((chartData.length - 1) / 3));
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Revenue Tracking</h2>
-          {stats.last_synced_at && (
-            <p className="text-xs text-muted mt-1">
-              Dernière sync :{" "}
-              {new Date(stats.last_synced_at).toLocaleString("fr-FR")}
-            </p>
-          )}
+    <div className="space-y-3">
+      {/* Same toolbar shape as every other screen. The page title lives
+          in the breadcrumb, so there is no second one here. */}
+      <div className="app-toolbar justify-between">
+        <div className="flex gap-0.5 rounded-sm border border-border bg-surface p-0.5">
+          {["7d", "30d", "90d"].map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
+                period === p
+                  ? "bg-primary-pale text-primary"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              {p === "7d" ? "7j" : p === "30d" ? "30j" : "90j"}
+            </button>
+          ))}
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Period selector */}
-          <div className="flex rounded-lg border border-border overflow-hidden">
-            {["7d", "30d", "90d"].map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                  period === p
-                    ? "bg-primary text-white"
-                    : "bg-background text-muted hover:bg-surface-hover"
-                }`}
-              >
-                {p === "7d" ? "7j" : p === "30d" ? "30j" : "90j"}
-              </button>
-            ))}
-          </div>
+        {stats.last_synced_at && (
+          <span className="text-[11.5px] text-muted-light">
+            Dernière synchro{" "}
+            {new Date(stats.last_synced_at).toLocaleString("fr-FR", {
+              day: "numeric",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
+        )}
 
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted hover:bg-surface-hover transition-colors"
-          >
-            <RefreshCw
-              className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`}
-            />
-            Sync
-          </button>
+        <button
+          onClick={handleSync}
+          disabled={syncing}
+          className="ml-auto flex items-center gap-1.5 rounded-sm border border-border bg-surface px-2.5 py-1.5 text-[12px] font-medium text-muted transition-colors hover:text-foreground disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
+          {syncing ? "Synchro…" : "Synchroniser"}
+        </button>
 
-          <button
-            onClick={handleDisconnect}
-            className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
-          >
-            <Unlink className="h-3.5 w-3.5" />
-          </button>
-        </div>
+        {/* Labelled: it deletes the revenue data, and an unlabelled icon
+            is a poor warning for that. */}
+        <button
+          onClick={handleDisconnect}
+          className="flex items-center gap-1.5 rounded-sm border border-border px-2.5 py-1.5 text-[12px] font-medium text-muted-light transition-colors hover:border-coral/40 hover:text-coral"
+        >
+          <Unlink className="h-3.5 w-3.5" />
+          Déconnecter
+        </button>
       </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* One accent, like the rest of the app. These cards used to be
+          emerald, blue, violet and amber — four colours that encoded
+          nothing, on a screen otherwise built in purple. */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           title="Revenu total"
           value={formatCurrency(o.total_revenue, currency)}
           icon={DollarSign}
-          color="emerald"
           change={o.revenue_growth}
+          hint="Somme des paiements Stripe encaissés sur la période."
         />
         <StatCard
           title="Transactions"
           value={o.total_transactions.toString()}
           icon={ShoppingCart}
-          color="blue"
+          hint="Nombre de paiements réussis sur la période."
         />
         <StatCard
           title="Panier moyen"
           value={formatCurrency(o.avg_order_value, currency)}
           icon={BarChart3}
-          color="violet"
+          hint="Revenu total divisé par le nombre de transactions."
         />
         <StatCard
           title="Taux d'attribution"
           value={`${o.attribution_rate}%`}
           icon={Target}
-          color="amber"
+          hint="Part des paiements rattachés à une source de trafic, via pulsetrack.identify()."
         />
       </div>
 
-      {/* Revenue chart */}
+      {/* Revenue chart. Was a bare bar row: no scale, no gridlines, no
+          way to read a day's figure — the same gap the Accueil's chart
+          had, fixed the same way. */}
       {chartData.length > 0 && (
-        <div className="rounded-xl border border-border bg-background p-6">
-          <h3 className="text-sm font-semibold mb-4">Revenus par jour</h3>
-          <svg
-            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-            className="w-full h-auto"
-          >
-            {chartData.map((d, i) => {
-              const barHeight = (d.revenue / maxRevenue) * (chartHeight - 30);
-              const x = i * (chartWidth / chartData.length) + 1;
-              return (
-                <g key={d.date}>
-                  <rect
-                    x={x}
-                    y={chartHeight - 20 - barHeight}
-                    width={barWidth}
-                    height={Math.max(barHeight, 0)}
-                    rx={2}
-                    className="fill-emerald-500/80 hover:fill-emerald-500 transition-colors"
+        <div className="app-card">
+          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="text-[13.5px] font-semibold">Revenus par jour</h3>
+            <p className="text-[11.5px] text-muted-light">
+              pic à {formatCurrency(maxRevenue, currency)}
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <div className="relative w-14 shrink-0" style={{ height: 148 }}>
+              {[axisTop, axisTop / 2, 0].map((v, i) => (
+                <span
+                  key={i}
+                  className="absolute right-0 -translate-y-1/2 text-[10px] tabular-nums text-muted-light"
+                  style={{ top: `${(i / 2) * 100}%` }}
+                >
+                  {formatAxis(v, currency)}
+                </span>
+              ))}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="relative" style={{ height: 148 }}>
+                {[0, 0.5, 1].map((f) => (
+                  <div
+                    key={f}
+                    className="absolute inset-x-0 border-t border-border"
+                    style={{ top: `${f * 100}%` }}
                   />
-                  {/* Show label every ~7 days */}
-                  {(i % Math.max(Math.floor(chartData.length / 6), 1) === 0) && (
-                    <text
-                      x={x + barWidth / 2}
-                      y={chartHeight - 4}
-                      textAnchor="middle"
-                      className="fill-muted text-[9px]"
+                ))}
+
+                <div
+                  className="absolute inset-0 flex items-end gap-[2px]"
+                  onMouseLeave={() => setHoverDay(null)}
+                >
+                  {chartData.map((d, i) => (
+                    <div
+                      key={d.date}
+                      onMouseEnter={() => setHoverDay(i)}
+                      className="relative flex h-full flex-1 cursor-default items-end"
                     >
-                      {formatDate(d.date)}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-          </svg>
+                      <div
+                        className={`w-full rounded-t-[2px] transition-colors ${
+                          hoverDay === i ? "bg-primary" : "bg-primary/55"
+                        }`}
+                        style={{
+                          height: axisTop > 0 ? `${(d.revenue / axisTop) * 100}%` : "0%",
+                          minHeight: d.revenue > 0 ? 2 : 0,
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {hoverDay !== null && (
+                  <div
+                    className="pointer-events-none absolute -top-1 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-[var(--app-radius-sm)] border border-border bg-surface px-2 py-1 text-[11px] shadow-lg"
+                    style={{ left: `${((hoverDay + 0.5) / chartData.length) * 100}%` }}
+                  >
+                    <span className="font-medium tabular-nums">
+                      {formatCurrency(chartData[hoverDay].revenue, currency)}
+                    </span>
+                    <span className="text-muted-light">
+                      {" "}
+                      · {formatDate(chartData[hoverDay].date)}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-1 flex gap-[2px]">
+                {chartData.map((d, i) => (
+                  <div key={d.date} className="min-w-0 flex-1 text-center">
+                    {i % tickEvery === 0 && (
+                      <span className="whitespace-nowrap text-[10px] text-muted-light">
+                        {formatDate(d.date)}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Revenue by source */}
-        <div className="rounded-xl border border-border bg-background p-6">
-          <h3 className="text-sm font-semibold mb-4">Revenu par source</h3>
+        <div className="app-card">
+          <h3 className="mb-3 text-[13.5px] font-semibold">Revenu par source</h3>
           {stats.revenue_by_source && stats.revenue_by_source.length > 0 ? (
             <div className="space-y-3">
               {stats.revenue_by_source.map((s) => {
@@ -406,7 +501,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
                     </div>
                     <div className="h-2 rounded-full bg-surface overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-emerald-500 transition-all"
+                        className="h-full rounded-full bg-primary/60 transition-all"
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -424,8 +519,8 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
         </div>
 
         {/* Revenue by page */}
-        <div className="rounded-xl border border-border bg-background p-6">
-          <h3 className="text-sm font-semibold mb-4">Revenu par page</h3>
+        <div className="app-card">
+          <h3 className="mb-3 text-[13.5px] font-semibold">Revenu par page</h3>
           {stats.revenue_by_page && stats.revenue_by_page.length > 0 ? (
             <div className="space-y-3">
               {stats.revenue_by_page.map((p) => {
@@ -446,7 +541,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
                     </div>
                     <div className="h-2 rounded-full bg-surface overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-violet-500 transition-all"
+                        className="h-full rounded-full bg-primary/60 transition-all"
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -455,9 +550,13 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
               })}
             </div>
           ) : (
-            <p className="text-sm text-muted">
-              Ajoute <code>pulsetrack.identify(email)</code> pour attribuer les
-              revenus aux pages.
+            <p className="text-[13px] leading-relaxed text-muted">
+              Aucun revenu rattaché à une page. Appelez{" "}
+              <code className="rounded bg-surface-sunken px-1 py-0.5 font-mono text-[11.5px]">
+                pulsetrack.identify(email)
+              </code>{" "}
+              sur votre site pour relier un paiement à la page qui l&apos;a
+              amené.
             </p>
           )}
         </div>
@@ -465,8 +564,8 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
 
       {/* Recent transactions */}
       {stats.recent_transactions && stats.recent_transactions.length > 0 && (
-        <div className="rounded-xl border border-border bg-background p-6">
-          <h3 className="text-sm font-semibold mb-4">
+        <div className="app-card">
+          <h3 className="mb-3 text-[13.5px] font-semibold">
             Transactions récentes
           </h3>
           <div className="overflow-x-auto">
@@ -483,7 +582,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
               <tbody className="divide-y divide-border">
                 {stats.recent_transactions.map((t, i) => (
                   <tr key={i}>
-                    <td className="py-2.5 font-semibold text-emerald-600">
+                    <td className="py-2.5 font-medium tabular-nums">
                       {formatCurrency(t.amount, t.currency)}
                     </td>
                     <td className="py-2.5 text-muted truncate max-w-[150px]">
@@ -493,8 +592,8 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
                       <span
                         className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
                           t.source === "Unattributed"
-                            ? "bg-gray-100 text-gray-600"
-                            : "bg-emerald-50 text-emerald-700"
+                            ? "bg-surface-sunken text-muted-light"
+                            : "bg-primary-pale text-primary"
                         }`}
                       >
                         {t.source !== "Unattributed" && (
@@ -520,52 +619,47 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
   );
 }
 
+/** Same shape as the Accueil's cards, so the two screens read alike. */
 function StatCard({
   title,
   value,
   icon: Icon,
-  color,
   change,
+  hint,
 }: {
   title: string;
   value: string;
   icon: React.ComponentType<{ className?: string }>;
-  color: string;
   change?: number;
+  hint: string;
 }) {
-  const colorClasses: Record<string, string> = {
-    emerald: "bg-emerald-500/10 text-emerald-500",
-    blue: "bg-blue-500/10 text-blue-500",
-    violet: "bg-violet-500/10 text-violet-500",
-    amber: "bg-amber-500/10 text-amber-500",
-  };
-
   return (
-    <div className="rounded-xl border border-border bg-background p-4">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-muted font-medium">{title}</span>
-        <div
-          className={`flex h-8 w-8 items-center justify-center rounded-lg ${colorClasses[color]}`}
-        >
-          <Icon className="h-4 w-4" />
-        </div>
+    <div className="app-card">
+      <div className="flex items-center justify-between">
+        <span className="app-label" title={hint}>
+          {title}
+        </span>
+        <Icon className="h-3.5 w-3.5 text-muted-light" />
       </div>
-      <p className="text-2xl font-bold">{value}</p>
-      {change !== undefined && (
-        <div
-          className={`flex items-center gap-1 text-xs mt-1 ${
-            change >= 0 ? "text-emerald-500" : "text-red-500"
-          }`}
-        >
-          {change >= 0 ? (
-            <TrendingUp className="h-3 w-3" />
-          ) : (
-            <TrendingDown className="h-3 w-3" />
-          )}
-          {change >= 0 ? "+" : ""}
-          {change}% vs période précédente
-        </div>
-      )}
+      <div className="mt-1.5 flex items-baseline gap-2">
+        <p className="app-metric">{value}</p>
+        {change !== undefined && (
+          <span
+            className={`flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[11px] font-medium tabular-nums ${
+              change >= 0 ? "text-emerald-600" : "text-coral"
+            }`}
+            title={`${change >= 0 ? "+" : ""}${change}% par rapport à la période précédente`}
+          >
+            {change >= 0 ? (
+              <TrendingUp className="h-3 w-3" />
+            ) : (
+              <TrendingDown className="h-3 w-3" />
+            )}
+            {change >= 0 ? "+" : ""}
+            {change}%
+          </span>
+        )}
+      </div>
     </div>
   );
 }
