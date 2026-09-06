@@ -83,6 +83,7 @@ const navItems: NavEntry[] = [
       { href: "/dashboard/events", key: "events", icon: Activity },
       { href: "/dashboard/visitors", key: "visitors", icon: Users },
       { href: "/dashboard/lexicon", key: "lexicon", icon: BookOpen },
+      { href: "/dashboard/destinations", key: "destinations", icon: Share2 },
     ],
   },
   { href: "/dashboard/settings", key: "settings", icon: Settings },

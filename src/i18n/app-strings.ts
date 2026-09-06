@@ -45,6 +45,7 @@ export interface AppStrings {
       events: string;
       visitors: string;
       lexicon: string;
+      destinations: string;
       data: string;
       settings: string;
       mySites: string;
@@ -312,6 +313,41 @@ export interface AppStrings {
       events: string;
       visitors: string;
       lexicon: string;
+      destinations: string;
+    };
+    destinations: {
+      configure: string;
+      active: string;
+      inactive: string;
+      /** {plan} is the plan that unlocks it — they differ per channel. */
+      lockedFrom: string;
+      lastRead: string;
+      lastReadNever: string;
+      lastReadIntro: string;
+      mcpTitle: string;
+      mcpBody: string;
+      mcpNone: string;
+      mcpScope: string;
+      keysTitle: string;
+      keysBody: string;
+      keysNone: string;
+      keysCount: string;
+      neverUsed: string;
+      usedOn: string;
+      publicTitle: string;
+      publicBody: string;
+      publicNone: string;
+      webhookTitle: string;
+      webhookBody: string;
+      webhookNone: string;
+      emailTitle: string;
+      emailBody: string;
+      emailOn: string;
+      emailNone: string;
+      csvTitle: string;
+      csvBody: string;
+      csvGo: string;
+      oneNote: string;
     };
     lexicon: {
       noSiteBody: string;
@@ -639,6 +675,7 @@ const fr: AppStrings = {
       events: "Événements",
       visitors: "Visiteurs",
       lexicon: "Lexique",
+      destinations: "Destinations",
       data: "Données",
       settings: "Paramètres",
       mySites: "Mes sites",
@@ -948,6 +985,47 @@ const fr: AppStrings = {
       events: "Le flux brut de ce que votre site envoie — chaque page vue et chaque événement que vous déclenchez vous-même.",
       visitors: "Qui est passé, ce qu'il a regardé, d'où il venait — regroupé par visiteur plutôt que par page.",
       lexicon: "Le dictionnaire de vos événements : ce que chaque nom veut dire, et ce qu'il fait vraiment.",
+      destinations: "Par où vos données sortent, et qui en a lu récemment.",
+    },
+    destinations: {
+      configure: "Configurer",
+      active: "Actif",
+      inactive: "Inactif",
+      lockedFrom: "À partir de l'offre {plan}",
+      lastRead: "Dernière lecture externe",
+      lastReadNever: "Personne n'a encore lu vos données de l'extérieur.",
+      lastReadIntro: "Vos données ont été lues de l'extérieur",
+      mcpTitle: "Connecteurs IA (MCP)",
+      mcpBody:
+        "Les assistants autorisés à interroger vos statistiques en langage naturel. Chacun garde son propre accès, révocable à tout moment.",
+      mcpNone: "Aucun assistant connecté.",
+      mcpScope: "portée",
+      keysTitle: "Clés API",
+      keysBody:
+        "Un accès en lecture aux mêmes chiffres que le dashboard, pour vos propres scripts et votre entrepôt de données.",
+      keysNone: "Aucune clé active.",
+      keysCount: "clés actives",
+      neverUsed: "jamais utilisée",
+      usedOn: "utilisée le",
+      publicTitle: "Dashboards publics",
+      publicBody:
+        "Une page en lecture seule, sans compte ni mot de passe, pour montrer vos chiffres à qui vous voulez.",
+      publicNone: "Aucun dashboard public activé.",
+      webhookTitle: "Webhooks",
+      webhookBody:
+        "Une requête HTTP envoyée à votre outil quand le trafic chute, pour brancher Slack, Discord ou n'importe quoi d'autre.",
+      webhookNone: "Aucun webhook configuré.",
+      emailTitle: "Alertes e-mail",
+      emailBody:
+        "Un message quand le trafic d'un site s'effondre par rapport à la semaine précédente.",
+      emailOn: "seuil",
+      emailNone: "Aucune alerte activée.",
+      csvTitle: "Export CSV",
+      csvBody:
+        "Le tableau que vous regardez, téléchargé tel quel depuis l'écran d'accueil.",
+      csvGo: "Aller à l'accueil",
+      oneNote:
+        "Tout se règle depuis Paramètres — cet écran montre l'état, il ne le duplique pas.",
     },
     lexicon: {
       noSiteBody: "Choisissez un site pour voir son dictionnaire.",
@@ -1378,6 +1456,7 @@ const en: AppStrings = {
       events: "Events",
       visitors: "Visitors",
       lexicon: "Lexicon",
+      destinations: "Destinations",
       data: "Data",
       settings: "Settings",
       mySites: "My sites",
@@ -1682,6 +1761,45 @@ const en: AppStrings = {
       events: "The raw stream of what your site sends — every pageview, and every event you fire yourself.",
       visitors: "Who came by, what they looked at, where they came from — grouped by visitor rather than by page.",
       lexicon: "The dictionary of your events: what each name means, and what it actually does.",
+      destinations: "Where your data goes out, and who has read some lately.",
+    },
+    destinations: {
+      configure: "Configure",
+      active: "Active",
+      inactive: "Inactive",
+      lockedFrom: "From the {plan} plan",
+      lastRead: "Last external read",
+      lastReadNever: "Nobody has read your data from outside yet.",
+      lastReadIntro: "Your data was read from outside",
+      mcpTitle: "AI connectors (MCP)",
+      mcpBody:
+        "The assistants allowed to query your statistics in plain language. Each keeps its own access, revocable at any time.",
+      mcpNone: "No assistant connected.",
+      mcpScope: "scope",
+      keysTitle: "API keys",
+      keysBody:
+        "Read access to the same figures as the dashboard, for your own scripts and your data warehouse.",
+      keysNone: "No active key.",
+      keysCount: "active keys",
+      neverUsed: "never used",
+      usedOn: "used on",
+      publicTitle: "Public dashboards",
+      publicBody:
+        "A read-only page, no account and no password, to show your figures to whoever you like.",
+      publicNone: "No public dashboard enabled.",
+      webhookTitle: "Webhooks",
+      webhookBody:
+        "An HTTP request sent to your tool when traffic drops, to wire up Slack, Discord or anything else.",
+      webhookNone: "No webhook configured.",
+      emailTitle: "Email alerts",
+      emailBody: "A message when a site's traffic collapses against the previous week.",
+      emailOn: "threshold",
+      emailNone: "No alert enabled.",
+      csvTitle: "CSV export",
+      csvBody: "The table you are looking at, downloaded as it is, from the home screen.",
+      csvGo: "Go to home",
+      oneNote:
+        "Everything is set in Settings — this screen shows the state, it does not duplicate it.",
     },
     lexicon: {
       noSiteBody: "Pick a site to see its dictionary.",
