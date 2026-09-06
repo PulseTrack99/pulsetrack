@@ -21,6 +21,12 @@ import {
 import { HeatmapCanvas, type Point } from "./heatmap-canvas";
 import { PageWireframe, type SnapshotElement } from "./page-wireframe";
 import { PageReplay } from "./page-replay";
+import {
+  FilterBar,
+  SegmentedFilter,
+  SearchableSelect,
+  PERIOD_OPTIONS,
+} from "@/components/filters";
 
 interface Site {
   id: string;
@@ -277,63 +283,43 @@ export function HeatmapPanel() {
 
   return (
     <div className="space-y-5">
-      {/* Controls */}
-      <div className="flex flex-wrap items-center gap-2">
-
-        <select
+      <FilterBar>
+        <SearchableSelect
           value={s?.path ?? ""}
-          onChange={(e) => setPath(e.target.value)}
-          className="min-w-[180px] rounded-sm border border-border bg-surface px-3 py-2 text-[13px] outline-none focus:border-primary"
-        >
-          {(s?.pages ?? []).map((p) => (
-            <option key={p.path} value={p.path}>
-              {p.path} · {p.count}
-            </option>
-          ))}
-          {(s?.pages ?? []).length === 0 && <option value="">Aucune page</option>}
-        </select>
+          onChange={setPath}
+          minWidth={220}
+          placeholder="Choisir une page"
+          emptyLabel="Aucune page"
+          searchPlaceholder="Filtrer les pages…"
+          options={(s?.pages ?? []).map((p) => ({
+            value: p.path,
+            label: p.path,
+            hint: p.count.toLocaleString("fr-FR"),
+          }))}
+        />
 
-        <div className="flex gap-0.5 rounded-sm border border-border bg-surface p-0.5">
-          {(s?.devices ?? []).map((d) => {
-            const meta = DEVICE_META[d.device] ?? {
-              label: d.device,
-              icon: Layers,
+        <SegmentedFilter
+          ariaLabel="Appareil"
+          value={s?.device ?? ""}
+          onChange={setDevice}
+          options={(s?.devices ?? []).map((d) => {
+            const meta = DEVICE_META[d.device] ?? { label: d.device, icon: Layers };
+            return {
+              value: d.device,
+              label: meta.label,
+              icon: meta.icon,
+              count: d.count,
             };
-            const Icon = meta.icon;
-            const active = (s?.device ?? "") === d.device;
-            return (
-              <button
-                key={d.device}
-                onClick={() => setDevice(d.device)}
-                title={`${meta.label} — ${d.count.toLocaleString("fr-FR")} clics`}
-                className={`flex items-center gap-1.5 rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
-                  active ? "bg-primary-pale text-primary" : "text-muted hover:text-foreground"
-                }`}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{meta.label}</span>
-                <span className="tabular text-[10px] opacity-60">
-                  {d.count.toLocaleString("fr-FR")}
-                </span>
-              </button>
-            );
           })}
-        </div>
+        />
 
-        <div className="flex gap-0.5 rounded-sm border border-border bg-surface p-0.5">
-          {["24h", "7d", "30d", "90d"].map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
-                period === p ? "bg-primary-pale text-primary" : "text-muted hover:text-foreground"
-              }`}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
-      </div>
+        <SegmentedFilter
+          ariaLabel="Période"
+          value={period}
+          options={PERIOD_OPTIONS}
+          onChange={setPeriod}
+        />
+      </FilterBar>
 
       {/* Summary */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

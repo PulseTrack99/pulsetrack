@@ -11,6 +11,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useSites } from "@/components/site-context";
+import { SegmentedFilter, PERIOD_OPTIONS_NO_DAY } from "@/components/filters";
 
 interface FunnelStep {
   id: string;
@@ -220,29 +221,17 @@ function SiteFunnels({
           {/* Funnel visualization */}
           {selectedFunnel && (
             <div className="lg:col-span-2">
-              <div className="rounded-xl border border-border bg-background p-6">
-                {/* Period selector */}
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold">Résultats du funnel</h3>
-                  <div className="flex gap-1 rounded-lg border border-border bg-surface p-0.5">
-                    {[
-                      { value: "7d", label: "7j" },
-                      { value: "30d", label: "30j" },
-                      { value: "90d", label: "90j" },
-                    ].map((p) => (
-                      <button
-                        key={p.value}
-                        onClick={() => setPeriod(p.value)}
-                        className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                          period === p.value
-                            ? "bg-primary text-white"
-                            : "text-muted hover:text-foreground"
-                        }`}
-                      >
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
+              <div className="app-card">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-[13.5px] font-semibold">
+                    Résultats du funnel
+                  </h3>
+                  <SegmentedFilter
+                    ariaLabel="Période"
+                    value={period}
+                    options={PERIOD_OPTIONS_NO_DAY}
+                    onChange={setPeriod}
+                  />
                 </div>
 
                 {loadingResults ? (

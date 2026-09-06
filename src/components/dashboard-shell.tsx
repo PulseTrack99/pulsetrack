@@ -31,6 +31,8 @@ import {
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { AssistantPanel } from "@/components/assistant-panel";
+// Shared with the filter controls so there is one implementation.
+import { useOutsideClose } from "@/components/filters";
 
 /**
  * Rail structure follows Mixpanel's: the project (here, site)
@@ -70,18 +72,6 @@ function currentItem(pathname: string) {
   return [...navItems, ...secondaryItems]
     .filter((i) => pathname === i.href || pathname.startsWith(i.href + "/"))
     .sort((a, b) => b.href.length - a.href.length)[0];
-}
-
-function useOutsideClose(onClose: () => void) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [onClose]);
-  return ref;
 }
 
 /* ── Site switcher ── */

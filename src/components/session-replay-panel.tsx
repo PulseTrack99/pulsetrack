@@ -7,6 +7,13 @@ import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
 import { useSites } from "@/components/site-context";
 import {
+  FilterBar,
+  SegmentedFilter,
+  ToggleFilter,
+  ActiveFilterChip,
+  PERIOD_OPTIONS,
+} from "@/components/filters";
+import {
   Video,
   AlertTriangle,
   Monitor,
@@ -558,68 +565,39 @@ function SiteReplays({
 
   return (
     <div className="space-y-5">
-      {/* Controls */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-0.5 rounded-sm border border-border bg-surface p-0.5">
-          {[
+      <FilterBar>
+        <SegmentedFilter
+          ariaLabel="Appareil"
+          value={device}
+          onChange={setDevice}
+          options={[
             { value: null, label: "Tous" },
             { value: "Desktop", label: "Desktop" },
             { value: "Mobile", label: "Mobile" },
             { value: "Tablet", label: "Tablette" },
-          ].map((d) => (
-            <button
-              key={d.label}
-              onClick={() => setDevice(d.value)}
-              className={`rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
-                device === d.value
-                  ? "bg-primary-pale text-primary"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              {d.label}
-            </button>
-          ))}
-        </div>
+          ]}
+        />
 
-        <div className="flex gap-0.5 rounded-sm border border-border bg-surface p-0.5">
-          {["24h", "7d", "30d", "90d"].map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
-                period === p ? "bg-primary-pale text-primary" : "text-muted hover:text-foreground"
-              }`}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
+        <SegmentedFilter
+          ariaLabel="Période"
+          value={period}
+          options={PERIOD_OPTIONS}
+          onChange={setPeriod}
+        />
 
-        <button
-          onClick={() => setRageOnly((v) => !v)}
-          className={`flex items-center gap-1.5 rounded-sm border px-2.5 py-1.5 text-[12px] transition-colors ${
-            rageOnly
-              ? "border-coral/40 bg-coral-pale text-coral"
-              : "border-border text-muted hover:text-foreground"
-          }`}
+        <ToggleFilter
+          active={rageOnly}
+          onToggle={() => setRageOnly((v) => !v)}
+          icon={AlertTriangle}
+          tone="coral"
         >
-          <AlertTriangle className="h-3.5 w-3.5" />
           Clics de rage uniquement
-        </button>
+        </ToggleFilter>
 
         {path && (
-          <span className="flex items-center gap-1.5 rounded-sm border border-primary/30 bg-primary-pale px-2.5 py-1.5 text-[12px] text-primary">
-            Page : {path}
-            <button
-              onClick={() => setPath(null)}
-              className="rounded-xs p-0.5 hover:bg-primary/10"
-              title="Retirer le filtre"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </span>
+          <ActiveFilterChip label="Page" value={path} onClear={() => setPath(null)} />
         )}
-      </div>
+      </FilterBar>
 
       {/* Behavioural filters — narrow which recorded sessions show up,
           never which ones get recorded in the first place. */}

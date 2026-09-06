@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { RealtimePanel } from "@/components/realtime-panel";
 import { useSites } from "@/components/site-context";
+import { SegmentedFilter, PERIOD_OPTIONS } from "@/components/filters";
 
 interface Site {
   id: string;
@@ -649,30 +650,14 @@ export function DashboardContent() {
 
   return (
     <div className="space-y-3">
-      {/* Period — the site is chosen once in the rail. Same segmented
-          control as Flows and Heatmaps; it used to be a heavier filled
-          variant here only. */}
+      {/* Period — the site is chosen once in the rail. */}
       <div className="app-toolbar justify-between">
-        <div className="flex gap-0.5 rounded-sm border border-border bg-surface p-0.5">
-          {[
-            { value: "24h", label: "24h" },
-            { value: "7d", label: "7j" },
-            { value: "30d", label: "30j" },
-            { value: "90d", label: "90j" },
-          ].map((p) => (
-            <button
-              key={p.value}
-              onClick={() => setPeriod(p.value)}
-              className={`rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
-                period === p.value
-                  ? "bg-primary-pale text-primary"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedFilter
+          ariaLabel="Période"
+          value={period}
+          options={PERIOD_OPTIONS}
+          onChange={setPeriod}
+        />
 
         <span className="text-[11.5px] text-muted-light">
           Les écarts comparent aux {PERIOD_LABEL[period]}

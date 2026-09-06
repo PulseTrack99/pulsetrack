@@ -16,6 +16,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
+import { SegmentedFilter, PERIOD_OPTIONS_NO_DAY } from "@/components/filters";
 
 interface RevenueStats {
   connected: boolean;
@@ -310,21 +311,12 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
       {/* Same toolbar shape as every other screen. The page title lives
           in the breadcrumb, so there is no second one here. */}
       <div className="app-toolbar justify-between">
-        <div className="flex gap-0.5 rounded-sm border border-border bg-surface p-0.5">
-          {["7d", "30d", "90d"].map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
-                period === p
-                  ? "bg-primary-pale text-primary"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              {p === "7d" ? "7j" : p === "30d" ? "30j" : "90j"}
-            </button>
-          ))}
-        </div>
+        <SegmentedFilter
+          ariaLabel="Période"
+          value={period}
+          options={PERIOD_OPTIONS_NO_DAY}
+          onChange={setPeriod}
+        />
 
         {stats.last_synced_at && (
           <span className="text-[11.5px] text-muted-light">

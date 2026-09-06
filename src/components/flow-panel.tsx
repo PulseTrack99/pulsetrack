@@ -4,6 +4,12 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Workflow, LogOut, ArrowRight } from "lucide-react";
 import { useSites } from "@/components/site-context";
+import {
+  FilterBar,
+  SegmentedFilter,
+  SearchableSelect,
+  PERIOD_OPTIONS,
+} from "@/components/filters";
 
 interface Row {
   step: number;
@@ -256,33 +262,27 @@ export function FlowPanel() {
 
   return (
     <div className="space-y-3">
-      <div className="app-toolbar">
-        <div className="flex gap-0.5 rounded-sm border border-border bg-surface p-0.5">
-          {["24h", "7d", "30d", "90d"].map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`rounded-xs px-2.5 py-1.5 text-[12px] transition-colors ${
-                period === p ? "bg-primary-pale text-primary" : "text-muted hover:text-foreground"
-              }`}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
+      <FilterBar>
+        <SegmentedFilter
+          ariaLabel="Période"
+          value={period}
+          options={PERIOD_OPTIONS}
+          onChange={setPeriod}
+        />
 
-        <select
+        <SearchableSelect
           value={startPath ?? ""}
-          onChange={(e) => setStartPath(e.target.value || null)}
-          className="rounded-sm border border-border bg-surface px-2.5 py-1.5 text-[12px] outline-none focus:border-primary"
-        >
-          <option value="">Toutes les entrées</option>
-          {topPaths.map((p) => (
-            <option key={p} value={p}>
-              À partir de {p || "/"}
-            </option>
-          ))}
-        </select>
+          placeholder="Toutes les entrées"
+          minWidth={200}
+          options={[
+            { value: "", label: "Toutes les entrées" },
+            ...topPaths.map((p) => ({
+              value: p,
+              label: `À partir de ${p || "/"}`,
+            })),
+          ]}
+          onChange={(v) => setStartPath(v || null)}
+        />
 
         <label className="flex items-center gap-1.5 text-[12px] text-muted">
           Profondeur
@@ -295,7 +295,7 @@ export function FlowPanel() {
             className="w-12 rounded-sm border border-border bg-surface px-1.5 py-1 text-[12px] outline-none focus:border-primary"
           />
         </label>
-      </div>
+      </FilterBar>
 
       {/* The legend sits above the diagram, not buried under it: you need
           to know how to read the picture before you look at it. */}
