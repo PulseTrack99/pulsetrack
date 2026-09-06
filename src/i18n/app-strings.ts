@@ -44,6 +44,7 @@ export interface AppStrings {
       agent: string;
       events: string;
       visitors: string;
+      lexicon: string;
       data: string;
       settings: string;
       mySites: string;
@@ -310,6 +311,31 @@ export interface AppStrings {
       replays: string;
       events: string;
       visitors: string;
+      lexicon: string;
+    };
+    lexicon: {
+      noSiteBody: string;
+      colName: string;
+      colVolume: string;
+      colProperties: string;
+      colLastSeen: string;
+      describe: string;
+      describePlaceholder: string;
+      save: string;
+      saving: string;
+      hide: string;
+      unhide: string;
+      hidden: string;
+      noProperties: string;
+      neverFired: string;
+      visitorsSuffix: string;
+      emptyTitle: string;
+      emptyBody: string;
+      whyTitle: string;
+      whyBody: string;
+      pendingTitle: string;
+      pendingBody: string;
+      pendingFile: string;
     };
     visitors: {
       noSiteBody: string;
@@ -612,6 +638,7 @@ const fr: AppStrings = {
       agent: "Agent PulseTrack",
       events: "Événements",
       visitors: "Visiteurs",
+      lexicon: "Lexique",
       data: "Données",
       settings: "Paramètres",
       mySites: "Mes sites",
@@ -920,6 +947,34 @@ const fr: AppStrings = {
       replays: "Regardez vos visiteurs naviguer réellement sur votre site — chaque clic, chaque scroll, chaque hésitation.",
       events: "Le flux brut de ce que votre site envoie — chaque page vue et chaque événement que vous déclenchez vous-même.",
       visitors: "Qui est passé, ce qu'il a regardé, d'où il venait — regroupé par visiteur plutôt que par page.",
+      lexicon: "Le dictionnaire de vos événements : ce que chaque nom veut dire, et ce qu'il fait vraiment.",
+    },
+    lexicon: {
+      noSiteBody: "Choisissez un site pour voir son dictionnaire.",
+      colName: "Nom",
+      colVolume: "Volume",
+      colProperties: "Propriétés",
+      colLastSeen: "Dernier",
+      describe: "Décrire",
+      describePlaceholder: "Ce que cet événement signifie, et quand il part…",
+      save: "Enregistrer",
+      saving: "Enregistrement…",
+      hide: "Masquer",
+      unhide: "Réafficher",
+      hidden: "Masqué",
+      noProperties: "aucune",
+      neverFired: "Plus envoyé sur cette période",
+      visitorsSuffix: "visiteurs",
+      emptyTitle: "Aucun événement personnalisé",
+      emptyBody:
+        "Le dictionnaire se remplit tout seul dès que votre code appelle pulsetrack(\"nom\"). Les pages vues n'y figurent pas : elles n'ont pas de nom à définir.",
+      whyTitle: "À quoi sert ce dictionnaire",
+      whyBody:
+        "Rien n'empêche quatre personnes de nommer la même chose inscription, Inscription, sign_up et user_signed_up. Ça donne quatre lignes à moitié remplies dans tous vos rapports. Écrire ici ce que chaque nom veut dire évite qu'on en invente un cinquième — et masquer un nom le retire de l'écran Événements sans rien supprimer.",
+      pendingTitle: "Une migration reste à lancer",
+      pendingBody:
+        "Le dictionnaire a besoin d'une fonction et d'une table que la base n'a pas encore. Collez ce fichier dans l'éditeur SQL Supabase, puis rechargez :",
+      pendingFile: "supabase/lexicon.sql",
     },
     visitors: {
       noSiteBody: "Choisissez un site pour voir qui le visite.",
@@ -1322,6 +1377,7 @@ const en: AppStrings = {
       agent: "PulseTrack Agent",
       events: "Events",
       visitors: "Visitors",
+      lexicon: "Lexicon",
       data: "Data",
       settings: "Settings",
       mySites: "My sites",
@@ -1625,6 +1681,34 @@ const en: AppStrings = {
       replays: "Watch your visitors actually move through your site — every click, every scroll, every hesitation.",
       events: "The raw stream of what your site sends — every pageview, and every event you fire yourself.",
       visitors: "Who came by, what they looked at, where they came from — grouped by visitor rather than by page.",
+      lexicon: "The dictionary of your events: what each name means, and what it actually does.",
+    },
+    lexicon: {
+      noSiteBody: "Pick a site to see its dictionary.",
+      colName: "Name",
+      colVolume: "Volume",
+      colProperties: "Properties",
+      colLastSeen: "Last",
+      describe: "Describe",
+      describePlaceholder: "What this event means, and when it fires…",
+      save: "Save",
+      saving: "Saving…",
+      hide: "Hide",
+      unhide: "Show again",
+      hidden: "Hidden",
+      noProperties: "none",
+      neverFired: "Not sent in this period",
+      visitorsSuffix: "visitors",
+      emptyTitle: "No custom events",
+      emptyBody:
+        "The dictionary fills itself as soon as your code calls pulsetrack(\"name\"). Pageviews are not in it: they have no name to define.",
+      whyTitle: "What this dictionary is for",
+      whyBody:
+        "Nothing stops four people naming the same thing signup, Signup, sign_up and user_signed_up. That gives you four half-filled lines in every report. Writing down what each name means stops a fifth being invented — and hiding a name drops it from the Events screen without deleting anything.",
+      pendingTitle: "A migration still has to run",
+      pendingBody:
+        "The dictionary needs a function and a table the database does not have yet. Paste this file into the Supabase SQL editor, then reload:",
+      pendingFile: "supabase/lexicon.sql",
     },
     visitors: {
       noSiteBody: "Pick a site to see who visits it.",

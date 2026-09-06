@@ -46,6 +46,22 @@ export async function GET(req: NextRequest) {
   const before = searchParams.get("before");
   // Set by the Visitors screen when it expands one row into a timeline.
   const visitor = searchParams.get("visitor");
+  const includeHidden = searchParams.get("include_hidden") === "1";
+
+  /* Names the Lexicon has been told to hide — a debug event left in
+     production, a rename that left the old spelling behind. They keep
+     arriving and keep counting; they just stop crowding this list.
+     The table arrives with a migration, so its absence is not an
+     error here, it simply means nothing is hidden yet. */
+  let hiddenNames: string[] = [];
+  if (!includeHidden && !name) {
+    const { data: hidden } = await supabase
+      .from("event_lexicon")
+      .select("name")
+      .eq("site_id", siteId)
+      .eq("hidden", true);
+    hiddenNames = (hidden ?? []).map((h: { name: string }) => h.name);
+  }
 
   let q = supabase
     .from("events")
@@ -62,6 +78,15 @@ export async function GET(req: NextRequest) {
   if (name) q = q.eq("event_name", name);
   if (path) q = q.ilike("path", `%${path}%`);
   if (visitor) q = q.eq("visitor_id", visitor);
+  if (hiddenNames.length > 0) {
+    // Rows with no name at all — pageviews, leaves — are never hidden
+    // by a lexicon entry, so they have to survive this filter.
+    q = q.or(
+      `event_name.is.null,event_name.not.in.(${hiddenNames
+        .map((n) => `"${n.replace(/"/g, '""')}"`)
+        .join(",")})`
+    );
+  }
   if (before) q = q.lt("created_at", before);
 
   const { data, error } = await q;
@@ -90,7 +115,9 @@ export async function GET(req: NextRequest) {
 
   const names = [
     ...new Set((nameRows ?? []).map((r: { event_name: string }) => r.event_name)),
-  ].sort();
+  ]
+    .filter((n) => includeHidden || !hiddenNames.includes(n))
+    .sort();
 
   return NextResponse.json({
     events: page,
