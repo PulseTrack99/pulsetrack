@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react";
+import { useT } from "@/components/locale-context";
 
 /**
  * The filter controls, in one place.
@@ -103,9 +104,9 @@ export function SearchableSelect({
   value,
   options,
   onChange,
-  placeholder = "Sélectionner…",
-  emptyLabel = "Aucune option",
-  searchPlaceholder = "Rechercher…",
+  placeholder,
+  emptyLabel,
+  searchPlaceholder,
   minWidth = 180,
 }: {
   value: string | null;
@@ -116,6 +117,7 @@ export function SearchableSelect({
   searchPlaceholder?: string;
   minWidth?: number;
 }) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const ref = useOutsideClose(() => setOpen(false));
@@ -148,7 +150,9 @@ export function SearchableSelect({
             selected ? "" : "text-muted-light"
           }`}
         >
-          {options.length === 0 ? emptyLabel : (selected?.label ?? placeholder)}
+          {options.length === 0
+            ? (emptyLabel ?? t.filters.none)
+            : (selected?.label ?? placeholder ?? t.filters.select)}
         </span>
         {selected?.hint && (
           <span className="shrink-0 text-[10.5px] text-muted-light">
@@ -168,7 +172,7 @@ export function SearchableSelect({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
-                placeholder={searchPlaceholder}
+                placeholder={searchPlaceholder ?? t.filters.search}
                 className="w-full bg-transparent text-[12px] outline-none placeholder:text-muted-light"
               />
             </div>
@@ -177,7 +181,7 @@ export function SearchableSelect({
           <div className="max-h-64 overflow-y-auto py-1">
             {filtered.length === 0 ? (
               <p className="px-2.5 py-2 text-[12px] text-muted-light">
-                Rien ne correspond à « {query} ».
+                {t.filters.noMatch} « {query} ».
               </p>
             ) : (
               filtered.map((o) => (
@@ -253,13 +257,14 @@ export function ActiveFilterChip({
   value: string;
   onClear: () => void;
 }) {
+  const { t } = useT();
   return (
     <span className="flex items-center gap-1.5 rounded-sm border border-primary/30 bg-primary-pale px-2.5 py-1.5 text-[12px] text-primary">
       <span className="text-primary/70">{label} :</span>
       <span className="max-w-[220px] truncate">{value}</span>
       <button
         onClick={onClear}
-        title={`Retirer le filtre ${label.toLowerCase()}`}
+        title={`${t.filters.remove} — ${label.toLowerCase()}`}
         className="shrink-0 transition-opacity hover:opacity-70"
       >
         <X className="h-3 w-3" />

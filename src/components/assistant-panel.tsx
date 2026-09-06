@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { getAppHelpFaq } from "@/content/assistant-faq";
 import { findAnswer } from "@/lib/assistant-match";
+import { useT } from "@/components/locale-context";
 
 /**
  * The always-there assistant, on the right, the way Mixpanel keeps
@@ -49,51 +50,6 @@ interface Chat {
   messages: Message[];
   updatedAt: number;
 }
-
-/* Suggestions follow the screen, so the assistant offers the question
-   someone is likely to have where they are standing rather than a fixed
-   trio that ignores context. */
-const SUGGESTIONS: Record<string, string[]> = {
-  "/dashboard": [
-    "Comment installer le script de suivi ?",
-    "Que compte exactement « visiteurs » ?",
-    "Ai-je besoin d'un bandeau cookies ?",
-  ],
-  "/dashboard/flows": [
-    "Comment lire le diagramme des parcours ?",
-    "Que veut dire « Sortie du site » ?",
-    "Quelle différence avec un funnel ?",
-  ],
-  "/dashboard/funnels": [
-    "Comment créer un funnel ?",
-    "Combien de funnels puis-je créer ?",
-  ],
-  "/dashboard/heatmaps": [
-    "Que sont les clics de rage ?",
-    "Comment fonctionne la profondeur de scroll ?",
-  ],
-  "/dashboard/replays": [
-    "Comment fonctionne le Session Replay ?",
-    "Les données sensibles sont-elles masquées ?",
-  ],
-  "/dashboard/revenue": [
-    "Comment fonctionne l'attribution du revenu ?",
-    "Quelle clé Stripe dois-je créer ?",
-  ],
-  "/dashboard/settings": [
-    "Comment inviter un coéquipier ?",
-    "Comment brancher Claude sur mes données ?",
-  ],
-};
-
-const DEFAULT_SUGGESTIONS = [
-  "Comment installer le script de suivi ?",
-  "Ai-je besoin d'un bandeau cookies ?",
-  "Que puis-je faire avec PulseTrack ?",
-];
-
-const FALLBACK =
-  "Je n'ai pas de réponse toute prête à celle-là. Les réponses de ce panneau sont écrites à l'avance — elles couvrent l'installation, les offres, la confidentialité et chaque fonctionnalité. Reformulez avec d'autres mots, ou passez par le copilote de Session Replay pour une question portant sur vos propres sessions.";
 
 /* localStorage read as an external store, so the stored conversations
    arrive through the hydration-safe path rather than a setState in an
@@ -170,6 +126,7 @@ function continueChat(chat: Chat, question: string, answer: string): Chat {
 
 export function AssistantPanel({ onClose }: { onClose: () => void }) {
   const pathname = usePathname();
+  const { t, locale } = useT();
 
   const storedRaw = useSyncExternalStore(
     subscribeToStorage,
@@ -199,14 +156,19 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [active?.messages.length]);
 
-  const suggestions = SUGGESTIONS[pathname] ?? DEFAULT_SUGGESTIONS;
+  // Per screen, so the assistant offers the question someone is likely
+  // to have where they are standing. Lives in the dictionary so both
+  // languages stay in step.
+  const suggestions =
+    t.assistant.suggestions_by_screen[pathname] ??
+    t.assistant.suggestions_default;
 
   function ask(question: string) {
     const q = question.trim();
     if (!q) return;
     setInput("");
 
-    const answer = findAnswer(q, getAppHelpFaq("fr")) ?? FALLBACK;
+    const answer = findAnswer(q, getAppHelpFaq(locale)) ?? t.assistant.fallback;
 
     // Computed outside any state updater: an updater must stay pure —
     // React is free to run it twice — and this has to write to
@@ -243,19 +205,19 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
       <header className="relative flex h-12 shrink-0 items-center gap-1 border-b border-border px-3">
         <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
         <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
-          {active ? active.title : "Assistant"}
+          {active ? active.title : t.assistant.title}
         </span>
 
         <button
           onClick={newChat}
-          title="Nouvelle conversation"
+          title={t.assistant.newChat}
           className="rounded p-1.5 text-muted-light transition-colors hover:bg-surface-hover hover:text-foreground"
         >
           <Plus className="h-3.5 w-3.5" />
         </button>
         <button
           onClick={() => setHistoryOpen((v) => !v)}
-          title="Historique des conversations"
+          title={t.assistant.history}
           className={`rounded p-1.5 transition-colors hover:bg-surface-hover ${
             historyOpen ? "text-primary" : "text-muted-light hover:text-foreground"
           }`}
@@ -264,7 +226,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
         </button>
         <button
           onClick={onClose}
-          title="Fermer l'assistant"
+          title={t.assistant.close}
           className="rounded p-1.5 text-muted-light transition-colors hover:bg-surface-hover hover:text-foreground"
         >
           <X className="h-3.5 w-3.5" />
@@ -276,7 +238,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
           <div className="absolute right-2 top-full z-30 mt-1 w-[290px] overflow-hidden rounded-[var(--app-radius)] border border-border bg-surface shadow-lg">
             {chats.length === 0 ? (
               <p className="px-3 py-3 text-[12px] text-muted-light">
-                Aucune conversation pour l&apos;instant.
+                {t.assistant.noChats}
               </p>
             ) : (
               <ul className="max-h-72 overflow-y-auto py-1">
@@ -296,7 +258,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
                     </button>
                     <button
                       onClick={() => removeChat(c.id)}
-                      title="Supprimer"
+                      title={t.assistant.delete}
                       className="shrink-0 rounded p-1 text-muted-light transition-colors hover:text-coral"
                     >
                       <Trash2 className="h-3 w-3" />
@@ -316,11 +278,10 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
               <Sparkles className="h-5 w-5 text-primary" />
             </div>
             <p className="mt-3 text-[13px] font-medium">
-              Une question sur PulseTrack ?
+              {t.assistant.emptyTitle}
             </p>
             <p className="mt-1 text-[12px] leading-relaxed text-muted-light">
-              Installation, offres, confidentialité, ou ce que fait l&apos;écran
-              devant vous.
+              {t.assistant.emptyBody}
             </p>
           </div>
         ) : (
@@ -344,7 +305,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
       <div className="shrink-0 border-t border-border px-3 py-2.5">
         {!active && (
           <div className="mb-2 space-y-1">
-            <p className="app-label">Suggestions</p>
+            <p className="app-label">{t.assistant.suggestions}</p>
             {suggestions.map((s) => (
               <button
                 key={s}
@@ -368,13 +329,13 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
               }
             }}
             rows={1}
-            placeholder="Posez votre question…"
+            placeholder={t.assistant.placeholder}
             className="max-h-24 min-h-[22px] flex-1 resize-none bg-transparent text-[12.5px] outline-none placeholder:text-muted-light"
           />
           <button
             onClick={() => ask(input)}
             disabled={!input.trim()}
-            title="Envoyer"
+            title={t.assistant.send}
             className="shrink-0 rounded-md bg-primary p-1 text-white transition-opacity disabled:opacity-30"
           >
             <ArrowUp className="h-3.5 w-3.5" />
@@ -382,9 +343,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
         </div>
 
         <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted-light">
-          Réponses préécrites, sans appel à un modèle — instantanées et
-          gratuites. Pour une question sur vos propres sessions, utilisez le
-          copilote de Session Replay.
+          {t.assistant.disclaimer}
         </p>
       </div>
     </aside>

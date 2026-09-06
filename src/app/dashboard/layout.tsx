@@ -4,6 +4,8 @@ import { DashboardShell } from "@/components/dashboard-shell";
 import { SiteProvider } from "@/components/site-context";
 import { getUserPlan } from "@/lib/plan";
 import { PLANS } from "@/lib/stripe";
+import { LocaleProvider } from "@/components/locale-context";
+import { getLocale } from "@/i18n/get-locale";
 
 export default async function DashboardLayout({
   children,
@@ -19,7 +21,8 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const [plan, { data: sites }] = await Promise.all([
+  const [locale, plan, { data: sites }] = await Promise.all([
+    getLocale(),
     getUserPlan(supabase, user.id),
     // Fetched once here rather than separately on every page — the
     // selector lives in the rail now (src/components/site-context.tsx).
@@ -30,10 +33,12 @@ export default async function DashboardLayout({
   ]);
 
   return (
-    <SiteProvider sites={sites ?? []}>
-      <DashboardShell user={user} planName={PLANS[plan].name}>
-        {children}
-      </DashboardShell>
-    </SiteProvider>
+    <LocaleProvider locale={locale}>
+      <SiteProvider sites={sites ?? []}>
+        <DashboardShell user={user} planName={PLANS[plan].name}>
+          {children}
+        </DashboardShell>
+      </SiteProvider>
+    </LocaleProvider>
   );
 }

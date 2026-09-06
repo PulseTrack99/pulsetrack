@@ -33,6 +33,7 @@ import type { User } from "@supabase/supabase-js";
 import { AssistantPanel } from "@/components/assistant-panel";
 // Shared with the filter controls so there is one implementation.
 import { useOutsideClose } from "@/components/filters";
+import { useT } from "@/components/locale-context";
 
 /**
  * Rail structure follows Mixpanel's: the project (here, site)
@@ -47,24 +48,24 @@ import { useOutsideClose } from "@/components/filters";
  */
 
 const navItems = [
-  { href: "/dashboard", label: "Accueil", icon: BarChart3 },
-  { href: "/dashboard/revenue", label: "Revenue", icon: DollarSign },
-  { href: "/dashboard/funnels", label: "Funnels", icon: Filter },
-  { href: "/dashboard/flows", label: "Flows", icon: Workflow },
-  { href: "/dashboard/replays", label: "Session Replay", icon: Video },
-  { href: "/dashboard/heatmaps", label: "Heatmaps", icon: MousePointerClick },
-  { href: "/dashboard/settings", label: "Paramètres", icon: Settings },
-];
+  { href: "/dashboard", key: "home", icon: BarChart3 },
+  { href: "/dashboard/revenue", key: "revenue", icon: DollarSign },
+  { href: "/dashboard/funnels", key: "funnels", icon: Filter },
+  { href: "/dashboard/flows", key: "flows", icon: Workflow },
+  { href: "/dashboard/replays", key: "replays", icon: Video },
+  { href: "/dashboard/heatmaps", key: "heatmaps", icon: MousePointerClick },
+  { href: "/dashboard/settings", key: "settings", icon: Settings },
+] as const;
 
 /* Screens reached from the site switcher rather than the rail — they
    need a breadcrumb label like any other page, but no nav entry of
    their own. Without them /dashboard/sites falls back to the longest
    remaining match, /dashboard, and calls itself "Accueil". */
 const secondaryItems = [
-  { href: "/dashboard/sites/new", label: "Ajouter un site" },
-  { href: "/dashboard/sites", label: "Mes sites" },
-  { href: "/dashboard/upgrade", label: "Offres" },
-];
+  { href: "/dashboard/sites/new", key: "addSite" },
+  { href: "/dashboard/sites", key: "mySites" },
+  { href: "/dashboard/upgrade", key: "plans" },
+] as const;
 
 /** Longest matching href wins, so /dashboard/revenue doesn't also
  *  light up /dashboard. */
@@ -77,6 +78,7 @@ function currentItem(pathname: string) {
 /* ── Site switcher ── */
 function SiteSwitcher() {
   const { sites, site, ready, setSiteId } = useSites();
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const ref = useOutsideClose(() => setOpen(false));
 
@@ -105,10 +107,10 @@ function SiteSwitcher() {
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-medium leading-tight">
-            {site?.name ?? "Aucun site"}
+            {site?.name ?? t.shell.noSite}
           </p>
           <p className="truncate text-[11px] leading-tight text-muted-light">
-            {site?.domain ?? "Ajoutez votre premier site"}
+            {site?.domain ?? t.shell.addFirstSite}
           </p>
         </div>
         <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-light" />
@@ -139,7 +141,7 @@ function SiteSwitcher() {
               href="/dashboard/sites"
               className="block px-2.5 py-1.5 text-[12.5px] text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
             >
-              Gérer mes sites
+              {t.shell.manageSites}
             </a>
             <a
               href="/dashboard/sites/new"
@@ -156,6 +158,7 @@ function SiteSwitcher() {
 
 /* ── Create menu ── */
 function CreateMenu() {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const ref = useOutsideClose(() => setOpen(false));
 
@@ -166,7 +169,7 @@ function CreateMenu() {
         className="flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-[13px] font-medium text-white transition-colors hover:bg-primary-hover"
       >
         <Plus className="h-3.5 w-3.5" />
-        Créer
+        {t.shell.create}
       </button>
       {open && (
         <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-md border border-border bg-surface py-1 shadow-lg">
@@ -174,13 +177,13 @@ function CreateMenu() {
             href="/dashboard/sites/new"
             className="block px-2.5 py-1.5 text-[12.5px] text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
           >
-            Nouveau site
+            {t.shell.newSite}
           </a>
           <a
             href="/dashboard/funnels"
             className="block px-2.5 py-1.5 text-[12.5px] text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
           >
-            Nouveau funnel
+            {t.shell.newFunnel}
           </a>
         </div>
       )}
@@ -191,6 +194,7 @@ function CreateMenu() {
 /* ── Command palette (Ctrl/Cmd + K) ── */
 function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { sites, setSiteId } = useSites();
+  const { t } = useT();
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -208,7 +212,9 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
   if (!open) return null;
 
   const q = query.trim().toLowerCase();
-  const pages = navItems.filter((i) => !q || i.label.toLowerCase().includes(q));
+  const pages = navItems.filter(
+    (i) => !q || t.shell.nav[i.key].toLowerCase().includes(q)
+  );
   const matchedSites = sites.filter(
     (s) => q && (s.name.toLowerCase().includes(q) || s.domain.toLowerCase().includes(q))
   );
@@ -228,7 +234,7 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Aller à une page, changer de site…"
+            placeholder={t.shell.palette.placeholder}
             className="flex-1 bg-transparent py-3 text-[13px] outline-none placeholder:text-muted-light"
           />
           <kbd className="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-light">
@@ -239,7 +245,7 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
         <div className="max-h-80 overflow-y-auto p-1.5">
           {pages.length > 0 && (
             <>
-              <p className="app-label px-2 py-1.5">Pages</p>
+              <p className="app-label px-2 py-1.5">{t.shell.palette.pages}</p>
               {pages.map((i) => (
                 <a
                   key={i.href}
@@ -247,7 +253,7 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
                   className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
                 >
                   <i.icon className="h-4 w-4 shrink-0" />
-                  {i.label}
+                  {t.shell.nav[i.key]}
                 </a>
               ))}
             </>
@@ -255,7 +261,7 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
 
           {matchedSites.length > 0 && (
             <>
-              <p className="app-label px-2 py-1.5 pt-3">Sites</p>
+              <p className="app-label px-2 py-1.5 pt-3">{t.shell.palette.sites}</p>
               {matchedSites.map((s) => (
                 <button
                   key={s.id}
@@ -304,6 +310,7 @@ export function DashboardShell({
   // the person who most needs it. Remembered per browser afterwards.
   const [assistantOpen, setAssistantOpen] = useState(true);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const { t, locale, setLocale } = useT();
   const pathname = usePathname();
   const active = currentItem(pathname);
 
@@ -348,7 +355,7 @@ export function DashboardShell({
           <button
             onClick={() => setSidebarOpen(false)}
             className="ml-1 shrink-0 text-muted lg:hidden"
-            aria-label="Fermer le menu"
+            aria-label={t.shell.closeMenu}
           >
             <X className="h-4 w-4" />
           </button>
@@ -364,7 +371,7 @@ export function DashboardShell({
             className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
           >
             <Search className="h-4 w-4 shrink-0" />
-            <span className="flex-1 text-left">Rechercher</span>
+            <span className="flex-1 text-left">{t.shell.search}</span>
             <kbd className="rounded border border-border px-1 py-px text-[10px] text-muted-light">
               ⌘K
             </kbd>
@@ -387,7 +394,7 @@ export function DashboardShell({
                   }`}
                 >
                   <item.icon className="h-4 w-4 shrink-0" />
-                  {item.label}
+                  {t.shell.nav[item.key]}
                 </a>
               );
             })}
@@ -400,7 +407,7 @@ export function DashboardShell({
             className="flex items-center justify-center gap-1.5 rounded-md border border-amber/40 bg-amber/10 px-3 py-2 text-[12.5px] font-medium text-[#8a5a00] transition-colors hover:bg-amber/20"
           >
             <Crown className="h-3.5 w-3.5" />
-            Passer à l&apos;offre supérieure
+            {t.shell.upgrade}
           </a>
         </div>
 
@@ -411,14 +418,14 @@ export function DashboardShell({
           <a
             href="/dashboard/settings"
             className="rounded p-1.5 text-muted-light transition-colors hover:bg-surface-hover hover:text-foreground"
-            title="Paramètres"
+            title={t.shell.settings}
           >
             <Settings className="h-4 w-4" />
           </a>
           <a
             href="/features/analytics"
             className="rounded p-1.5 text-muted-light transition-colors hover:bg-surface-hover hover:text-foreground"
-            title="Aide et documentation"
+            title={t.shell.help}
           >
             <HelpCircle className="h-4 w-4" />
           </a>
@@ -429,9 +436,19 @@ export function DashboardShell({
                 ? "bg-primary-pale text-primary"
                 : "text-muted-light hover:text-foreground"
             }`}
-            title={assistantOpen ? "Fermer l'assistant" : "Ouvrir l'assistant"}
+            title={assistantOpen ? t.shell.closeAssistant : t.shell.openAssistant}
           >
             <Sparkles className="h-4 w-4" />
+          </button>
+          {/* Language. The dashboard was French-only while the marketing
+              site was already bilingual, so a customer could switch to
+              English on the landing page and land in a French app. */}
+          <button
+            onClick={() => setLocale(locale === "fr" ? "en" : "fr")}
+            className="rounded px-1.5 py-1.5 text-[11px] font-semibold text-muted-light transition-colors hover:bg-surface-hover hover:text-foreground"
+            title={t.shell.switchLanguage}
+          >
+            {locale.toUpperCase()}
           </button>
           <NotificationsButton
             open={notificationsOpen}
@@ -444,21 +461,21 @@ export function DashboardShell({
           <button
             onClick={() => setRailCollapsed(true)}
             className="hidden rounded p-1.5 text-muted-light transition-colors hover:bg-surface-hover hover:text-foreground lg:block"
-            title="Replier le menu"
+            title={t.shell.collapseMenu}
           >
             <PanelLeftClose className="h-4 w-4" />
           </button>
           <button
             onClick={() => setSidebarOpen(false)}
             className="rounded p-1.5 text-muted-light transition-colors hover:bg-surface-hover hover:text-foreground lg:hidden"
-            title="Fermer le menu"
+            title={t.shell.closeMenu}
           >
             <PanelLeftClose className="h-4 w-4" />
           </button>
           <button
             onClick={handleLogout}
             className="rounded p-1.5 text-muted-light transition-colors hover:bg-surface-hover hover:text-foreground"
-            title={`Se déconnecter (${user.email})`}
+            title={`${t.shell.signOut} (${user.email})`}
           >
             <LogOut className="h-4 w-4" />
           </button>
@@ -471,7 +488,7 @@ export function DashboardShell({
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[12px] leading-tight">{user.email}</p>
-              <p className="text-[11px] leading-tight text-muted-light">Plan {planName}</p>
+              <p className="text-[11px] leading-tight text-muted-light">{t.shell.plan} {planName}</p>
             </div>
           </div>
         </div>
@@ -483,7 +500,7 @@ export function DashboardShell({
           <button
             onClick={() => setSidebarOpen(true)}
             className="text-muted hover:text-foreground lg:hidden"
-            aria-label="Ouvrir le menu"
+            aria-label={t.shell.openMenu}
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -492,13 +509,15 @@ export function DashboardShell({
             <button
               onClick={() => setRailCollapsed(false)}
               className="hidden text-muted transition-colors hover:text-foreground lg:block"
-              title="Déplier le menu"
+              title={t.shell.expandMenu}
             >
               <PanelLeftOpen className="h-4 w-4" />
             </button>
           )}
           {/* Breadcrumb, like theirs: which site, then which screen. */}
-          <BreadcrumbTitle label={active?.label ?? "Accueil"} />
+          <BreadcrumbTitle
+            label={active ? t.shell.nav[active.key] : t.shell.nav.home}
+          />
 
           <div className="flex-1" />
 
@@ -506,10 +525,10 @@ export function DashboardShell({
             <button
               onClick={() => setAssistantOpen(true)}
               className="flex items-center gap-1.5 rounded-sm border border-border px-2 py-1 text-[12px] text-muted transition-colors hover:text-foreground"
-              title="Ouvrir l'assistant"
+              title={t.shell.openAssistant}
             >
               <Sparkles className="h-3.5 w-3.5" />
-              Assistant
+              {t.shell.assistant}
             </button>
           )}
         </header>
@@ -541,6 +560,7 @@ export function DashboardShell({
  */
 function ConnectDataBanner() {
   const { site, siteId } = useSites();
+  const { t } = useT();
   const [silent, setSilent] = useState(false);
 
   useEffect(() => {
@@ -565,18 +585,16 @@ function ConnectDataBanner() {
         <Radio className="h-5 w-5 text-primary" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[14px] font-semibold">Connectez vos données</p>
+        <p className="text-[14px] font-semibold">{t.shell.connect.title}</p>
         <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted">
-          {site?.name ?? "Ce site"} n&apos;a encore rien envoyé. Une ligne de
-          script à coller, et les écrans se remplissent en quelques secondes —
-          on vous dit dès qu&apos;on reçoit la première visite.
+          {site?.name ?? ""} {t.shell.connect.body}
         </p>
       </div>
       <a
         href="/dashboard/sites"
         className="shrink-0 rounded-[var(--app-radius-sm)] bg-primary px-3.5 py-2 text-[13px] font-medium text-white transition-colors hover:bg-primary-hover"
       >
-        Installer le script
+        {t.shell.connect.cta}
       </a>
     </div>
   );
@@ -598,6 +616,7 @@ function NotificationsButton({
   onClose: () => void;
 }) {
   const { site, siteId } = useSites();
+  const { t } = useT();
   const ref = useOutsideClose(onClose);
   const [silent, setSilent] = useState<boolean | null>(null);
   const [digest, setDigest] = useState<{ week_start: string; summary: string } | null>(
@@ -635,7 +654,7 @@ function NotificationsButton({
         className={`relative rounded p-1.5 transition-colors hover:bg-surface-hover ${
           open ? "bg-primary-pale text-primary" : "text-muted-light hover:text-foreground"
         }`}
-        title="Notifications"
+        title={t.shell.notifications}
       >
         <Bell className="h-4 w-4" />
         {count > 0 && (
@@ -646,13 +665,12 @@ function NotificationsButton({
       {open && (
         <div className="absolute bottom-full left-0 z-50 mb-1 w-[280px] overflow-hidden rounded-[var(--app-radius)] border border-border bg-surface shadow-lg">
           <p className="border-b border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-light">
-            Notifications
+            {t.shell.notify.title}
           </p>
 
           {count === 0 ? (
             <p className="px-3 py-3 text-[12px] leading-relaxed text-muted-light">
-              Rien à signaler sur {site?.name ?? "ce site"}. Les alertes de
-              chute de trafic et le résumé hebdomadaire apparaîtront ici.
+              {t.shell.notify.nothing}
             </p>
           ) : (
             <ul className="max-h-72 divide-y divide-border overflow-y-auto">
@@ -660,17 +678,16 @@ function NotificationsButton({
                 <li className="px-3 py-2.5">
                   <p className="flex items-center gap-1.5 text-[12.5px] font-medium text-amber-600">
                     <Radio className="h-3.5 w-3.5" />
-                    Aucune donnée reçue
+                    {t.shell.notify.noData}
                   </p>
                   <p className="mt-0.5 text-[11.5px] leading-relaxed text-muted">
-                    Le script de {site?.name ?? "ce site"} n&apos;a encore rien
-                    envoyé.
+                    {t.shell.notify.noDataBody}
                   </p>
                   <a
                     href="/dashboard/sites"
                     className="mt-1 inline-block text-[11.5px] font-medium text-primary hover:underline"
                   >
-                    Vérifier l&apos;installation
+                    {t.shell.notify.checkInstall}
                   </a>
                 </li>
               )}
@@ -678,7 +695,7 @@ function NotificationsButton({
                 <li className="px-3 py-2.5">
                   <p className="flex items-center gap-1.5 text-[12.5px] font-medium">
                     <Sparkles className="h-3.5 w-3.5 text-primary" />
-                    Insights de la semaine
+                    {t.shell.notify.insights}
                   </p>
                   <p className="mt-0.5 line-clamp-3 text-[11.5px] leading-relaxed text-muted">
                     {digest.summary}
@@ -687,7 +704,7 @@ function NotificationsButton({
                     href="/dashboard"
                     className="mt-1 inline-block text-[11.5px] font-medium text-primary hover:underline"
                   >
-                    Voir sur l&apos;accueil
+                    {t.shell.notify.seeOnHome}
                   </a>
                 </li>
               )}

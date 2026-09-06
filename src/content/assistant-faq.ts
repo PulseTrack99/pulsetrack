@@ -259,7 +259,82 @@ const appHelpFr: FaqEntry[] = [
 /** The in-app assistant's bank: screen help first, then everything the
  *  marketing chatbot already answers. */
 export function getAppHelpFaq(locale: Locale): FaqEntry[] {
-  return locale === "fr"
-    ? [...appHelpFr, ...getAssistantFaq(locale)]
-    : getAssistantFaq(locale);
+  const appHelp = locale === "fr" ? appHelpFr : appHelpEn;
+  return [...appHelp, ...getAssistantFaq(locale)];
 }
+
+/** English screen help — the mirror of appHelpFr. Both lists have to
+ *  cover the assistant's own per-screen suggestions, or the assistant
+ *  falls back on questions it proposed itself. */
+const appHelpEn: FaqEntry[] = [
+  {
+    q: "How do I read the paths diagram (Flows)?",
+    a: "Each column is a step in the journey: \"Entry\" is the landing page, \"Step 1\" the page after it, and so on. A block is one page, with the number of sessions and its share of that step. Line thickness shows how many sessions took that path. Hover a page to light up only its route.",
+    keywords: ["flows", "paths", "diagram", "columns", "read", "understand", "journey", "step"],
+  },
+  {
+    q: "What does \"Left the site\" mean in Flows?",
+    a: "It's the number of sessions that stopped at that step — the visitor never opened another page. Exit blocks are coral and sit at the bottom of their column, so you can separate at a glance the people who carried on from the ones who left.",
+    keywords: ["exit", "left", "leave", "dropped", "abandon", "flows", "coral", "orange"],
+  },
+  {
+    q: "What is the difference between Flows and Funnels?",
+    a: "A funnel is something you define up front: you list the steps you expect and PulseTrack counts who clears them. Flows do the opposite — they reconstruct the journeys visitors actually took, with nothing declared in advance. A funnel tests a hypothesis; Flows surface one.",
+    keywords: ["difference", "flows", "funnel", "versus", "compare", "between"],
+  },
+  {
+    q: "What does \"visitors\" count, and how is it different from \"sessions\"?",
+    a: "Visitors counts distinct people, identified by a cookie-free hash. Sessions counts visits: one person coming back three times in the period is 1 visitor and 3 sessions. That's why the second number is always equal to or higher than the first.",
+    keywords: ["visitors", "sessions", "difference", "unique", "count", "distinct", "people"],
+  },
+  {
+    q: "How is bounce rate calculated?",
+    a: "It's the share of sessions that saw exactly one page before leaving. A high rate isn't automatically bad: on a blog post or a contact page, reading and leaving is the normal behaviour.",
+    keywords: ["bounce", "rate", "calculated", "single", "page", "one"],
+  },
+  {
+    q: "What do the percentage changes on the home screen compare against?",
+    a: "Each card compares to the equal-length period immediately before: over 30 days, to the previous 30 days. A dash instead of a percentage means there was nothing in the previous period, so there is nothing to compare against.",
+    keywords: ["percentage", "change", "compare", "previous", "period", "delta", "growth", "dash"],
+  },
+  {
+    q: "What are rage clicks?",
+    a: "Several rapid clicks in the same spot — the sign that a visitor is insisting on something that doesn't respond: a fake button, a dead link, an image that looks clickable. It's the most direct signal of frustration on a page.",
+    keywords: ["rage", "clicks", "frustration", "angry", "repeated", "fake button", "dead"],
+  },
+  {
+    q: "How do I read scroll depth?",
+    a: "Each band shows the share of sessions that got at least that far down. If only 30% reach the middle of the page, everything below that is seen by a minority — useful when deciding where to put an important button.",
+    keywords: ["scroll", "depth", "band", "reached", "down", "heatmap", "fold"],
+  },
+  {
+    q: "How do I create a funnel?",
+    a: "On the Funnels screen, click \"Create a funnel\". Give it a name, then describe each step by exact URL, URL contains, or event. The funnel is created on the site selected in the left menu. You'll then see how many visitors clear each step and where they drop off.",
+    keywords: ["create", "funnel", "steps", "new", "add", "build", "make"],
+  },
+  {
+    q: "How do I connect Claude or ChatGPT to my data?",
+    a: "Settings → API access. Copy the MCP connector URL and paste it into Claude or ChatGPT: you sign in with your PulseTrack account in one click, and no key is ever shown. You can then ask your analytics questions straight to your assistant.",
+    keywords: ["claude", "chatgpt", "gemini", "mcp", "connector", "connect", "assistant", "ai"],
+  },
+  {
+    q: "Which Stripe key do I need for revenue tracking?",
+    a: "A restricted key (it starts with rk_), with read-only access to Charges and Customers and nothing else. PulseTrack reads your payments and cannot modify anything. You create it in Stripe → Developers → API keys.",
+    keywords: ["stripe", "key", "restricted", "read", "revenue", "charges", "customers"],
+  },
+  {
+    q: "How do I install the tracking script?",
+    a: "Left menu → \"Manage sites\" → \"Install\", or \"+ Create\" → \"New site\" for a new domain. You copy one line of script and paste it into the <head> of your pages — on Webflow, Shopify or WordPress, into the theme's \"custom code / head\" field. The guide ticks itself off as soon as the first visit arrives.",
+    keywords: ["install", "installation", "script", "tracking", "paste", "add", "setup", "tag", "head", "snippet"],
+  },
+  {
+    q: "How do I check that my script is installed correctly?",
+    a: "Left menu → \"Manage sites\". Each site shows its state: \"Data received\" with the date of the last visit, or \"Waiting for data\" if nothing has arrived yet. The \"Install\" button opens a guide that ticks itself off the moment the first visit is recorded.",
+    keywords: ["script", "installed", "check", "verify", "working", "data", "receiving"],
+  },
+  {
+    q: "Where do I switch site when I have several?",
+    a: "At the top of the left menu: the switcher shows the current site and its domain. That choice drives every screen at once — home, funnels, flows, replays, heatmaps and revenue all follow the selected site.",
+    keywords: ["switch", "site", "selector", "several", "multiple", "change", "project"],
+  },
+];
