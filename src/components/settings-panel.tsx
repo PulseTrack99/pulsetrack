@@ -30,52 +30,87 @@ interface Site {
   public_share_id: string | null;
 }
 
+const TABS = [
+  { id: "compte", label: "Compte" },
+  { id: "sites", label: "Sites & alertes" },
+  { id: "api", label: "Accès API" },
+  { id: "equipe", label: "Équipe" },
+] as const;
+
+type TabId = (typeof TABS)[number]["id"];
+
 export function SettingsPanel({
   user,
+  origin,
   sites: initialSites,
   currentPlan = "free",
   hasApiAccess = false,
   teamOwnerEmail = null,
 }: {
   user: SupabaseUser;
+  /** Resolved by the server page — see the note there. */
+  origin: string;
   sites: Site[];
   currentPlan?: string;
   hasApiAccess?: boolean;
   teamOwnerEmail?: string | null;
 }) {
   const [sites, setSites] = useState(initialSites);
+  const [tab, setTab] = useState<TabId>("compte");
 
+  /* Six unrelated sections used to be stacked in one column: account,
+     password, team, sites, API keys and the delete-account zone, all
+     scrolled past each other. Settings is the one screen where you
+     arrive knowing what you came to change, so it is split the way
+     Mixpanel splits theirs — a sub-navigation, one subject at a time. */
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">Paramètres</h1>
-        <p className="mt-1 text-sm text-muted">
-          Gérez votre compte et vos sites.
-        </p>
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-0.5 border-b border-border">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`-mb-px border-b-2 px-3 py-2 text-[13px] transition-colors ${
+              tab === t.id
+                ? "border-primary font-medium text-primary"
+                : "border-transparent text-muted hover:text-foreground"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {/* Account info */}
-      <AccountSection user={user} plan={currentPlan} />
+      <div className="max-w-3xl space-y-4">
+        {tab === "compte" && (
+          <>
+            <AccountSection user={user} plan={currentPlan} />
+            <PasswordSection />
+            <DangerZone />
+          </>
+        )}
 
-      {/* Change password */}
-      <PasswordSection />
+        {tab === "sites" && (
+          <SitesSection
+            sites={sites}
+            origin={origin}
+            onSiteDeleted={(siteId) =>
+              setSites(sites.filter((s) => s.id !== siteId))
+            }
+          />
+        )}
 
-      {/* Team */}
-      <TeamSection isMember={Boolean(teamOwnerEmail)} ownerEmail={teamOwnerEmail} />
+        {tab === "api" && (
+          <ApiKeysSection sites={sites} hasApiAccess={hasApiAccess} />
+        )}
 
-      {/* Sites management */}
-      <SitesSection
-        sites={sites}
-        onSiteDeleted={(siteId) =>
-          setSites(sites.filter((s) => s.id !== siteId))
-        }
-      />
-
-      {/* API keys */}
-      <ApiKeysSection sites={sites} hasApiAccess={hasApiAccess} />
-
-      {/* Danger zone */}
-      <DangerZone />
+        {tab === "equipe" && (
+          <TeamSection
+            isMember={Boolean(teamOwnerEmail)}
+            ownerEmail={teamOwnerEmail}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -84,10 +119,10 @@ export function SettingsPanel({
 function AccountSection({ user, plan }: { user: SupabaseUser; plan: string }) {
   const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
   return (
-    <section className="rounded-xl border border-border bg-background p-6">
+    <section className="app-card">
       <div className="flex items-center gap-3 mb-4">
-        <User className="h-5 w-5 text-primary" />
-        <h2 className="text-lg font-semibold">Compte</h2>
+        <User className="h-4 w-4 text-primary" />
+        <h2 className="text-[13.5px] font-semibold">Compte</h2>
       </div>
 
       <div className="space-y-3">
@@ -183,10 +218,10 @@ function PasswordSection() {
   }
 
   return (
-    <section className="rounded-xl border border-border bg-background p-6">
+    <section className="app-card">
       <div className="flex items-center gap-3 mb-4">
-        <Lock className="h-5 w-5 text-primary" />
-        <h2 className="text-lg font-semibold">Changer le mot de passe</h2>
+        <Lock className="h-4 w-4 text-primary" />
+        <h2 className="text-[13.5px] font-semibold">Changer le mot de passe</h2>
       </div>
 
       <form onSubmit={handleChangePassword} className="space-y-4">
@@ -318,10 +353,10 @@ function TeamSection({
   }
 
   return (
-    <section className="rounded-xl border border-border bg-background p-6">
+    <section className="app-card">
       <div className="flex items-center gap-3 mb-4">
-        <Users className="h-5 w-5 text-primary" />
-        <h2 className="text-lg font-semibold">Équipe</h2>
+        <Users className="h-4 w-4 text-primary" />
+        <h2 className="text-[13.5px] font-semibold">Équipe</h2>
       </div>
 
       {isMember ? (
@@ -449,9 +484,11 @@ function TeamSection({
 /* ─────────── SITES MANAGEMENT ─────────── */
 function SitesSection({
   sites,
+  origin,
   onSiteDeleted,
 }: {
   sites: Site[];
+  origin: string;
   onSiteDeleted: (siteId: string) => void;
 }) {
   const [siteShareIds, setSiteShareIds] = useState<Record<string, string | null>>(
@@ -563,7 +600,7 @@ function SitesSection({
   }
 
   function copyShareLink(shareId: string) {
-    const url = `${window.location.origin}/public/${shareId}`;
+    const url = `${origin}/public/${shareId}`;
     navigator.clipboard.writeText(url);
     setCopiedShareId(shareId);
     setTimeout(() => setCopiedShareId(null), 2000);
@@ -577,11 +614,11 @@ function SitesSection({
   }
 
   return (
-    <section className="rounded-xl border border-border bg-background p-6">
+    <section className="app-card">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <Globe className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">Mes sites</h2>
+          <Globe className="h-4 w-4 text-primary" />
+          <h2 className="text-[13.5px] font-semibold">Mes sites</h2>
         </div>
         <a
           href="/dashboard/sites/new"
@@ -690,7 +727,7 @@ function SitesSection({
                 {siteShareIds[site.id] && (
                   <div className="mt-2 flex items-center gap-2">
                     <div className="flex-1 rounded-md bg-background border border-border px-2.5 py-1.5 text-xs text-muted truncate font-mono">
-                      {window.location.origin}/public/{siteShareIds[site.id]}
+                      {origin}/public/{siteShareIds[site.id]}
                     </div>
                     <button
                       onClick={() => copyShareLink(siteShareIds[site.id]!)}
@@ -901,10 +938,10 @@ function ApiKeysSection({
   }
 
   return (
-    <section className="rounded-xl border border-border bg-background p-6">
+    <section className="app-card">
       <div className="flex items-center gap-3 mb-4">
-        <Code2 className="h-5 w-5 text-primary" />
-        <h2 className="text-lg font-semibold">Accès API</h2>
+        <Code2 className="h-4 w-4 text-primary" />
+        <h2 className="text-[13.5px] font-semibold">Accès API</h2>
       </div>
 
       {!hasApiAccess ? (
@@ -1186,13 +1223,13 @@ function DangerZone() {
   }
 
   return (
-    <section className="rounded-xl border border-red-200 bg-background p-6 dark:border-red-800">
-      <div className="flex items-center gap-3 mb-4">
-        <AlertTriangle className="h-5 w-5 text-red-500" />
-        <h2 className="text-lg font-semibold text-red-500">Zone danger</h2>
+    <section className="app-card border-coral/30">
+      <div className="mb-3 flex items-center gap-2">
+        <AlertTriangle className="h-4 w-4 text-coral" />
+        <h2 className="text-[13.5px] font-semibold text-coral">Supprimer le compte</h2>
       </div>
 
-      <p className="text-sm text-muted mb-4">
+      <p className="mb-3 text-[13px] leading-relaxed text-muted">
         La suppression de votre compte est irréversible. Toutes vos données,
         sites et analytics seront définitivement supprimés.
       </p>

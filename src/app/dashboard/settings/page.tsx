@@ -42,6 +42,11 @@ export default async function SettingsPage() {
   return (
     <SettingsPanel
       user={user}
+      // Resolved server-side: the panel used to read
+      // window.location.origin while rendering the public share link,
+      // which throws during SSR and dropped this page to client-only
+      // rendering with a 500 in the logs.
+      origin={process.env.NEXT_PUBLIC_SITE_URL ?? "https://pulsetrack.eu"}
       sites={sites || []}
       currentPlan={currentPlan}
       hasApiAccess={planHas(currentPlan, "api")}
