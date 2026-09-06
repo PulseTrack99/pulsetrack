@@ -28,6 +28,9 @@ import {
 export default async function Home() {
   const locale = await getLocale();
   const t = dictionaries[locale];
+  // Same source as the guided install (src/app/dashboard/sites/new),
+  // so the two can never drift apart again.
+  const scriptOrigin = process.env.NEXT_PUBLIC_SITE_URL ?? "https://pulsetrack.eu";
 
   return (
     <>
@@ -181,7 +184,14 @@ export default async function Home() {
 
               <div className="mt-8 overflow-x-auto rounded-lg border border-border bg-surface-inverse p-5 text-left">
                 <code className="whitespace-pre font-mono text-[12.5px] leading-relaxed text-white/85">
-                  {`<script src="https://pulsetrack.io/t.js"\n        data-site="YOUR_SITE_ID" defer></script>`}
+                  {/* The one string in the product a visitor is meant to
+                      copy. It named pulsetrack.io while everything else
+                      serves from pulsetrack.eu, so the snippet fetched an
+                      HTML page instead of the tracker — a 200 with the
+                      wrong MIME type, which browsers refuse to execute and
+                      nobody sees fail. It comes from the same place as the
+                      guided install now. */}
+                  {`<script src="${scriptOrigin}/t.js"\n        data-site="YOUR_SITE_ID" defer></script>`}
                 </code>
               </div>
             </Reveal>
