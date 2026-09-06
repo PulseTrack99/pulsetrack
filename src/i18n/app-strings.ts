@@ -53,6 +53,9 @@ export interface AppStrings {
       pages: string;
       sites: string;
       noResult: string;
+      escape: string;
+      /** {q} is the typed query. */
+      noMatchFor: string;
     };
     notify: {
       title: string;
@@ -84,6 +87,12 @@ export interface AppStrings {
     send: string;
     disclaimer: string;
     fallback: string;
+    thinking: string;
+    failed: string;
+    quotaExceeded: string;
+    upgradeRequired: string;
+    quotaLeft: string;
+    openReplays: string;
     /** Keyed by pathname; falls back to suggestions_default. */
     suggestions_by_screen: Record<string, string[]>;
     suggestions_default: string[];
@@ -192,6 +201,7 @@ export interface AppStrings {
       removeMember: string;
     };
     sites: {
+      vsLastWeek: string;
       title: string;
       addSite: string;
       none: string;
@@ -210,16 +220,22 @@ export interface AppStrings {
       title: string;
       seePlans: string;
       addSiteFirst: string;
+      availableFrom: string;
       blurb: string;
+      blurbHeader: string;
+      blurbBusiness1: string;
+      blurbBusiness2: string;
       mcpTitle: string;
       mcpBlurb: string;
       mcpNoPaste: string;
+      mcpBlurbTail: string;
       mcpHeadless: string;
       connectedApps: string;
       newKey: string;
       copyNow: string;
       revoke: string;
       usedOn: string;
+      neverUsed: string;
       keyNamePlaceholder: string;
       generate: string;
     };
@@ -227,6 +243,7 @@ export interface AppStrings {
       title: string;
       body: string;
       deleteAccount: string;
+      deletePermanently: string;
       typeToConfirm: string;
       confirmWord: string;
       cancel: string;
@@ -236,6 +253,10 @@ export interface AppStrings {
 
   screens: {
     common: {
+      networkErrorRetry: string;
+      inviteAccepted: string;
+      inviteFailed: string;
+      acceptInvite: string;
       noSiteTitle: string;
       addSite: string;
       seePlans: string;
@@ -269,6 +290,15 @@ export interface AppStrings {
     heatmaps: {
       noSiteBody: string;
       lockedTitle: string;
+      lockedBody: string;
+      overlayNote: string;
+      snapshotTaken: string;
+      snapshotOn: string;
+      snapshotElements: string;
+      noSnapshot: string;
+      inert: string;
+      sampledNote1: string;
+      sampledNote2: string;
       loadLive: string;
       cold: string;
       hot: string;
@@ -311,12 +341,19 @@ export interface AppStrings {
       overPeriod: Record<string, string>;
       emptyTitle: string;
       emptyBody: string;
+      skipInactive: string;
+      replayFailed: string;
+      lockedBody: string;
+      reachedStep: string;
+      stuckAfter: string;
+      afterStep: string;
+      nameThisFilter: string;
+      scrolledLessThan: string;
+      percentScrolled: string;
+      emptyFilteredTitle: string;
+      emptyFilteredBody: string;
       selectOne: string;
       heatmapOfPage: string;
-      copilot: string;
-      copilotBlurb: string;
-      askPlaceholder: string;
-      send: string;
       chipLowScroll: string;
       chipNoConversion: string;
       chipFunnelDropoff: string;
@@ -330,6 +367,9 @@ export interface AppStrings {
       noSiteBody: string;
       intro: string;
       create: string;
+      limitReached1: string;
+      limitReached2: string;
+      createError: string;
       createFirst: string;
       emptyTitle: string;
       emptyBody: string;
@@ -416,6 +456,8 @@ export interface AppStrings {
       byPage: string;
       noSource: string;
       noPage: string;
+      noPageTail: string;
+      vsPrevious: string;
       recentTransactions: string;
       amount: string;
       customer: string;
@@ -431,7 +473,8 @@ export interface AppStrings {
     /** Short labels on the period buttons: 7j vs 7d. */
     periodShort: Record<string, string>;
     search: string;
-    noMatch: string;
+    /** {q} is the typed query. */
+    noMatchFor: string;
     select: string;
     none: string;
     period: string;
@@ -481,6 +524,8 @@ const fr: AppStrings = {
       pages: "Pages",
       sites: "Sites",
       noResult: "Aucun résultat",
+      escape: "Échap",
+      noMatchFor: "Rien ne correspond à « {q} »",
     },
     notify: {
       title: "Notifications",
@@ -506,52 +551,57 @@ const fr: AppStrings = {
     close: "Fermer l'assistant",
     noChats: "Aucune conversation pour l'instant.",
     delete: "Supprimer",
-    emptyTitle: "Une question sur PulseTrack ?",
+    emptyTitle: "Que voulez-vous savoir ?",
     emptyBody:
-      "Installation, offres, confidentialité, ou ce que fait l'écran devant vous.",
+      "Posez une question sur vos chiffres, vos parcours ou vos revenus — je lis les données de",
     suggestions: "Suggestions",
     placeholder: "Posez votre question…",
     send: "Envoyer",
     disclaimer:
-      "Réponses préécrites, sans appel à un modèle — instantanées et gratuites. Pour une question sur vos propres sessions, utilisez le copilote de Session Replay.",
+      "L'assistant lit vos données pour répondre. Chaque question compte dans le quota mensuel de votre offre.",
+    thinking: "Je regarde vos données…",
+    failed: "L'assistant n'a pas pu répondre. Réessayez dans un instant.",
+    quotaExceeded: "Vous avez atteint votre quota de questions pour ce mois. Il se réinitialise le 1er.",
+    upgradeRequired: "L'assistant est disponible à partir de l'offre Starter.",
+    quotaLeft: "Questions restantes ce mois :",
+    openReplays: "Ouvrir ces sessions",
     fallback:
       "Je n'ai pas de réponse toute prête à celle-là. Les réponses de ce panneau sont écrites à l'avance — elles couvrent l'installation, les offres, la confidentialité et chaque fonctionnalité. Reformulez avec d'autres mots, ou passez par le copilote de Session Replay pour une question portant sur vos propres sessions.",
     suggestions_by_screen: {
       "/dashboard": [
-        "Comment installer le script de suivi ?",
-        "Que compte exactement « visiteurs » ?",
-        "Ai-je besoin d'un bandeau cookies ?",
+        "Comment évolue mon trafic ce mois-ci ?",
+        "D'où viennent mes meilleurs visiteurs ?",
+        "Quelle page marche le mieux ?",
       ],
       "/dashboard/flows": [
-        "Comment lire le diagramme des parcours ?",
-        "Que veut dire « Sortie du site » ?",
-        "Quelle différence avec un funnel ?",
+        "Où mes visiteurs partent-ils le plus ?",
+        "Quel est le parcours le plus fréquent ?",
       ],
       "/dashboard/funnels": [
-        "Comment créer un funnel ?",
-        "Combien de funnels puis-je créer ?",
+        "À quelle étape je perds le plus de monde ?",
+        "Mes funnels convertissent-ils mieux qu'avant ?",
       ],
       "/dashboard/heatmaps": [
-        "Que sont les clics de rage ?",
-        "Comment fonctionne la profondeur de scroll ?",
+        "Sur quelle page y a-t-il le plus de clics de rage ?",
+        "Mes visiteurs descendent-ils jusqu'en bas ?",
       ],
       "/dashboard/replays": [
-        "Comment fonctionne le Session Replay ?",
-        "Les données sensibles sont-elles masquées ?",
+        "Montre-moi les sessions qui n'ont presque pas scrollé",
+        "Y a-t-il des sessions avec des clics de rage ?",
       ],
       "/dashboard/revenue": [
-        "Comment fonctionne l'attribution du revenu ?",
-        "Quelle clé Stripe dois-je créer ?",
+        "Quelle source me rapporte le plus ?",
+        "Quel est mon panier moyen ce mois-ci ?",
       ],
       "/dashboard/settings": [
-        "Comment inviter un coéquipier ?",
         "Comment brancher Claude sur mes données ?",
+        "Quelle clé Stripe dois-je créer ?",
       ],
     },
     suggestions_default: [
-      "Comment installer le script de suivi ?",
-      "Ai-je besoin d'un bandeau cookies ?",
-      "Que puis-je faire avec PulseTrack ?",
+      "Comment évolue mon trafic ce mois-ci ?",
+      "D'où viennent mes visiteurs ?",
+      "Y a-t-il quelque chose d'anormal cette semaine ?",
     ],
   },
 
@@ -668,6 +718,7 @@ const fr: AppStrings = {
       removeMember: "Retirer",
     },
     sites: {
+      vsLastWeek: "% vs la semaine dernière",
       title: "Mes sites",
       addSite: "+ Ajouter un site",
       none: "Aucun site ajouté.",
@@ -686,16 +737,22 @@ const fr: AppStrings = {
       title: "Accès API",
       seePlans: "Voir les offres →",
       addSiteFirst: "Ajoutez d'abord un site.",
-      blurb: "Une clé de site donne un accès en lecture aux mêmes statistiques que le dashboard, via",
+      availableFrom: "Disponible à partir du plan Growth.",
+      blurb: "Une clé par site donne un accès en lecture aux mêmes statistiques que le dashboard, via",
+      blurbHeader: "avec l'en-tête",
+      blurbBusiness1: "Sur l'offre Business, la même clé donne aussi accès aux événements bruts (",
+      blurbBusiness2: ", paginé par curseur) pour alimenter votre propre entrepôt de données.",
       mcpTitle: "Connecter Claude, ChatGPT ou Gemini (MCP)",
       mcpBlurb: "Posez vos questions d'analytics en langage naturel directement depuis votre assistant IA. Dans Claude.ai ou ChatGPT, ajoutez un connecteur avec l'URL ci-dessous —",
       mcpNoPaste: "rien d'autre à coller",
+      mcpBlurbTail: ", l'app vous redirige ici pour vous connecter et choisir un site, aucune clé n'est jamais affichée.",
       mcpHeadless: "Client sans écran de connexion (Claude Code, script, curl) ? Générez une clé ci-dessous — la clé brute ou l'URL avec la clé intégrée fonctionnent aussi.",
       connectedApps: "Applications connectées",
       newKey: "Nouvelle clé",
       copyNow: "Copiez cette clé maintenant — elle ne sera plus jamais affichée.",
       revoke: "Révoquer",
       usedOn: "utilisée le",
+      neverUsed: "jamais utilisée",
       keyNamePlaceholder: "Nom (optionnel — ex. « BI interne »)",
       generate: "Générer",
     },
@@ -703,6 +760,7 @@ const fr: AppStrings = {
       title: "Supprimer le compte",
       body: "La suppression de votre compte est irréversible. Toutes vos données, sites et analytics seront définitivement supprimés.",
       deleteAccount: "Supprimer mon compte",
+      deletePermanently: "Supprimer définitivement",
       typeToConfirm: "pour confirmer la suppression définitive de votre compte.",
       confirmWord: "SUPPRIMER",
       cancel: "Annuler",
@@ -711,6 +769,10 @@ const fr: AppStrings = {
 
   screens: {
     common: {
+      networkErrorRetry: "Erreur réseau — réessayez.",
+      inviteAccepted: "Invitation acceptée — redirection…",
+      inviteFailed: "Impossible d'accepter l'invitation.",
+      acceptInvite: "Accepter l'invitation",
       noSiteTitle: "Aucun site pour l'instant",
       addSite: "Ajouter un site",
       seePlans: "Voir les offres",
@@ -751,6 +813,19 @@ const fr: AppStrings = {
       noSiteBody:
         "Une heatmap se construit à partir des clics et des scrolls que le script enregistre sur une page. Ajoutez un site, installez le script, et la première carte apparaît dès les premières visites.",
       lockedTitle: "Les heatmaps sont sur Starter",
+      lockedBody:
+        "Passez sur Starter pour voir où vos visiteurs cliquent, jusqu'où ils scrollent et sur quoi ils s'acharnent en vain.",
+      overlayNote:
+        "La page live n'apparaît que si le domaine est joignable et accepte d'être affiché dans un cadre. Sinon, décochez : la structure ci-dessous vient de la capture, elle est toujours fidèle.",
+      snapshotTaken: "Structure de la page relevée le",
+      snapshotOn: "sur",
+      snapshotElements: "éléments",
+      inert: "inerte",
+      noSnapshot:
+        "Aucune structure relevée pour cette page. Elle sera capturée au prochain passage d'un visiteur avec le script à jour.",
+      sampledNote1: "Carte et classement calculés sur les",
+      sampledNote2:
+        "interactions les plus récentes. Les totaux ci-dessus portent sur la période entière.",
       loadLive: "Charger la page live",
       cold: "Froid",
       hot: "Chaud",
@@ -798,13 +873,21 @@ const fr: AppStrings = {
       overPeriod: { "24h": "sur 24 h", "7d": "sur 7 jours", "30d": "sur 30 jours", "90d": "sur 90 jours" },
       emptyTitle: "Aucun enregistrement",
       emptyBody: "Ils apparaîtront dès qu'un visiteur sera enregistré.",
+      skipInactive: "Accélérer automatiquement les temps morts",
+      lockedBody:
+        "Passez sur Starter pour regarder vos visiteurs naviguer réellement sur votre site — clics, scroll, hésitations, clics de rage.",
+      reachedStep: "Ont atteint :",
+      stuckAfter: "Bloqués après :",
+      afterStep: "après",
+      nameThisFilter: "Nommer ce filtre…",
+      replayFailed: "La capture n'a pas pu être rejouée. La carte reste exacte.",
+      scrolledLessThan: "Moins de",
+      percentScrolled: "% scrollé",
+      emptyFilteredTitle: "Aucun enregistrement ne correspond",
+      emptyFilteredBody:
+        "Des sessions sont bien enregistrées, mais aucune ne remplit ce filtre. Élargissez-le pour en voir.",
       selectOne: "Sélectionnez un enregistrement à gauche",
       heatmapOfPage: "Heatmap de cette page",
-      copilot: "Copilote IA",
-      copilotBlurb:
-        "Posez une question sur vos sessions enregistrées — je choisis le filtre qui correspond.",
-      askPlaceholder: "Posez votre question…",
-      send: "Envoyer",
       chipLowScroll: "Sessions qui n'ont presque pas scrollé",
       chipNoConversion: "Sessions qui n'ont pas converti",
       chipFunnelDropoff: "Abandon du funnel",
@@ -839,6 +922,9 @@ const fr: AppStrings = {
       intro:
         "Suivez le parcours de vos visiteurs étape par étape et identifiez où ils décrochent.",
       create: "Créer un funnel",
+      limitReached1: "Votre offre permet",
+      limitReached2: "Passez à une offre supérieure pour en créer un nouveau.",
+      createError: "Erreur lors de la création",
       createFirst: "Créer mon premier funnel",
       emptyTitle: "Aucun funnel sur",
       emptyBody:
@@ -983,6 +1069,8 @@ const fr: AppStrings = {
       noSource:
         "Aucun paiement rattaché à une source sur cette période. Dès qu'un visiteur venu de Google ou d'un réseau social paiera, le revenu qu'il a rapporté apparaîtra ici.",
       noPage: "Aucun revenu rattaché à une page. Appelez",
+      noPageTail: "sur votre site pour relier un paiement à la page qui l'a amené.",
+      vsPrevious: "par rapport à la période précédente",
       recentTransactions: "Transactions récentes",
       amount: "Montant",
       customer: "Client",
@@ -998,7 +1086,7 @@ const fr: AppStrings = {
   filters: {
     periodShort: { "24h": "24h", "7d": "7j", "30d": "30j", "90d": "90j" },
     search: "Rechercher…",
-    noMatch: "Rien ne correspond à",
+    noMatchFor: "Rien ne correspond à « {q} ».",
     select: "Sélectionner…",
     none: "Aucune option",
     period: "Période",
@@ -1048,6 +1136,8 @@ const en: AppStrings = {
       pages: "Pages",
       sites: "Sites",
       noResult: "No result",
+      escape: "Esc",
+      noMatchFor: "Nothing matches “{q}”",
     },
     notify: {
       title: "Notifications",
@@ -1073,52 +1163,57 @@ const en: AppStrings = {
     close: "Close the assistant",
     noChats: "No conversations yet.",
     delete: "Delete",
-    emptyTitle: "A question about PulseTrack?",
+    emptyTitle: "What would you like to know?",
     emptyBody:
-      "Install, plans, privacy, or what the screen in front of you does.",
+      "Ask about your numbers, your journeys or your revenue — I read the data for",
     suggestions: "Suggestions",
     placeholder: "Ask your question…",
     send: "Send",
     disclaimer:
-      "Pre-written answers, with no model call — instant and free. For a question about your own sessions, use the Session Replay copilot.",
+      "The assistant reads your data to answer. Each question counts against your plan's monthly allowance.",
+    thinking: "Looking at your data…",
+    failed: "The assistant could not answer. Try again in a moment.",
+    quotaExceeded: "You have used this month's question allowance. It resets on the 1st.",
+    upgradeRequired: "The assistant is available from the Starter plan.",
+    quotaLeft: "Questions left this month:",
+    openReplays: "Open these sessions",
     fallback:
       "I don't have a ready answer for that one. This panel's answers are written in advance — they cover install, plans, privacy and every feature. Try different words, or use the Session Replay copilot for a question about your own sessions.",
     suggestions_by_screen: {
       "/dashboard": [
-        "How do I install the tracking script?",
-        "What exactly does “visitors” count?",
-        "Do I need a cookie banner?",
+        "How is my traffic trending this month?",
+        "Where do my best visitors come from?",
+        "Which page performs best?",
       ],
       "/dashboard/flows": [
-        "How do I read the paths diagram?",
-        "What does “Left the site” mean?",
-        "How is this different from a funnel?",
+        "Where do visitors drop off most?",
+        "What is the most common path?",
       ],
       "/dashboard/funnels": [
-        "How do I create a funnel?",
-        "How many funnels can I create?",
+        "Which step loses the most people?",
+        "Are my funnels converting better than before?",
       ],
       "/dashboard/heatmaps": [
-        "What are rage clicks?",
-        "How does scroll depth work?",
+        "Which page has the most rage clicks?",
+        "Do visitors scroll all the way down?",
       ],
       "/dashboard/replays": [
-        "How does session replay work?",
-        "Is sensitive data masked?",
+        "Show me the sessions that barely scrolled",
+        "Are there sessions with rage clicks?",
       ],
       "/dashboard/revenue": [
-        "How does revenue attribution work?",
-        "Which Stripe key should I create?",
+        "Which source earns me the most?",
+        "What is my average order this month?",
       ],
       "/dashboard/settings": [
-        "How do I invite a teammate?",
         "How do I connect Claude to my data?",
+        "Which Stripe key should I create?",
       ],
     },
     suggestions_default: [
-      "How do I install the tracking script?",
-      "Do I need a cookie banner?",
-      "What can I do with PulseTrack?",
+      "How is my traffic trending this month?",
+      "Where do my visitors come from?",
+      "Is anything unusual this week?",
     ],
   },
 
@@ -1230,6 +1325,7 @@ const en: AppStrings = {
       removeMember: "Remove",
     },
     sites: {
+      vsLastWeek: "% vs last week",
       title: "My sites",
       addSite: "+ Add a site",
       none: "No site added.",
@@ -1248,16 +1344,22 @@ const en: AppStrings = {
       title: "API access",
       seePlans: "See plans →",
       addSiteFirst: "Add a site first.",
-      blurb: "A site key gives read access to the same statistics as the dashboard, via",
+      availableFrom: "Available from the Growth plan.",
+      blurb: "A key per site gives read access to the same statistics as the dashboard, via",
+      blurbHeader: "with the header",
+      blurbBusiness1: "On the Business plan, the same key also gives access to raw events (",
+      blurbBusiness2: ", cursor-paginated) to feed your own data warehouse.",
       mcpTitle: "Connect Claude, ChatGPT or Gemini (MCP)",
       mcpBlurb: "Ask your analytics questions in plain language straight from your AI assistant. In Claude.ai or ChatGPT, add a connector with the URL below —",
       mcpNoPaste: "nothing else to paste",
+      mcpBlurbTail: ", the app redirects you here to sign in and pick a site, and no key is ever shown.",
       mcpHeadless: "A client with no sign-in screen (Claude Code, a script, curl)? Generate a key below — the raw key or the URL with the key built in both work.",
       connectedApps: "Connected apps",
       newKey: "New key",
       copyNow: "Copy this key now — it will never be shown again.",
       revoke: "Revoke",
       usedOn: "used on",
+      neverUsed: "never used",
       keyNamePlaceholder: "Name (optional — e.g. “Internal BI”)",
       generate: "Generate",
     },
@@ -1265,6 +1367,7 @@ const en: AppStrings = {
       title: "Delete account",
       body: "Deleting your account is irreversible. All your data, sites and analytics will be permanently removed.",
       deleteAccount: "Delete my account",
+      deletePermanently: "Delete permanently",
       typeToConfirm: "to confirm permanent deletion of your account.",
       confirmWord: "DELETE",
       cancel: "Cancel",
@@ -1273,6 +1376,10 @@ const en: AppStrings = {
 
   screens: {
     common: {
+      networkErrorRetry: "Network error — try again.",
+      inviteAccepted: "Invitation accepted — redirecting…",
+      inviteFailed: "Could not accept the invitation.",
+      acceptInvite: "Accept the invitation",
       noSiteTitle: "No site yet",
       addSite: "Add a site",
       seePlans: "See plans",
@@ -1313,6 +1420,18 @@ const en: AppStrings = {
       noSiteBody:
         "A heatmap is built from the clicks and scrolls the script records on a page. Add a site, install the script, and the first map appears with the first visits.",
       lockedTitle: "Heatmaps are on Starter",
+      lockedBody:
+        "Move to Starter to see where your visitors click, how far they scroll and what they hammer on in vain.",
+      overlayNote:
+        "The live page only shows if the domain is reachable and allows being displayed in a frame. Otherwise untick it: the structure below comes from the capture, and is always faithful.",
+      snapshotTaken: "Page structure captured on",
+      snapshotOn: "on",
+      snapshotElements: "elements",
+      inert: "inert",
+      noSnapshot:
+        "No structure captured for this page yet. It will be captured the next time a visitor comes through with an up-to-date script.",
+      sampledNote1: "Map and ranking computed on the",
+      sampledNote2: "most recent interactions. The totals above cover the whole period.",
       loadLive: "Load the live page",
       cold: "Cold",
       hot: "Hot",
@@ -1360,13 +1479,21 @@ const en: AppStrings = {
       overPeriod: { "24h": "over 24h", "7d": "over 7 days", "30d": "over 30 days", "90d": "over 90 days" },
       emptyTitle: "No recording",
       emptyBody: "They'll appear as soon as a visitor is recorded.",
+      skipInactive: "Automatically speed through idle time",
+      lockedBody:
+        "Move to Starter to watch your visitors actually move through your site — clicks, scrolls, hesitations, rage clicks.",
+      reachedStep: "Reached:",
+      stuckAfter: "Stuck after:",
+      afterStep: "after",
+      nameThisFilter: "Name this filter…",
+      replayFailed: "The capture could not be replayed. The map is still accurate.",
+      scrolledLessThan: "Less than",
+      percentScrolled: "% scrolled",
+      emptyFilteredTitle: "No recording matches",
+      emptyFilteredBody:
+        "Sessions are being recorded, but none meet this filter. Widen it to see some.",
       selectOne: "Select a recording on the left",
       heatmapOfPage: "Heatmap of this page",
-      copilot: "AI copilot",
-      copilotBlurb:
-        "Ask a question about your recorded sessions — I'll pick the filter that matches.",
-      askPlaceholder: "Ask your question…",
-      send: "Send",
       chipLowScroll: "Sessions that barely scrolled",
       chipNoConversion: "Sessions that didn't convert",
       chipFunnelDropoff: "Drop-off in funnel",
@@ -1401,6 +1528,9 @@ const en: AppStrings = {
       intro:
         "Follow your visitors step by step and find where they drop off.",
       create: "Create a funnel",
+      limitReached1: "Your plan allows",
+      limitReached2: "Move to a higher plan to create a new one.",
+      createError: "Could not create the funnel",
       createFirst: "Create my first funnel",
       emptyTitle: "No funnel on",
       emptyBody:
@@ -1543,6 +1673,8 @@ const en: AppStrings = {
       noSource:
         "No payment tied to a source over this period. As soon as a visitor who came from Google or social pays, the revenue they brought will appear here.",
       noPage: "No revenue tied to a page. Call",
+      noPageTail: "on your site to tie a payment back to the page that brought it.",
+      vsPrevious: "versus the previous period",
       recentTransactions: "Recent transactions",
       amount: "Amount",
       customer: "Customer",
@@ -1558,7 +1690,7 @@ const en: AppStrings = {
   filters: {
     periodShort: { "24h": "24h", "7d": "7d", "30d": "30d", "90d": "90d" },
     search: "Search…",
-    noMatch: "Nothing matches",
+    noMatchFor: "Nothing matches “{q}”.",
     select: "Select…",
     none: "No option",
     period: "Period",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -28,7 +28,6 @@ import {
   CreditCard,
   ArrowDownToLine,
   Filter,
-  Sparkles,
   Bookmark,
   Save,
   Plus,
@@ -157,7 +156,7 @@ function formatDuration(ms: number): string {
 /**
  * Follows the rail's site switcher. Everything below is scoped to one
  * site — the open recording, the filters, the saved cohorts, the
- * copilot conversation — so the panel is keyed by site and a switch
+ * saved cohorts — so the panel is keyed by site and a switch
  * remounts it clean rather than leaving one site's session list under
  * another site's name.
  */
@@ -171,6 +170,19 @@ export function SessionReplayPanel() {
   const params = useSearchParams();
   const linked = params.get("site");
   const path = params.get("path");
+
+  /* The assistant's "open these sessions" arrives as URL parameters
+     rather than shared state: the panel lives in a page and the
+     assistant in the shell, and a link is something you can also
+     bookmark, share with a colleague, or come back to. */
+  const incoming: IncomingFilter = {
+    behavior: params.get("behavior"),
+    scrollMax: params.get("scroll_max"),
+    funnelId: params.get("funnel_id"),
+    step: params.get("step"),
+    device: params.get("device"),
+    rage: params.get("rage") === "1",
+  };
 
   useEffect(() => {
     if (linked && linked !== siteId && sites.some((s) => s.id === linked)) {
@@ -196,31 +208,90 @@ export function SessionReplayPanel() {
     );
   }
 
+  /* The key carries the arriving filter, not just the site. Landing
+     here from the assistant or from a heatmap while already on this
+     screen changes the URL without changing the route, so without this
+     the panel keeps its old state and the filter silently does nothing.
+     Remounting is how the rest of this file already applies an incoming
+     selection — the initial state is read once, and the user is free to
+     change it afterwards. */
+  const incomingKey = [
+    siteId,
+    path ?? "",
+    incoming.behavior ?? "",
+    incoming.scrollMax ?? "",
+    incoming.funnelId ?? "",
+    incoming.step ?? "",
+    incoming.device ?? "",
+    incoming.rage ? "1" : "",
+  ].join("|");
+
   return (
     <SiteReplays
-      key={siteId}
+      key={incomingKey}
       siteId={siteId}
       siteDomain={site?.domain ?? ""}
       initialPath={path}
+      incoming={incoming}
     />
   );
+}
+
+interface IncomingFilter {
+  behavior: string | null;
+  scrollMax: string | null;
+  funnelId: string | null;
+  step: string | null;
+  device: string | null;
+  rage: boolean;
+}
+
+/** The URL filter, as the one-condition array the panel already speaks. */
+function conditionsFrom(f: IncomingFilter): Condition[] {
+  if (f.behavior === "low_scroll") {
+    return [
+      {
+        field: "scroll_pct",
+        operator: "lt",
+        value: Math.max(1, Math.min(99, Number(f.scrollMax) || 25)),
+      },
+    ];
+  }
+  if (f.behavior === "no_conversion") {
+    return [{ field: "converted", operator: "not_exists" }];
+  }
+  if (f.behavior === "funnel_dropoff" && f.funnelId) {
+    return [
+      {
+        field: "funnel_step",
+        operator: "dropped",
+        funnel_id: f.funnelId,
+        step: Math.max(0, Number(f.step) || 0),
+      },
+    ];
+  }
+  return [];
 }
 
 function SiteReplays({
   siteId,
   siteDomain,
   initialPath,
+  incoming,
 }: {
   siteId: string;
   siteDomain: string;
   initialPath: string | null;
+  incoming: IncomingFilter;
 }) {
   const { t, intl } = useT();
   const [path, setPath] = useState<string | null>(initialPath);
   const periodOptions = usePeriodOptions();
   const [period, setPeriod] = useState("30d");
-  const [device, setDevice] = useState<string | null>(null);
-  const [rageOnly, setRageOnly] = useState(false);
+  const [device, setDevice] = useState<string | null>(
+    ["Desktop", "Mobile", "Tablet"].includes(incoming.device ?? "") ? incoming.device : null
+  );
+  const [rageOnly, setRageOnly] = useState(incoming.rage);
 
   // Read-time filters over sessions already recorded — they never change
   // which visits the tracker chooses to record (src/app/api/replay/gate
@@ -228,13 +299,20 @@ function SiteReplays({
   // already-captured recordings show up here. One mechanism for
   // everything: the quick-filter buttons below just set a one-condition
   // array of the same shape the advanced builder produces.
-  const [conditions, setConditions] = useState<Condition[]>([]);
+  const [conditions, setConditions] = useState<Condition[]>(() =>
+    conditionsFrom(incoming)
+  );
   const [match, setMatch] = useState<Match>("AND");
   const [showBuilder, setShowBuilder] = useState(false);
   const [funnels, setFunnels] = useState<FunnelOption[]>([]);
   const [hasRevenue, setHasRevenue] = useState(false);
 
   const singleCondition = conditions.length === 1 ? conditions[0] : null;
+
+  /** Is the list narrowed at all? Period is excluded — there is always
+   *  one, so it never explains an empty list the way the rest do. */
+  const filtering =
+    conditions.length > 0 || device !== null || rageOnly || path !== null;
 
   // Saved cohorts — a name attached to the exact filter shape above,
   // nothing more. Applying one just sets the same state the manual
@@ -244,19 +322,6 @@ function SiteReplays({
   const [savingCohort, setSavingCohort] = useState(false);
   const [cohortName, setCohortName] = useState("");
 
-  // Copilot — translates a plain-language question into one of the
-  // behavioural filters above (src/app/api/copilot). It never invents a
-  // new way to query the data, it only sets the same state these
-  // buttons already set — so whatever it picks stays visibly editable
-  // through the ordinary controls afterwards. Kept as a real
-  // conversation (chat bubbles, history) rather than a single line that
-  // overwrites itself, so a question and its answer stay visible
-  // together once a second question is asked.
-  const [question, setQuestion] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
-  const [chat, setChat] = useState<
-    { role: "user" | "ai" | "upsell"; text: string }[]
-  >([]);
 
   const [replays, setReplays] = useState<ReplayRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -453,87 +518,7 @@ function SiteReplays({
     };
   }, [selected, siteId]);
 
-  // Quick-start chips — only the ones that would actually do something on
-  // this site, mirroring which manual filter buttons are shown below.
-  const suggestions = useMemo(() => {
-    const s = [t.screens.replays.chipLowScroll];
-    if (hasRevenue) s.push(t.screens.replays.chipNoConversion);
-    if (funnels.length > 0)
-      s.push(`${t.screens.replays.chipFunnelDropoff} ${funnels[0].name}`);
-    return s;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasRevenue, funnels, t]);
 
-  async function askCopilot(preset?: string) {
-    const q = (preset ?? question).trim();
-    if (!q || aiLoading || !siteId) return;
-
-    setChat((c) => [...c, { role: "user", text: q }]);
-    setQuestion("");
-    setAiLoading(true);
-
-    try {
-      const res = await fetch("/api/copilot", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ site_id: siteId, question: q }),
-      });
-      const data = await res.json();
-
-      if (res.status === 402) {
-        setChat((c) => [
-          ...c,
-          {
-            role: "upsell",
-            text:
-              data.error === "quota_exceeded"
-                ? `Quota IA atteint pour ce mois (${data.used}/${data.limit}) — ça repart à zéro le mois prochain, ou passez sur une offre supérieure.`
-                : "Le copilote IA est disponible à partir du plan Starter.",
-          },
-        ]);
-        return;
-      }
-      if (!res.ok) {
-        setChat((c) => [
-          ...c,
-          { role: "ai", text: data.error || "Le copilote n'a pas pu répondre." },
-        ]);
-        return;
-      }
-
-      // The copilot still speaks the older fixed behavior/scroll_max/
-      // funnel_id shape (src/app/api/copilot) — translated into a
-      // one-condition array here rather than rewriting an already
-      // tested backend just to match a newer, more general client shape.
-      const f = data.filter as {
-        behavior: "no_conversion" | "low_scroll" | "funnel_dropoff" | null;
-        scroll_max: number | null;
-        funnel_id: string | null;
-        step: number;
-        device: string | null;
-        rage_only: boolean;
-      };
-
-      if (f.behavior === "low_scroll") {
-        setConditions([{ field: "scroll_pct", operator: "lt", value: f.scroll_max ?? 25 }]);
-      } else if (f.behavior === "no_conversion") {
-        setConditions([{ field: "converted", operator: "not_exists" }]);
-      } else if (f.behavior === "funnel_dropoff" && f.funnel_id) {
-        setConditions([{ field: "funnel_step", operator: "dropped", funnel_id: f.funnel_id, step: f.step ?? 0 }]);
-      }
-      if (f.device) setDevice(f.device);
-      if (f.rage_only) setRageOnly(true);
-
-      setChat((c) => [...c, { role: "ai", text: data.explanation }]);
-    } catch {
-      setChat((c) => [
-        ...c,
-        { role: "ai", text: "Le copilote n'a pas pu répondre — réessayez." },
-      ]);
-    } finally {
-      setAiLoading(false);
-    }
-  }
 
   if (locked) {
     return (
@@ -543,8 +528,7 @@ function SiteReplays({
         </div>
         <h2 className="mt-4 text-lg font-medium">{t.screens.replays.lockedTitle}</h2>
         <p className="mx-auto mt-2 max-w-sm text-[13.5px] text-muted">
-          Passez sur Starter pour regarder vos visiteurs naviguer réellement
-          sur votre site — clics, scroll, hésitations, clics de rage.
+          {t.screens.replays.lockedBody}
         </p>
         <Link href="/dashboard/upgrade" className="btn btn-brand mt-6">
           {t.screens.common.seePlans}
@@ -569,7 +553,7 @@ function SiteReplays({
         />
 
         <SegmentedFilter
-          ariaLabel="Période"
+          ariaLabel={t.filters.period}
           value={period}
           options={periodOptions}
           onChange={setPeriod}
@@ -668,7 +652,7 @@ function SiteReplays({
 
         {singleCondition?.field === "scroll_pct" && !showBuilder && (
           <label className="flex items-center gap-1.5 text-[12px] text-muted">
-            Moins de
+            {t.screens.replays.scrolledLessThan}
             <input
               type="number"
               min={1}
@@ -679,7 +663,7 @@ function SiteReplays({
               }
               className="w-14 rounded-sm border border-border bg-surface px-1.5 py-1 text-[12px] outline-none focus:border-primary"
             />
-            % scrollé
+            {t.screens.replays.percentScrolled}
           </label>
         )}
 
@@ -706,8 +690,8 @@ function SiteReplays({
                 ?.steps.map((s, i, arr) => (
                   <option key={s.step_order} value={i}>
                     {i === arr.length - 1
-                      ? `Ont atteint : ${s.name}`
-                      : `Bloqués après : ${s.name}`}
+                      ? `${t.screens.replays.reachedStep} ${s.name}`
+                      : `${t.screens.replays.stuckAfter} ${s.name}`}
                   </option>
                 ))}
             </select>
@@ -803,7 +787,7 @@ function SiteReplays({
                         .find((f) => f.id === c.funnel_id)
                         ?.steps.map((s, si, arr) => (
                           <option key={s.step_order} value={si}>
-                            {si === arr.length - 1 ? s.name : `après ${s.name}`}
+                            {si === arr.length - 1 ? s.name : `${t.screens.replays.afterStep} ${s.name}`}
                           </option>
                         ))}
                     </select>
@@ -924,7 +908,7 @@ function SiteReplays({
               value={cohortName}
               onChange={(e) => setCohortName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && saveCohort()}
-              placeholder="Nommer ce filtre…"
+              placeholder={t.screens.replays.nameThisFilter}
               className="w-36 rounded-sm border border-border bg-surface px-2 py-1 text-[12px] outline-none focus:border-primary"
             />
             <button
@@ -941,9 +925,9 @@ function SiteReplays({
 
       <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
         {/* Left column: the session list first — it is what the screen is
-            for — with the copilot underneath as an accessory. It used to
-            be the other way round, so the recordings started halfway
-            down the column. */}
+            for. The copilot that used to sit under it has moved to the
+            assistant panel on the right, where it has room and can
+            answer about more than this one screen. */}
         <div className="flex flex-col gap-4">
           {/* Session list */}
           <div className="flex max-h-[460px] flex-col overflow-hidden rounded-lg border border-border bg-surface">
@@ -969,9 +953,15 @@ function SiteReplays({
           {!loading && replays.length === 0 && (
             <div className="p-8 text-center">
               <Video className="mx-auto h-6 w-6 text-muted-light" />
-              <p className="mt-3 text-[13px] font-medium">{t.screens.replays.emptyTitle}</p>
+              {/* "Nothing recorded yet" and "nothing matches what you
+                  asked for" are different problems with different fixes,
+                  and telling someone to wait for a first visitor when they
+                  already have recordings just reads as broken. */}
+              <p className="mt-3 text-[13px] font-medium">
+                {filtering ? t.screens.replays.emptyFilteredTitle : t.screens.replays.emptyTitle}
+              </p>
               <p className="mt-1.5 text-[12px] text-muted">
-                {t.screens.replays.emptyBody}
+                {filtering ? t.screens.replays.emptyFilteredBody : t.screens.replays.emptyBody}
               </p>
             </div>
           )}
@@ -1030,89 +1020,6 @@ function SiteReplays({
             </div>
           </div>
 
-          {/* Copilot — sets the same filters as the manual controls
-              above, never a new query path of its own. Always shown
-              here: every plan that reaches this panel (session_replay
-              requires at least Starter) also has ai_copilot, so the
-              only way a question can be refused is the monthly quota,
-              surfaced inline as an "upsell" chat bubble rather than
-              hiding the panel over it. */}
-          <div className="flex flex-col overflow-hidden rounded-lg border border-primary/20 bg-surface">
-            <div className="flex items-center gap-2 border-b border-border bg-primary-pale/40 px-3.5 py-2.5">
-              <Sparkles className="h-4 w-4 shrink-0 text-primary" />
-              <span className="text-[13px] font-medium text-primary">{t.screens.replays.copilot}</span>
-            </div>
-
-            <div className="flex max-h-[220px] min-h-[80px] flex-col gap-2 overflow-y-auto px-3 py-2.5">
-              {chat.length === 0 && (
-                <p className="px-0.5 text-[12px] text-muted-light">
-                  {t.screens.replays.copilotBlurb}
-                </p>
-              )}
-              {chat.map((m, i) => (
-                <div
-                  key={i}
-                  className={
-                    m.role === "user"
-                      ? "self-end max-w-[88%] rounded-lg rounded-br-sm bg-primary px-3 py-1.5 text-[12.5px] text-white"
-                      : m.role === "upsell"
-                        ? "max-w-[92%] rounded-lg bg-coral-pale px-3 py-1.5 text-[12px] text-coral"
-                        : "max-w-[92%] rounded-lg rounded-bl-sm bg-surface-sunken px-3 py-1.5 text-[12.5px] text-foreground"
-                  }
-                >
-                  {m.text}
-                  {m.role === "upsell" && (
-                    <Link
-                      href="/dashboard/upgrade"
-                      className="ml-1.5 font-medium underline"
-                    >
-                      {t.screens.common.seePlans}
-                    </Link>
-                  )}
-                </div>
-              ))}
-              {aiLoading && (
-                <div className="flex w-fit items-center gap-1 self-start rounded-lg rounded-bl-sm bg-surface-sunken px-3 py-2">
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-light [animation-delay:0ms]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-light [animation-delay:120ms]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-light [animation-delay:240ms]" />
-                </div>
-              )}
-            </div>
-
-            {chat.length === 0 && (
-              <div className="flex flex-wrap gap-1.5 border-t border-border px-3 py-2">
-                {suggestions.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => askCopilot(s)}
-                    disabled={aiLoading}
-                    className="rounded-full border border-border px-2.5 py-1 text-[11px] text-muted transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-40"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="flex items-center gap-2 border-t border-border p-2">
-              <input
-                type="text"
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && askCopilot()}
-                placeholder={t.screens.replays.askPlaceholder}
-                className="min-w-0 flex-1 rounded-sm bg-surface-sunken px-2.5 py-1.5 text-[12.5px] outline-none placeholder:text-muted-light"
-              />
-              <button
-                onClick={() => askCopilot()}
-                disabled={aiLoading || !question.trim()}
-                className="shrink-0 rounded-sm bg-primary px-3 py-1.5 text-[12px] font-medium text-white transition-opacity disabled:opacity-40"
-              >
-                {aiLoading ? "…" : t.screens.replays.send}
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Player */}

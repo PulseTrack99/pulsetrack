@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useT } from "@/components/locale-context";
 
 /**
  * Rebuilds the captured page inside rrweb's own sandboxed iframe.
@@ -33,6 +34,7 @@ export function PageReplay({
   docH: number;
   className?: string;
 }) {
+  const { t } = useT();
   const wrapRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const [scale, setScale] = useState(0);
@@ -108,7 +110,7 @@ export function PageReplay({
 
       {state === "failed" && (
         <div className="absolute inset-x-0 top-0 bg-amber/15 px-3 py-2 text-[11px] text-muted">
-          La capture n&apos;a pas pu être rejouée. La carte reste exacte.
+          {t.screens.replays.replayFailed}
         </div>
       )}
     </div>

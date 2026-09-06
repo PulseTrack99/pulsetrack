@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Play, Pause, Gauge, FastForward } from "lucide-react";
+import { useT } from "@/components/locale-context";
 // Static, not dynamic: a CSS side-effect import has to be resolved by the
 // bundler's CSS pipeline, which a runtime import() does not reliably do.
 // It only costs anything once this component's own chunk is loaded, which
@@ -76,6 +77,7 @@ export function SessionReplayPlayer({
   events: any[];
   className?: string;
 }) {
+  const { t } = useT();
   const wrapRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const replayerRef = useRef<any>(null);
@@ -300,7 +302,7 @@ export function SessionReplayPlayer({
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSkipInactive((v) => !v)}
-              title="Accélérer automatiquement les temps morts"
+              title={t.screens.replays.skipInactive}
               className={`flex items-center gap-1 rounded-sm px-2 py-1 text-[11px] transition-colors ${
                 skipInactive
                   ? "bg-primary-pale text-primary"

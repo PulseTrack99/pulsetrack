@@ -653,7 +653,7 @@ export function DashboardContent() {
       {/* Period — the site is chosen once in the rail. */}
       <div className="app-toolbar justify-between">
         <SegmentedFilter
-          ariaLabel="Période"
+          ariaLabel={t.filters.period}
           value={period}
           options={periodOptions}
           onChange={setPeriod}

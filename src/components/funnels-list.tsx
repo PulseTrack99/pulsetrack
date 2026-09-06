@@ -227,7 +227,7 @@ function SiteFunnels({
                     {t.screens.funnels.results}
                   </h3>
                   <SegmentedFilter
-                    ariaLabel="Période"
+                    ariaLabel={t.filters.period}
                     value={period}
                     options={periodOptions}
                     onChange={setPeriod}
@@ -309,10 +309,10 @@ function CreateFunnelForm({
         const data = await res.json();
         if (data.error === "upgrade_required") {
           throw new Error(
-            `Votre offre permet ${data.limit} funnel${data.limit > 1 ? "s" : ""}. Passez à une offre supérieure pour en créer un nouveau.`
+            `${t.screens.funnels.limitReached1} ${data.limit} funnel${data.limit > 1 ? "s" : ""}. ${t.screens.funnels.limitReached2}`
           );
         }
-        throw new Error(data.error || "Erreur lors de la création");
+        throw new Error(data.error || t.screens.funnels.createError);
       }
 
       const funnel = await res.json();

@@ -238,7 +238,7 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
             className="flex-1 bg-transparent py-3 text-[13px] outline-none placeholder:text-muted-light"
           />
           <kbd className="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-light">
-            Échap
+            {t.shell.palette.escape}
           </kbd>
         </div>
 
@@ -282,7 +282,7 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
 
           {pages.length === 0 && matchedSites.length === 0 && (
             <p className="px-2 py-6 text-center text-[12.5px] text-muted-light">
-              Rien ne correspond à « {query} »
+              {t.shell.palette.noMatchFor.replace("{q}", query)}
             </p>
           )}
         </div>

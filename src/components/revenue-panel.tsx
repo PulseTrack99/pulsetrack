@@ -311,7 +311,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
           in the breadcrumb, so there is no second one here. */}
       <div className="app-toolbar justify-between">
         <SegmentedFilter
-          ariaLabel="Période"
+          ariaLabel={t.filters.period}
           value={period}
           options={periodOptions}
           onChange={setPeriod}
@@ -544,8 +544,7 @@ export function RevenuePanel({ siteId }: { siteId: string }) {
               <code className="rounded bg-surface-sunken px-1 py-0.5 font-mono text-[11.5px]">
                 pulsetrack.identify(email)
               </code>{" "}
-              sur votre site pour relier un paiement à la page qui l&apos;a
-              amené.
+              {t.screens.revenue.noPageTail}
             </p>
           )}
         </div>
@@ -622,6 +621,7 @@ function StatCard({
   change?: number;
   hint: string;
 }) {
+  const { t } = useT();
   return (
     <div className="app-card">
       <div className="flex items-center justify-between">
@@ -637,7 +637,7 @@ function StatCard({
             className={`flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[11px] font-medium tabular-nums ${
               change >= 0 ? "text-emerald-600" : "text-coral"
             }`}
-            title={`${change >= 0 ? "+" : ""}${change}% par rapport à la période précédente`}
+            title={`${change >= 0 ? "+" : ""}${change}% ${t.screens.revenue.vsPrevious}`}
           >
             {change >= 0 ? (
               <TrendingUp className="h-3 w-3" />

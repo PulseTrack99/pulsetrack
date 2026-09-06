@@ -266,7 +266,7 @@ export function FlowPanel() {
     <div className="space-y-3">
       <FilterBar>
         <SegmentedFilter
-          ariaLabel="Période"
+          ariaLabel={t.filters.period}
           value={period}
           options={periodOptions}
           onChange={setPeriod}

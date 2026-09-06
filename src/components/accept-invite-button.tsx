@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { Loader2, Check } from "lucide-react";
+import { useT } from "@/components/locale-context";
 
 export function AcceptInviteButton({ token }: { token: string }) {
+  const { t } = useT();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -19,7 +21,7 @@ export function AcceptInviteButton({ token }: { token: string }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Impossible d'accepter l'invitation.");
+        setError(data.error || t.screens.common.inviteFailed);
         return;
       }
       setDone(true);
@@ -27,7 +29,7 @@ export function AcceptInviteButton({ token }: { token: string }) {
         window.location.href = "/dashboard";
       }, 1200);
     } catch {
-      setError("Erreur réseau — réessayez.");
+      setError(t.screens.common.networkErrorRetry);
     } finally {
       setLoading(false);
     }
@@ -37,7 +39,7 @@ export function AcceptInviteButton({ token }: { token: string }) {
     return (
       <div className="flex items-center justify-center gap-2 rounded-lg bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
         <Check className="h-4 w-4" />
-        Invitation acceptée — redirection...
+        {t.screens.common.inviteAccepted}
       </div>
     );
   }
@@ -54,7 +56,7 @@ export function AcceptInviteButton({ token }: { token: string }) {
         disabled={loading}
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-50"
       >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Accepter l'invitation"}
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : t.screens.common.acceptInvite}
       </button>
     </div>
   );

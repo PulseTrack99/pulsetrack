@@ -797,7 +797,7 @@ function SitesSection({
                         }
                         className="w-14 rounded-md border border-border bg-background px-1.5 py-1 text-xs outline-none focus:border-primary"
                       />
-                      % vs la semaine dernière
+                      {t.settings.sites.vsLastWeek}
                     </label>
 
                     <div className="mt-2">
@@ -952,7 +952,7 @@ function ApiKeysSection({
 
       {!hasApiAccess ? (
         <div className="rounded-lg bg-surface px-4 py-3 text-sm text-muted">
-          Disponible à partir du plan Growth.{" "}
+          {t.settings.api.availableFrom}{" "}
           <a href="/dashboard/upgrade" className="font-medium text-primary hover:underline">
             {t.settings.api.seePlans}
           </a>
@@ -962,22 +962,21 @@ function ApiKeysSection({
       ) : (
         <div className="space-y-4">
           <p className="text-xs text-muted">
-            Une clé par site donne un accès en lecture aux mêmes statistiques
-            que le dashboard, via <code className="rounded bg-surface px-1 py-0.5">GET /api/v1/stats</code>{" "}
-            avec l&apos;en-tête <code className="rounded bg-surface px-1 py-0.5">Authorization: Bearer &lt;clé&gt;</code>.
-            {" "}Sur l&apos;offre Business, la même clé donne aussi accès aux événements bruts (
-            <code className="rounded bg-surface px-1 py-0.5">GET /api/v1/events</code>, paginé par
-            curseur) pour alimenter votre propre entrepôt de données.
+            {t.settings.api.blurb}{" "}
+            <code className="rounded bg-surface px-1 py-0.5">GET /api/v1/stats</code>{" "}
+            {t.settings.api.blurbHeader}{" "}
+            <code className="rounded bg-surface px-1 py-0.5">Authorization: Bearer &lt;key&gt;</code>.
+            {" "}{t.settings.api.blurbBusiness1}
+            <code className="rounded bg-surface px-1 py-0.5">GET /api/v1/events</code>
+            {t.settings.api.blurbBusiness2}
           </p>
 
           <div className="rounded-lg border border-primary/20 bg-primary-pale/30 p-4">
             <p className="text-sm font-semibold">{t.settings.api.mcpTitle}</p>
             <p className="mt-1 text-xs text-muted">
-              Posez vos questions d&apos;analytics en langage naturel directement depuis votre
-              assistant IA. Dans Claude.ai ou ChatGPT, ajoutez un connecteur avec l&apos;URL
-              ci-dessous — <span className="font-medium text-foreground">rien d&apos;autre à
-              coller</span>, l&apos;app vous redirige ici pour vous connecter et choisir un site,
-              aucune clé n&apos;est jamais affichée.
+              {t.settings.api.mcpBlurb}{" "}
+              <span className="font-medium text-foreground">{t.settings.api.mcpNoPaste}</span>
+              {t.settings.api.mcpBlurbTail}
             </p>
             <div className="mt-2 flex items-center gap-2">
               <code className="flex-1 truncate rounded-md bg-background px-2.5 py-1.5 text-xs">
@@ -995,8 +994,7 @@ function ApiKeysSection({
               </button>
             </div>
             <p className="mt-3 text-[11px] text-muted-light">
-              Client sans écran de connexion (Claude Code, script, curl) ? Générez une clé
-              ci-dessous — la clé brute ou l&apos;URL avec la clé intégrée fonctionnent aussi.
+              {t.settings.api.mcpHeadless}
             </p>
           </div>
 
@@ -1101,7 +1099,7 @@ function ApiKeysSection({
                           <span className="ml-2 text-muted-light">
                             {k.last_used_at
                               ? `${t.settings.api.usedOn} ${new Date(k.last_used_at).toLocaleDateString(intl)}`
-                              : "jamais utilisée"}
+                              : t.settings.api.neverUsed}
                           </span>
                         </div>
                         <button
@@ -1181,7 +1179,7 @@ function ConnectedAppsSection() {
                 <span className="ml-2 text-muted-light">
                   {c.last_used_at
                     ? `${t.settings.api.usedOn} ${new Date(c.last_used_at).toLocaleDateString(intl)}`
-                    : "jamais utilisée"}
+                    : t.settings.api.neverUsed}
                 </span>
               </div>
               <button
@@ -1272,7 +1270,7 @@ function DangerZone() {
               ) : (
                 <Trash2 className="h-4 w-4" />
               )}
-              Supprimer définitivement
+              {t.settings.danger.deletePermanently}
             </button>
             <button
               onClick={() => {

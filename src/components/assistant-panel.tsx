@@ -7,7 +7,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Sparkles,
   History,
@@ -16,24 +16,26 @@ import {
   MessageSquare,
   Plus,
   Trash2,
+  Video,
 } from "lucide-react";
-import { getAppHelpFaq } from "@/content/assistant-faq";
-import { findAnswer } from "@/lib/assistant-match";
+import { useSites } from "@/components/site-context";
 import { useT } from "@/components/locale-context";
 
 /**
- * The always-there assistant, on the right, the way Mixpanel keeps
- * theirs. Its job is getting someone comfortable with the tool, not
- * analysing their data: the questions it answers are "how do I…" and
- * "what does this screen mean", which are the questions a new account
- * actually has.
+ * The dashboard assistant, in the right-hand rail.
  *
- * It answers from the predefined bank in src/content/assistant-faq.ts —
- * no model call, so it is instant and costs nothing however often it is
- * opened. That matters precisely because it is always on screen: a
- * panel you can ask at any moment would otherwise be a bill that grows
- * with curiosity. Data questions still go to the quota'd copilot inside
- * Session Replay, where they belong.
+ * There used to be two assistants on the same screen: this panel,
+ * answering from a fixed bank of product FAQs, and the Session Replay
+ * copilot squeezed into a column, which was the only one that could
+ * actually see the customer's data. The FAQ one belongs on the
+ * marketing site, where the visitor has no account yet; in here it was
+ * a large panel that could not answer the questions someone with a
+ * dashboard in front of them actually has.
+ *
+ * So this is the copilot now, in the big panel, able to read the
+ * account through /api/assistant. Same monthly quota per plan as
+ * before — the panel shows what's left of it, because an assistant you
+ * can ask at any moment has to be honest about the meter.
  */
 
 const STORAGE_KEY = "pulsetrack:assistant-chats";
@@ -42,6 +44,8 @@ const MAX_CHATS = 20;
 interface Message {
   role: "user" | "assistant";
   text: string;
+  /** Set on an assistant turn that opened a filtered Session Replay. */
+  replayHref?: string;
 }
 
 interface Chat {
@@ -51,11 +55,20 @@ interface Chat {
   updatedAt: number;
 }
 
-/* localStorage read as an external store, so the stored conversations
-   arrive through the hydration-safe path rather than a setState in an
-   effect. The snapshot is the raw string — a primitive, so
-   useSyncExternalStore's identity check is stable; parsing happens in
-   render. Subscribing to `storage` also keeps two open tabs in step. */
+interface SessionFilter {
+  type: "session_filter";
+  behavior: string | null;
+  scroll_max: number | null;
+  funnel_id: string | null;
+  step: number;
+  device: string | null;
+  rage_only: boolean;
+}
+
+/* localStorage as an external store, so the stored conversations arrive
+   through the hydration-safe path rather than a setState in an effect.
+   The snapshot is the raw string — a primitive, so the identity check
+   is stable; parsing happens in render. */
 function subscribeToStorage(onChange: () => void) {
   window.addEventListener("storage", onChange);
   return () => window.removeEventListener("storage", onChange);
@@ -69,7 +82,6 @@ function readRaw(): string | null {
   }
 }
 
-/** The server has no localStorage, so it reports "nothing stored". */
 const noStoredValue = () => null;
 
 function parseChats(raw: string | null): Chat[] {
@@ -90,42 +102,51 @@ function saveChats(chats: Chat[]) {
   }
 }
 
-/** First few words of the opening question, as the conversation's name. */
 function titleFrom(question: string): string {
   const clean = question.trim().replace(/\s+/g, " ");
   return clean.length > 42 ? `${clean.slice(0, 42)}…` : clean;
 }
 
-/* Both helpers live at module scope so the clock stays out of the
-   component: React's purity rule forbids Date.now() in render, and the
-   compiler cannot tell that `ask` only ever runs from a click. */
-function startChat(question: string, answer: string): Chat {
+/* Module scope so the clock stays out of render: React's purity rule
+   forbids Date.now() there, and the compiler cannot tell that `ask`
+   only ever runs from a click. */
+function startChat(question: string): Chat {
   const now = Date.now();
   return {
     id: String(now),
     title: titleFrom(question),
-    messages: [
-      { role: "user", text: question },
-      { role: "assistant", text: answer },
-    ],
+    messages: [{ role: "user", text: question }],
     updatedAt: now,
   };
 }
 
-function continueChat(chat: Chat, question: string, answer: string): Chat {
+/** Appends turns to a chat and stamps it. */
+function appendTo(chat: Chat, ...messages: Message[]): Chat {
   return {
     ...chat,
-    messages: [
-      ...chat.messages,
-      { role: "user", text: question },
-      { role: "assistant", text: answer },
-    ],
+    messages: [...chat.messages, ...messages],
     updatedAt: Date.now(),
   };
 }
 
+/** The assistant's Session Replay action, as a link the panel can offer. */
+function replayHrefFrom(action: SessionFilter, siteId: string): string {
+  const params = new URLSearchParams({ site: siteId });
+  if (action.behavior) params.set("behavior", action.behavior);
+  if (action.scroll_max != null) params.set("scroll_max", String(action.scroll_max));
+  if (action.funnel_id) {
+    params.set("funnel_id", action.funnel_id);
+    params.set("step", String(action.step));
+  }
+  if (action.device) params.set("device", action.device);
+  if (action.rage_only) params.set("rage", "1");
+  return `/dashboard/replays?${params}`;
+}
+
 export function AssistantPanel({ onClose }: { onClose: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { siteId, site } = useSites();
   const { t, locale } = useT();
 
   const storedRaw = useSyncExternalStore(
@@ -133,70 +154,113 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
     readRaw,
     noStoredValue
   );
-  // Local edits win over the stored snapshot, which doesn't re-read on a
-  // same-tab write.
   const [edited, setEdited] = useState<Chat[] | null>(null);
   const chats = useMemo(
     () => edited ?? parseChats(storedRaw),
     [edited, storedRaw]
   );
 
-  // No conversation is reopened on mount: landing in the middle of an
-  // old thread is more confusing than starting clean, and the history
-  // button is right there.
   const [activeId, setActiveId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [quota, setQuota] = useState<{ used: number; limit: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-
   const active = chats.find((c) => c.id === activeId) ?? null;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [active?.messages.length]);
+  }, [active?.messages.length, busy]);
 
-  // Per screen, so the assistant offers the question someone is likely
-  // to have where they are standing. Lives in the dictionary so both
-  // languages stay in step.
   const suggestions =
-    t.assistant.suggestions_by_screen[pathname] ??
-    t.assistant.suggestions_default;
+    t.assistant.suggestions_by_screen[pathname] ?? t.assistant.suggestions_default;
 
-  function ask(question: string) {
+  function persist(next: Chat[]) {
+    saveChats(next);
+    setEdited(next);
+  }
+
+  async function ask(question: string) {
     const q = question.trim();
-    if (!q) return;
+    if (!q || busy || !siteId) return;
     setInput("");
+    setError(null);
 
-    const answer = findAnswer(q, getAppHelpFaq(locale)) ?? t.assistant.fallback;
-
-    // Computed outside any state updater: an updater must stay pure —
-    // React is free to run it twice — and this has to write to
-    // localStorage and open the new conversation.
     const existing = chats.find((c) => c.id === activeId);
-    const next = existing
-      ? continueChat(existing, q, answer)
-      : startChat(q, answer);
+    const withUser: Chat = existing
+      ? appendTo(existing, { role: "user", text: q })
+      : startChat(q);
 
-    const updated = [next, ...chats.filter((c) => c.id !== next.id)].slice(
+    const afterUser = [withUser, ...chats.filter((c) => c.id !== withUser.id)].slice(
       0,
       MAX_CHATS
     );
+    persist(afterUser);
+    if (!existing) setActiveId(withUser.id);
+    setBusy(true);
 
-    saveChats(updated);
-    setEdited(updated);
-    if (!existing) setActiveId(next.id);
+    try {
+      const res = await fetch("/api/assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          site_id: siteId,
+          question: q,
+          locale,
+          // The turns before this one, so a follow-up like "and on
+          // mobile?" still makes sense.
+          history: withUser.messages.slice(0, -1).map((m) => ({
+            role: m.role,
+            text: m.text,
+          })),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(
+          data.error === "quota_exceeded"
+            ? t.assistant.quotaExceeded
+            : data.error === "upgrade_required"
+              ? t.assistant.upgradeRequired
+              : t.assistant.failed
+        );
+        if (typeof data.limit === "number") {
+          setQuota({ used: data.used, limit: data.limit });
+        }
+        return;
+      }
+
+      const reply: Message = { role: "assistant", text: data.answer };
+      if (data.action?.type === "session_filter") {
+        reply.replayHref = replayHrefFrom(data.action as SessionFilter, siteId);
+      }
+
+      const withReply = appendTo(withUser, reply);
+      persist(
+        [withReply, ...afterUser.filter((c) => c.id !== withReply.id)].slice(0, MAX_CHATS)
+      );
+      if (typeof data.limit === "number") {
+        setQuota({ used: data.used, limit: data.limit });
+      }
+    } catch {
+      setError(t.assistant.failed);
+    } finally {
+      setBusy(false);
+    }
   }
 
   function newChat() {
     setActiveId(null);
     setHistoryOpen(false);
+    setError(null);
   }
 
   function removeChat(id: string) {
-    const updated = chats.filter((c) => c.id !== id);
-    saveChats(updated);
-    setEdited(updated);
+    persist(chats.filter((c) => c.id !== id));
     if (activeId === id) setActiveId(null);
   }
 
@@ -232,8 +296,6 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
           <X className="h-3.5 w-3.5" />
         </button>
 
-        {/* Conversation history — one thread per subject, so a question
-            about funnels doesn't sit in the middle of one about Stripe. */}
         {historyOpen && (
           <div className="absolute right-2 top-full z-30 mt-1 w-[290px] overflow-hidden rounded-[var(--app-radius)] border border-border bg-surface shadow-lg">
             {chats.length === 0 ? (
@@ -277,27 +339,48 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-pale">
               <Sparkles className="h-5 w-5 text-primary" />
             </div>
-            <p className="mt-3 text-[13px] font-medium">
-              {t.assistant.emptyTitle}
-            </p>
+            <p className="mt-3 text-[13px] font-medium">{t.assistant.emptyTitle}</p>
             <p className="mt-1 text-[12px] leading-relaxed text-muted-light">
-              {t.assistant.emptyBody}
+              {site ? `${t.assistant.emptyBody} ${site.name}.` : t.assistant.emptyBody}
             </p>
           </div>
         ) : (
           <div className="space-y-2.5">
             {active.messages.map((m, i) => (
-              <div
-                key={i}
-                className={
-                  m.role === "user"
-                    ? "ml-auto max-w-[88%] rounded-lg rounded-br-sm bg-primary px-3 py-1.5 text-[12.5px] text-white"
-                    : "max-w-[95%] rounded-lg rounded-bl-sm bg-surface-sunken px-3 py-2 text-[12.5px] leading-relaxed"
-                }
-              >
-                {m.text}
+              <div key={i}>
+                <div
+                  className={
+                    m.role === "user"
+                      ? "ml-auto max-w-[88%] rounded-lg rounded-br-sm bg-primary px-3 py-1.5 text-[12.5px] text-white"
+                      : "max-w-[95%] whitespace-pre-line rounded-lg rounded-bl-sm bg-surface-sunken px-3 py-2 text-[12.5px] leading-relaxed"
+                  }
+                >
+                  {m.text}
+                </div>
+                {m.replayHref && (
+                  <button
+                    onClick={() => router.push(m.replayHref!)}
+                    className="mt-1.5 flex items-center gap-1.5 rounded-[var(--app-radius-sm)] border border-border px-2.5 py-1.5 text-[12px] font-medium transition-colors hover:border-primary/40 hover:text-primary"
+                  >
+                    <Video className="h-3.5 w-3.5" />
+                    {t.assistant.openReplays}
+                  </button>
+                )}
               </div>
             ))}
+
+            {busy && (
+              <div className="flex items-center gap-2 px-1 text-[12px] text-muted-light">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+                {t.assistant.thinking}
+              </div>
+            )}
+
+            {error && (
+              <p className="rounded-[var(--app-radius-sm)] border border-coral/30 bg-coral-pale px-3 py-2 text-[12px] text-coral">
+                {error}
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -310,7 +393,8 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
               <button
                 key={s}
                 onClick={() => ask(s)}
-                className="block w-full rounded-[var(--app-radius-sm)] border border-border px-2.5 py-1.5 text-left text-[12px] text-muted transition-colors hover:border-primary/40 hover:text-foreground"
+                disabled={busy || !siteId}
+                className="block w-full rounded-[var(--app-radius-sm)] border border-border px-2.5 py-1.5 text-left text-[12px] text-muted transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
               >
                 {s}
               </button>
@@ -329,12 +413,13 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
               }
             }}
             rows={1}
+            disabled={!siteId}
             placeholder={t.assistant.placeholder}
             className="max-h-24 min-h-[22px] flex-1 resize-none bg-transparent text-[12.5px] outline-none placeholder:text-muted-light"
           />
           <button
             onClick={() => ask(input)}
-            disabled={!input.trim()}
+            disabled={!input.trim() || busy || !siteId}
             title={t.assistant.send}
             className="shrink-0 rounded-md bg-primary p-1 text-white transition-opacity disabled:opacity-30"
           >
@@ -342,8 +427,12 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
+        {/* The meter is shown, not hidden: an assistant that is always on
+            screen has to be honest about what each question spends. */}
         <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted-light">
-          {t.assistant.disclaimer}
+          {quota
+            ? `${t.assistant.quotaLeft} ${Math.max(0, quota.limit - quota.used)} / ${quota.limit}`
+            : t.assistant.disclaimer}
         </p>
       </div>
     </aside>

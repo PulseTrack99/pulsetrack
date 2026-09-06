@@ -253,8 +253,7 @@ export function HeatmapPanel() {
         </div>
         <h2 className="mt-4 text-lg font-medium">{t.screens.heatmaps.lockedTitle}</h2>
         <p className="mx-auto mt-2 max-w-sm text-[13.5px] text-muted">
-          Passez sur Starter pour voir où vos visiteurs cliquent, jusqu&apos;où ils
-          scrollent et sur quoi ils s&apos;acharnent en vain.
+          {t.screens.heatmaps.lockedBody}
         </p>
         <Link href="/dashboard/upgrade" className="btn btn-brand mt-6">
           {t.screens.common.seePlans}
@@ -315,7 +314,7 @@ export function HeatmapPanel() {
         />
 
         <SegmentedFilter
-          ariaLabel="Période"
+          ariaLabel={t.filters.period}
           value={period}
           options={periodOptions}
           onChange={setPeriod}
@@ -464,33 +463,30 @@ export function HeatmapPanel() {
             <div className="space-y-1 border-t border-border px-4 py-2 text-[11px] text-muted-light">
               {overlay && (
                 <p>
-                  La page live n&apos;apparaît que si le domaine est joignable et
-                  accepte d&apos;être affiché dans un cadre. Sinon, décochez : la
-                  structure ci-dessous vient de la capture, elle est toujours
-                  fidèle.
+                  {t.screens.heatmaps.overlayNote}
                 </p>
               )}
               {s?.snapshot ? (
                 <p>
-                  Structure de la page relevée le{" "}
-                  {new Date(s.snapshot.captured_at).toLocaleDateString(intl)} sur{" "}
+                  {t.screens.heatmaps.snapshotTaken}{" "}
+                  {new Date(s.snapshot.captured_at).toLocaleDateString(intl)}{" "}
+                  {t.screens.heatmaps.snapshotOn}{" "}
                   {s.device} — {s.geometry.viewport_w} × {s.geometry.doc_h} px,{" "}
-                  {s.snapshot.elements.length} éléments.
+                  {s.snapshot.elements.length} {t.screens.heatmaps.snapshotElements}.
                 </p>
               ) : (
                 s &&
                 aspect > 0 && (
                   <p>
-                    Aucune structure relevée pour cette page. Elle sera capturée
-                    au prochain passage d&apos;un visiteur avec le script à jour.
+                    {t.screens.heatmaps.noSnapshot}
                   </p>
                 )
               )}
               {s?.sampled && (
                 <p>
-                  Carte et classement calculés sur les{" "}
-                  {s.sample_size.toLocaleString(intl)} interactions les plus
-                  récentes. Les totaux ci-dessus portent sur la période entière.
+                  {t.screens.heatmaps.sampledNote1}{" "}
+                  {s.sample_size.toLocaleString(intl)}{" "}
+                  {t.screens.heatmaps.sampledNote2}
                 </p>
               )}
             </div>
@@ -620,7 +616,7 @@ export function HeatmapPanel() {
                           className="ml-1.5 rounded-xs bg-coral-pale px-1 py-px text-[9px] text-coral"
                           title={t.screens.heatmaps.notClickable}
                         >
-                          inerte
+                          {t.screens.heatmaps.inert}
                         </span>
                       )}
                     </span>

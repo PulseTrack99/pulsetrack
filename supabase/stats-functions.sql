@@ -350,3 +350,65 @@ $function$;
 -- anon is required by the public share view (/public/[shareId]).
 GRANT EXECUTE ON FUNCTION public.stats_overview(uuid, timestamptz, timestamptz)
   TO authenticated, anon;
+
+-- ─────────────────────────────────────────────────────────────
+-- Migration `breakdowns_count_visitors_not_sessions`.
+-- Kept here so this file still describes the live schema.
+--
+-- The same mislabel as stats_overview had, in the three breakdowns
+-- that survived that fix: "Sources de trafic", "Pays" and the daily
+-- chart all say *visiteurs* in the UI while these functions returned
+-- count(DISTINCT session_id). Once stats_overview started counting
+-- visitor_id, the two disagreed — a site with 4 visitors could show a
+-- single source with 5 "visitors", which is how this was spotted.
+--
+-- Signatures are unchanged, so CREATE OR REPLACE really does replace
+-- here; no second overload to drop, and the existing grants carry over.
+--
+-- stats_devices is deliberately not in this list: its column is named
+-- `count`, and its only consumer is the device filter's option list.
+
+CREATE OR REPLACE FUNCTION public.stats_top_sources(
+  p_site UUID, p_since TIMESTAMPTZ, p_limit INT DEFAULT 10
+)
+RETURNS TABLE (source TEXT, visitors BIGINT)
+LANGUAGE sql
+STABLE
+SET search_path TO 'public'
+AS $function$
+  SELECT COALESCE(NULLIF(source, ''), 'Direct'), count(DISTINCT visitor_id)::BIGINT
+  FROM events
+  WHERE site_id = p_site AND type = 'pageview' AND created_at >= p_since
+  GROUP BY 1
+  ORDER BY 2 DESC
+  LIMIT p_limit;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.stats_top_countries(
+  p_site UUID, p_since TIMESTAMPTZ, p_limit INT DEFAULT 10
+)
+RETURNS TABLE (country TEXT, visitors BIGINT)
+LANGUAGE sql
+STABLE
+SET search_path TO 'public'
+AS $function$
+  SELECT COALESCE(NULLIF(country, ''), 'Unknown'), count(DISTINCT visitor_id)::BIGINT
+  FROM events
+  WHERE site_id = p_site AND type = 'pageview' AND created_at >= p_since
+  GROUP BY 1
+  ORDER BY 2 DESC
+  LIMIT p_limit;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.stats_daily(p_site UUID, p_since TIMESTAMPTZ)
+RETURNS TABLE (day DATE, visitors BIGINT)
+LANGUAGE sql
+STABLE
+SET search_path TO 'public'
+AS $function$
+  SELECT created_at::DATE, count(DISTINCT visitor_id)::BIGINT
+  FROM events
+  WHERE site_id = p_site AND type = 'pageview' AND created_at >= p_since
+  GROUP BY 1
+  ORDER BY 1;
+$function$;

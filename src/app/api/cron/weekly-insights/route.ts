@@ -6,7 +6,7 @@ import { sendEmail } from "@/lib/email";
 import { sendWebhookDigest } from "@/lib/webhook-alert";
 
 /**
- * Proactive AI insights — the copilot (src/app/api/copilot) has always
+ * Proactive AI insights — the assistant (src/app/api/assistant) has always
  * been reactive, the user has to ask. This is the other half: once a
  * week, scan funnels, revenue and bounce rate for real week-over-week
  * moves, and if anything crosses the threshold, ask Claude Haiku to
