@@ -28,6 +28,14 @@ import {
   Sparkles,
   Bell,
   Radio,
+  ChevronDown,
+  Share2,
+  KeyRound,
+  Users,
+  BookOpen,
+  Languages,
+  CreditCard,
+  Download,
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { AssistantPanel } from "@/components/assistant-panel";
@@ -49,6 +57,7 @@ import { useT } from "@/components/locale-context";
 
 const navItems = [
   { href: "/dashboard", key: "home", icon: BarChart3 },
+  { href: "/dashboard/agent", key: "agent", icon: Sparkles },
   { href: "/dashboard/revenue", key: "revenue", icon: DollarSign },
   { href: "/dashboard/funnels", key: "funnels", icon: Filter },
   { href: "/dashboard/flows", key: "flows", icon: Workflow },
@@ -157,10 +166,51 @@ function SiteSwitcher() {
 }
 
 /* ── Create menu ── */
+
+/** One row of the menu. Kept as data so the groups below read as a
+ *  list of what PulseTrack can make, not as markup. */
+type CreateEntry = { key: string; href: string; icon: React.ComponentType<{ className?: string }> };
+
+const CREATE_PRIMARY: CreateEntry[] = [
+  { key: "site", href: "/dashboard/sites/new", icon: Globe },
+];
+const CREATE_ANALYSE: CreateEntry[] = [
+  { key: "funnel", href: "/dashboard/funnels", icon: Filter },
+  { key: "cohort", href: "/dashboard/replays", icon: Video },
+];
+const CREATE_SHARE: CreateEntry[] = [
+  { key: "publicDashboard", href: "/dashboard/settings?tab=sites", icon: Share2 },
+  { key: "alert", href: "/dashboard/settings?tab=sites", icon: Bell },
+  { key: "apiKey", href: "/dashboard/settings?tab=api", icon: KeyRound },
+  { key: "teammate", href: "/dashboard/settings?tab=equipe", icon: Users },
+];
+
+function MenuRow({ entry, label }: { entry: CreateEntry; label: string }) {
+  const Icon = entry.icon;
+  return (
+    <a
+      href={entry.href}
+      className="flex items-center gap-2 px-2.5 py-1.5 text-[12.5px] text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" />
+      {label}
+    </a>
+  );
+}
+
+function MenuGroup({ label }: { label: string }) {
+  return (
+    <p className="px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-muted-light">
+      {label}
+    </p>
+  );
+}
+
 function CreateMenu() {
   const { t } = useT();
   const [open, setOpen] = useState(false);
   const ref = useOutsideClose(() => setOpen(false));
+  const label = (k: string) => t.shell.createMenu[k as keyof typeof t.shell.createMenu];
 
   return (
     <div className="relative" ref={ref}>
@@ -170,24 +220,105 @@ function CreateMenu() {
       >
         <Plus className="h-3.5 w-3.5" />
         {t.shell.create}
+        <ChevronDown className="ml-auto h-3.5 w-3.5 opacity-70" />
       </button>
       {open && (
         <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-md border border-border bg-surface py-1 shadow-lg">
-          <a
-            href="/dashboard/sites/new"
-            className="block px-2.5 py-1.5 text-[12.5px] text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
-          >
-            {t.shell.newSite}
-          </a>
-          <a
-            href="/dashboard/funnels"
-            className="block px-2.5 py-1.5 text-[12.5px] text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
-          >
-            {t.shell.newFunnel}
-          </a>
+          {CREATE_PRIMARY.map((e) => (
+            <MenuRow key={e.key} entry={e} label={label(e.key)} />
+          ))}
+          <MenuGroup label={t.shell.createMenu.groupAnalyse} />
+          {CREATE_ANALYSE.map((e) => (
+            <MenuRow key={e.key} entry={e} label={label(e.key)} />
+          ))}
+          <MenuGroup label={t.shell.createMenu.groupShare} />
+          {CREATE_SHARE.map((e) => (
+            <MenuRow key={e.key} entry={e} label={label(e.key)} />
+          ))}
         </div>
       )}
     </div>
+  );
+}
+
+/* ── Utility menus (help, settings) ──
+   Both used to be plain links: help threw you out of the app onto a
+   marketing feature page, and settings jumped straight to the Account
+   tab. Mixpanel opens a small menu from each, which is the right shape
+   — these are the two places where you arrive knowing what you want.
+   They open upwards: the row that holds them is the last thing in the
+   rail. */
+
+function UtilityMenu({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useOutsideClose(() => setOpen(false));
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`rounded p-1.5 transition-colors hover:bg-surface-hover ${
+          open ? "bg-surface-hover text-foreground" : "text-muted-light hover:text-foreground"
+        }`}
+        title={title}
+      >
+        <Icon className="h-4 w-4" />
+      </button>
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          className="absolute bottom-full left-0 z-50 mb-1 w-56 overflow-hidden rounded-md border border-border bg-surface py-1 shadow-lg"
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UtilityRow({
+  icon: Icon,
+  label,
+  href,
+  onClick,
+  external,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  href?: string;
+  onClick?: () => void;
+  external?: boolean;
+}) {
+  const cls =
+    "flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[12.5px] text-muted transition-colors hover:bg-surface-hover hover:text-foreground";
+  const body = (
+    <>
+      <Icon className="h-3.5 w-3.5 shrink-0" />
+      {label}
+    </>
+  );
+  if (href) {
+    return (
+      <a
+        href={href}
+        className={cls}
+        {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+      >
+        {body}
+      </a>
+    );
+  }
+  return (
+    <button onClick={onClick} className={cls}>
+      {body}
+    </button>
   );
 }
 
@@ -313,6 +444,7 @@ export function DashboardShell({
   const { t, locale, setLocale } = useT();
   const pathname = usePathname();
   const active = currentItem(pathname);
+  const onAgentPage = pathname === "/dashboard/agent";
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -415,20 +547,31 @@ export function DashboardShell({
             settings, help, the assistant toggle, notifications, and the
             rail's own collapse, the way Mixpanel groups theirs. */}
         <div className="relative flex items-center gap-0.5 border-t border-border px-2 py-2">
-          <a
-            href="/dashboard/settings"
-            className="rounded p-1.5 text-muted-light transition-colors hover:bg-surface-hover hover:text-foreground"
-            title={t.shell.settings}
-          >
-            <Settings className="h-4 w-4" />
-          </a>
-          <a
-            href="/features/analytics"
-            className="rounded p-1.5 text-muted-light transition-colors hover:bg-surface-hover hover:text-foreground"
-            title={t.shell.help}
-          >
-            <HelpCircle className="h-4 w-4" />
-          </a>
+          <UtilityMenu icon={Settings} title={t.shell.settings}>
+            <UtilityRow icon={Settings} label={t.shell.settingsMenu.account} href="/dashboard/settings?tab=compte" />
+            <UtilityRow icon={Globe} label={t.shell.settingsMenu.sites} href="/dashboard/settings?tab=sites" />
+            <UtilityRow icon={Users} label={t.shell.settingsMenu.team} href="/dashboard/settings?tab=equipe" />
+            <UtilityRow icon={CreditCard} label={t.shell.settingsMenu.billing} href="/dashboard/upgrade" />
+            <div className="my-1 border-t border-border" />
+            <UtilityRow
+              icon={Languages}
+              label={`${t.shell.settingsMenu.language} · ${locale === "fr" ? "Français" : "English"}`}
+              onClick={() => setLocale(locale === "fr" ? "en" : "fr")}
+            />
+            <div className="my-1 border-t border-border" />
+            <UtilityRow icon={LogOut} label={t.shell.settingsMenu.logout} onClick={handleLogout} />
+          </UtilityMenu>
+          <UtilityMenu icon={HelpCircle} title={t.shell.help}>
+            <UtilityRow icon={Download} label={t.shell.helpMenu.install} href="/dashboard/sites" />
+            <UtilityRow icon={BookOpen} label={t.shell.helpMenu.docs} href="/features/analytics" external />
+            {/* The page, not the rail panel: the panel is hidden on
+                /dashboard/agent, so opening it there would do nothing. */}
+            <UtilityRow
+              icon={Sparkles}
+              label={t.shell.helpMenu.askAssistant}
+              href="/dashboard/agent"
+            />
+          </UtilityMenu>
           <button
             onClick={() => setAssistantOpen((v) => !v)}
             className={`rounded p-1.5 transition-colors hover:bg-surface-hover ${
@@ -521,7 +664,7 @@ export function DashboardShell({
 
           <div className="flex-1" />
 
-          {!assistantOpen && (
+          {!assistantOpen && !onAgentPage && (
             <button
               onClick={() => setAssistantOpen(true)}
               className="flex items-center gap-1.5 rounded-sm border border-border px-2 py-1 text-[12px] text-muted transition-colors hover:text-foreground"
@@ -539,8 +682,11 @@ export function DashboardShell({
         </main>
       </div>
 
-      {/* ── Assistant ── */}
-      {assistantOpen && (
+      {/* ── Assistant ──
+          Not on /dashboard/agent: the page *is* this panel, at full
+          size and reading the same history, so rendering both would put
+          one conversation on screen twice. */}
+      {assistantOpen && !onAgentPage && (
         <div className="hidden lg:flex">
           <AssistantPanel onClose={() => setAssistantOpen(false)} />
         </div>

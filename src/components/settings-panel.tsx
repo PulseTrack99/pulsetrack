@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { useT } from "@/components/locale-context";
+import { useSearchParams } from "next/navigation";
 
 interface Site {
   id: string;
@@ -58,7 +59,11 @@ export function SettingsPanel({
 }) {
   const { t } = useT();
   const [sites, setSites] = useState(initialSites);
-  const [tab, setTab] = useState<TabId>("compte");
+  const params = useSearchParams();
+  const asked = params.get("tab");
+  const [tab, setTab] = useState<TabId>(
+    TABS.some((x) => x.id === asked) ? (asked as TabId) : "compte"
+  );
 
   /* Six unrelated sections used to be stacked in one column: account,
      password, team, sites, API keys and the delete-account zone, all

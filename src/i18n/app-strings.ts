@@ -16,8 +16,6 @@ export interface AppStrings {
   shell: {
     search: string;
     create: string;
-    newSite: string;
-    newFunnel: string;
     manageSites: string;
     addSite: string;
     noSite: string;
@@ -43,10 +41,39 @@ export interface AppStrings {
       flows: string;
       replays: string;
       heatmaps: string;
+      agent: string;
       settings: string;
       mySites: string;
       addSite: string;
       plans: string;
+    };
+    /** The grouped "Create" menu and the two utility menus at the
+     *  bottom of the rail. Every entry here goes somewhere that really
+     *  creates or does the thing it names. */
+    createMenu: {
+      groupAnalyse: string;
+      groupShare: string;
+      site: string;
+      funnel: string;
+      cohort: string;
+      apiKey: string;
+      publicDashboard: string;
+      alert: string;
+      teammate: string;
+    };
+    helpMenu: {
+      title: string;
+      install: string;
+      docs: string;
+      askAssistant: string;
+    };
+    settingsMenu: {
+      account: string;
+      sites: string;
+      team: string;
+      billing: string;
+      language: string;
+      logout: string;
     };
     palette: {
       placeholder: string;
@@ -93,6 +120,15 @@ export interface AppStrings {
     upgradeRequired: string;
     quotaLeft: string;
     openReplays: string;
+    page: {
+      welcome: string;
+      /** {site} is the selected site's name. */
+      subtitle: string;
+      historyTitle: string;
+      startTitle: string;
+      startBody: string;
+      hint: string;
+    };
     /** Keyed by pathname; falls back to suggestions_default. */
     suggestions_by_screen: Record<string, string[]>;
     suggestions_default: string[];
@@ -487,8 +523,6 @@ const fr: AppStrings = {
   shell: {
     search: "Rechercher",
     create: "Créer",
-    newSite: "Nouveau site",
-    newFunnel: "Nouveau funnel",
     manageSites: "Gérer mes sites",
     addSite: "Ajouter un site",
     noSite: "Aucun site",
@@ -514,10 +548,36 @@ const fr: AppStrings = {
       flows: "Flows",
       replays: "Session Replay",
       heatmaps: "Heatmaps",
+      agent: "Agent PulseTrack",
       settings: "Paramètres",
       mySites: "Mes sites",
       addSite: "Ajouter un site",
       plans: "Offres",
+    },
+    createMenu: {
+      groupAnalyse: "Analyse",
+      groupShare: "Diffusion",
+      site: "Site",
+      funnel: "Funnel",
+      cohort: "Cohorte de sessions",
+      apiKey: "Clé API",
+      publicDashboard: "Dashboard public",
+      alert: "Alerte de chute de trafic",
+      teammate: "Inviter un coéquipier",
+    },
+    helpMenu: {
+      title: "Aide",
+      install: "Installer le script",
+      docs: "Documentation",
+      askAssistant: "Demander à l'assistant",
+    },
+    settingsMenu: {
+      account: "Compte et mot de passe",
+      sites: "Sites et alertes",
+      team: "Équipe",
+      billing: "Offre et facturation",
+      language: "Langue",
+      logout: "Se déconnecter",
     },
     palette: {
       placeholder: "Aller à une page ou changer de site…",
@@ -565,6 +625,15 @@ const fr: AppStrings = {
     upgradeRequired: "L'assistant est disponible à partir de l'offre Starter.",
     quotaLeft: "Questions restantes ce mois :",
     openReplays: "Ouvrir ces sessions",
+    page: {
+      welcome: "Par où commencer ?",
+      subtitle: "Posez une question sur {site} — je lis vos données et je réponds avec vos chiffres.",
+      historyTitle: "Historique",
+      startTitle: "Une question, pour commencer",
+      startBody:
+        "Cet agent lit vos statistiques, vos parcours, vos funnels et vos revenus. Il ne modifie rien : il regarde, et il peut vous emmener sur le bon écran.",
+      hint: "Entrée pour envoyer · Maj + Entrée pour un retour à la ligne",
+    },
     fallback:
       "Je n'ai pas de réponse toute prête à celle-là. Les réponses de ce panneau sont écrites à l'avance — elles couvrent l'installation, les offres, la confidentialité et chaque fonctionnalité. Reformulez avec d'autres mots, ou passez par le copilote de Session Replay pour une question portant sur vos propres sessions.",
     suggestions_by_screen: {
@@ -1099,8 +1168,6 @@ const en: AppStrings = {
   shell: {
     search: "Search",
     create: "Create",
-    newSite: "New site",
-    newFunnel: "New funnel",
     manageSites: "Manage sites",
     addSite: "Add a site",
     noSite: "No site",
@@ -1126,10 +1193,36 @@ const en: AppStrings = {
       flows: "Flows",
       replays: "Session Replay",
       heatmaps: "Heatmaps",
+      agent: "PulseTrack Agent",
       settings: "Settings",
       mySites: "My sites",
       addSite: "Add a site",
       plans: "Plans",
+    },
+    createMenu: {
+      groupAnalyse: "Analysis",
+      groupShare: "Sharing",
+      site: "Site",
+      funnel: "Funnel",
+      cohort: "Session cohort",
+      apiKey: "API key",
+      publicDashboard: "Public dashboard",
+      alert: "Traffic-drop alert",
+      teammate: "Invite a teammate",
+    },
+    helpMenu: {
+      title: "Help",
+      install: "Install the script",
+      docs: "Documentation",
+      askAssistant: "Ask the assistant",
+    },
+    settingsMenu: {
+      account: "Account and password",
+      sites: "Sites and alerts",
+      team: "Team",
+      billing: "Plan and billing",
+      language: "Language",
+      logout: "Log out",
     },
     palette: {
       placeholder: "Go to a page or switch site…",
@@ -1177,6 +1270,15 @@ const en: AppStrings = {
     upgradeRequired: "The assistant is available from the Starter plan.",
     quotaLeft: "Questions left this month:",
     openReplays: "Open these sessions",
+    page: {
+      welcome: "Where should we start?",
+      subtitle: "Ask about {site} — I read your data and answer with your own figures.",
+      historyTitle: "History",
+      startTitle: "A question, to get going",
+      startBody:
+        "This agent reads your statistics, journeys, funnels and revenue. It changes nothing: it looks, and it can take you to the right screen.",
+      hint: "Enter to send · Shift + Enter for a new line",
+    },
     fallback:
       "I don't have a ready answer for that one. This panel's answers are written in advance — they cover install, plans, privacy and every feature. Try different words, or use the Session Replay copilot for a question about your own sessions.",
     suggestions_by_screen: {

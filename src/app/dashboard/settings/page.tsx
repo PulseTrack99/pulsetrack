@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { SettingsPanel } from "@/components/settings-panel";
@@ -40,6 +41,9 @@ export default async function SettingsPage() {
   }
 
   return (
+    // The panel reads ?tab= so the rail can link straight to a
+    // section; useSearchParams needs a boundary around whatever reads it.
+    <Suspense fallback={null}>
     <SettingsPanel
       user={user}
       // Resolved server-side: the panel used to read
@@ -52,5 +56,6 @@ export default async function SettingsPage() {
       hasApiAccess={planHas(currentPlan, "api")}
       teamOwnerEmail={ownerEmail}
     />
+    </Suspense>
   );
 }

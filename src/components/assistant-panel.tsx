@@ -1,13 +1,7 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Sparkles,
   History,
@@ -18,8 +12,8 @@ import {
   Trash2,
   Video,
 } from "lucide-react";
-import { useSites } from "@/components/site-context";
 import { useT } from "@/components/locale-context";
+import { useAssistantChat } from "@/components/assistant-chat";
 
 /**
  * The dashboard assistant, in the right-hand rail.
@@ -38,230 +32,37 @@ import { useT } from "@/components/locale-context";
  * can ask at any moment has to be honest about the meter.
  */
 
-const STORAGE_KEY = "pulsetrack:assistant-chats";
-const MAX_CHATS = 20;
-
-interface Message {
-  role: "user" | "assistant";
-  text: string;
-  /** Set on an assistant turn that opened a filtered Session Replay. */
-  replayHref?: string;
-}
-
-interface Chat {
-  id: string;
-  title: string;
-  messages: Message[];
-  updatedAt: number;
-}
-
-interface SessionFilter {
-  type: "session_filter";
-  behavior: string | null;
-  scroll_max: number | null;
-  funnel_id: string | null;
-  step: number;
-  device: string | null;
-  rage_only: boolean;
-}
-
-/* localStorage as an external store, so the stored conversations arrive
-   through the hydration-safe path rather than a setState in an effect.
-   The snapshot is the raw string — a primitive, so the identity check
-   is stable; parsing happens in render. */
-function subscribeToStorage(onChange: () => void) {
-  window.addEventListener("storage", onChange);
-  return () => window.removeEventListener("storage", onChange);
-}
-
-function readRaw(): string | null {
-  try {
-    return localStorage.getItem(STORAGE_KEY);
-  } catch {
-    return null;
-  }
-}
-
-const noStoredValue = () => null;
-
-function parseChats(raw: string | null): Chat[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as Chat[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveChats(chats: Chat[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(chats.slice(0, MAX_CHATS)));
-  } catch {
-    // Private mode — the conversation still works, it just isn't kept.
-  }
-}
-
-function titleFrom(question: string): string {
-  const clean = question.trim().replace(/\s+/g, " ");
-  return clean.length > 42 ? `${clean.slice(0, 42)}…` : clean;
-}
-
-/* Module scope so the clock stays out of render: React's purity rule
-   forbids Date.now() there, and the compiler cannot tell that `ask`
-   only ever runs from a click. */
-function startChat(question: string): Chat {
-  const now = Date.now();
-  return {
-    id: String(now),
-    title: titleFrom(question),
-    messages: [{ role: "user", text: question }],
-    updatedAt: now,
-  };
-}
-
-/** Appends turns to a chat and stamps it. */
-function appendTo(chat: Chat, ...messages: Message[]): Chat {
-  return {
-    ...chat,
-    messages: [...chat.messages, ...messages],
-    updatedAt: Date.now(),
-  };
-}
-
-/** The assistant's Session Replay action, as a link the panel can offer. */
-function replayHrefFrom(action: SessionFilter, siteId: string): string {
-  const params = new URLSearchParams({ site: siteId });
-  if (action.behavior) params.set("behavior", action.behavior);
-  if (action.scroll_max != null) params.set("scroll_max", String(action.scroll_max));
-  if (action.funnel_id) {
-    params.set("funnel_id", action.funnel_id);
-    params.set("step", String(action.step));
-  }
-  if (action.device) params.set("device", action.device);
-  if (action.rage_only) params.set("rage", "1");
-  return `/dashboard/replays?${params}`;
-}
-
 export function AssistantPanel({ onClose }: { onClose: () => void }) {
-  const pathname = usePathname();
+  const { t } = useT();
   const router = useRouter();
-  const { siteId, site } = useSites();
-  const { t, locale } = useT();
+  const {
+    site,
+    siteId,
+    chats,
+    active,
+    activeId,
+    setActiveId,
+    input,
+    setInput,
+    busy,
+    quota,
+    error,
+    suggestions,
+    ask,
+    newChat,
+    removeChat,
+  } = useAssistantChat();
 
-  const storedRaw = useSyncExternalStore(
-    subscribeToStorage,
-    readRaw,
-    noStoredValue
-  );
-  const [edited, setEdited] = useState<Chat[] | null>(null);
-  const chats = useMemo(
-    () => edited ?? parseChats(storedRaw),
-    [edited, storedRaw]
-  );
-
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [input, setInput] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [quota, setQuota] = useState<{ used: number; limit: number } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
   const scrollRef = useRef<HTMLDivElement>(null);
-  const active = chats.find((c) => c.id === activeId) ?? null;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [active?.messages.length, busy]);
 
-  const suggestions =
-    t.assistant.suggestions_by_screen[pathname] ?? t.assistant.suggestions_default;
-
-  function persist(next: Chat[]) {
-    saveChats(next);
-    setEdited(next);
-  }
-
-  async function ask(question: string) {
-    const q = question.trim();
-    if (!q || busy || !siteId) return;
-    setInput("");
-    setError(null);
-
-    const existing = chats.find((c) => c.id === activeId);
-    const withUser: Chat = existing
-      ? appendTo(existing, { role: "user", text: q })
-      : startChat(q);
-
-    const afterUser = [withUser, ...chats.filter((c) => c.id !== withUser.id)].slice(
-      0,
-      MAX_CHATS
-    );
-    persist(afterUser);
-    if (!existing) setActiveId(withUser.id);
-    setBusy(true);
-
-    try {
-      const res = await fetch("/api/assistant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          site_id: siteId,
-          question: q,
-          locale,
-          // The turns before this one, so a follow-up like "and on
-          // mobile?" still makes sense.
-          history: withUser.messages.slice(0, -1).map((m) => ({
-            role: m.role,
-            text: m.text,
-          })),
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(
-          data.error === "quota_exceeded"
-            ? t.assistant.quotaExceeded
-            : data.error === "upgrade_required"
-              ? t.assistant.upgradeRequired
-              : t.assistant.failed
-        );
-        if (typeof data.limit === "number") {
-          setQuota({ used: data.used, limit: data.limit });
-        }
-        return;
-      }
-
-      const reply: Message = { role: "assistant", text: data.answer };
-      if (data.action?.type === "session_filter") {
-        reply.replayHref = replayHrefFrom(data.action as SessionFilter, siteId);
-      }
-
-      const withReply = appendTo(withUser, reply);
-      persist(
-        [withReply, ...afterUser.filter((c) => c.id !== withReply.id)].slice(0, MAX_CHATS)
-      );
-      if (typeof data.limit === "number") {
-        setQuota({ used: data.used, limit: data.limit });
-      }
-    } catch {
-      setError(t.assistant.failed);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function newChat() {
-    setActiveId(null);
+  function startNew() {
+    newChat();
     setHistoryOpen(false);
-    setError(null);
-  }
-
-  function removeChat(id: string) {
-    persist(chats.filter((c) => c.id !== id));
-    if (activeId === id) setActiveId(null);
   }
 
   return (
@@ -273,7 +74,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
         </span>
 
         <button
-          onClick={newChat}
+          onClick={startNew}
           title={t.assistant.newChat}
           className="rounded p-1.5 text-muted-light transition-colors hover:bg-surface-hover hover:text-foreground"
         >
