@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import {
   getDailySalt,
   computeVisitorId,
-  resolveSessionId,
+  resolveSession,
   getClientIp,
 } from "@/lib/visitor";
 import { getSiteOwner, getUserPlan, recordEvent } from "@/lib/plan";
@@ -203,7 +203,8 @@ export async function POST(req: NextRequest) {
     // one-way hash of request attributes and a salt that rotates daily.
     const salt = await getDailySalt(supabase);
     const visitor_id = computeVisitorId(salt, site_id, ip, ua);
-    const session_id = await resolveSessionId(supabase, site_id, visitor_id);
+    const session = await resolveSession(supabase, site_id, visitor_id);
+    const session_id = session.sessionId;
 
     // Handle identify events — link session to email for revenue attribution
     if (type === "identify" && email) {
@@ -231,7 +232,8 @@ export async function POST(req: NextRequest) {
       path,
       referrer,
       title,
-      source: utm?.utm_source || getSource(referrer, site.domain),
+      // A visit's origin is decided once, when it starts.
+      source: session.source ?? (utm?.utm_source || getSource(referrer, site.domain)),
       utm_medium: utm?.utm_medium || null,
       utm_campaign: utm?.utm_campaign || null,
       country,

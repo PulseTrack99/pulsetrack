@@ -89,17 +89,36 @@ export function computeVisitorId(
  * every 30 minutes, matching the convention the dashboard's duration and
  * bounce figures assume.
  */
-export async function resolveSessionId(
+export interface SessionContext {
+  sessionId: string;
+  /**
+   * The source already carried by this session, when it is not new.
+   *
+   * A visit has one origin, decided when it starts. Recomputing it on
+   * every page made the second page of a visit report where it came
+   * from — the first page — so one visitor arriving from Google and
+   * reading five pages counted once under Google and four times under
+   * whatever the referrer looked like next. Carrying the first value
+   * forward is what makes "sources de trafic" add up to the number of
+   * visitors, and it fixes every consumer at once rather than each
+   * aggregate having to re-derive the same thing.
+   */
+  source: string | null;
+}
+
+export async function resolveSession(
   supabase: SupabaseClient,
   siteId: string,
   visitorId: string,
   now = new Date()
-): Promise<string> {
+): Promise<SessionContext> {
   const cutoff = new Date(now.getTime() - SESSION_WINDOW_MS).toISOString();
 
+  // The same single lookup that decides the session also carries its
+  // origin, so propagating costs nothing extra.
   const { data: recent } = await supabase
     .from("events")
-    .select("session_id")
+    .select("session_id, source")
     .eq("site_id", siteId)
     .eq("visitor_id", visitorId)
     .gte("created_at", cutoff)
@@ -107,12 +126,30 @@ export async function resolveSessionId(
     .limit(1)
     .maybeSingle();
 
-  if (recent?.session_id) return recent.session_id as string;
+  if (recent?.session_id) {
+    return {
+      sessionId: recent.session_id as string,
+      source: (recent.source as string | null) ?? null,
+    };
+  }
 
-  return createHash("sha256")
-    .update(`${visitorId}|${now.getTime()}|${randomBytes(8).toString("hex")}`)
-    .digest("hex")
-    .slice(0, 32);
+  return {
+    sessionId: createHash("sha256")
+      .update(`${visitorId}|${now.getTime()}|${randomBytes(8).toString("hex")}`)
+      .digest("hex")
+      .slice(0, 32),
+    source: null,
+  };
+}
+
+/** The session id alone, for the callers that only place a row in one. */
+export async function resolveSessionId(
+  supabase: SupabaseClient,
+  siteId: string,
+  visitorId: string,
+  now = new Date()
+): Promise<string> {
+  return (await resolveSession(supabase, siteId, visitorId, now)).sessionId;
 }
 
 /** Client IP as seen through Vercel's proxy chain. Never persisted. */
