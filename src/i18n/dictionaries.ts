@@ -1,6 +1,7 @@
 import type { Labels as ShowcaseLabels } from "@/components/marketing/product-showcase";
 import type { NavLabels } from "@/components/marketing/site-nav";
 import type { AssistantLabels } from "@/components/marketing/assistant";
+import type { AuthLabels } from "@/components/auth-forms";
 import type { Plan } from "@/components/marketing/sections";
 
 export type Locale = "en" | "fr";
@@ -127,7 +128,57 @@ export interface Dictionary {
   };
 
   assistant: AssistantLabels;
+  auth: AuthLabels;
 }
+
+const enAuth: AuthLabels = {
+  emailLabel: "Email",
+  emailPlaceholder: "you@example.com",
+  passwordLabel: "Password",
+  login: {
+    title: "Sign in",
+    subtitle: "Get to your analytics dashboard",
+    passwordPlaceholder: "Your password",
+    forgot: "Forgot?",
+    submit: "Sign in",
+    noAccount: "No account yet?",
+    createAccount: "Create a free account",
+  },
+  signup: {
+    title: "Create an account",
+    subtitle: "Free forever up to 5,000 events a month",
+    passwordPlaceholder: "At least 6 characters",
+    submit: "Create my account",
+    haveAccount: "Already have an account?",
+    login: "Sign in",
+  },
+  forgot: {
+    title: "Forgotten password",
+    subtitle: "We'll send you a link to choose a new one.",
+    submit: "Send the link",
+    sentTitle: "Link sent",
+    sentBody:
+      "If an account exists for {email}, a link has just gone out. It lasts an hour, and only works in this browser. Check your spam folder.",
+    backToLogin: "Back to sign in",
+    remember: "Remembered it?",
+    login: "Sign in",
+  },
+  reset: {
+    title: "New password",
+    subtitle: "Choose one and you'll be signed straight in.",
+    newLabel: "New password",
+    newPlaceholder: "At least {n} characters",
+    confirmLabel: "Confirmation",
+    confirmPlaceholder: "Type the password again",
+    submit: "Save and sign in",
+    mismatch: "The two passwords do not match.",
+    tooShort: "The password must be at least {n} characters.",
+    expiredTitle: "Link expired or already used",
+    expiredBody:
+      "A reset link works once, lasts an hour, and only in the browser that asked for it. Ask for another.",
+    askNew: "Request a new link",
+  },
+};
 
 /* ══════════════════════════════════════════════════════════════
    ENGLISH
@@ -562,6 +613,7 @@ const en: Dictionary = {
     legal: "© 2026 PulseTrack. Made in Europe.",
   },
 
+  auth: enAuth,
   assistant: {
     pill: "Ask PulseTrack",
     title: "PulseTrack Assistant",
@@ -575,6 +627,55 @@ const en: Dictionary = {
     answer:
       "Thanks for asking. The assistant is not wired to a live model yet — in the meantime, the pricing and feature pages cover this, or you can reach a human from the contact link in the footer.",
     disclaimer: "Scripted responses for now. A live model is on the roadmap.",
+  },
+};
+
+const frAuth: AuthLabels = {
+  emailLabel: "Email",
+  emailPlaceholder: "vous@exemple.com",
+  passwordLabel: "Mot de passe",
+  login: {
+    title: "Connexion",
+    subtitle: "Accédez à votre dashboard analytics",
+    passwordPlaceholder: "Votre mot de passe",
+    forgot: "Oublié ?",
+    submit: "Se connecter",
+    noAccount: "Pas encore de compte ?",
+    createAccount: "Créer un compte gratuit",
+  },
+  signup: {
+    title: "Créer un compte",
+    subtitle: "Gratuit pour toujours jusqu'à 5 000 événements/mois",
+    passwordPlaceholder: "Minimum 6 caractères",
+    submit: "Créer mon compte",
+    haveAccount: "Déjà un compte ?",
+    login: "Se connecter",
+  },
+  forgot: {
+    title: "Mot de passe oublié",
+    subtitle: "On vous envoie un lien pour en choisir un nouveau.",
+    submit: "Envoyer le lien",
+    sentTitle: "Lien envoyé",
+    sentBody:
+      "Si un compte existe pour {email}, un lien vient de partir. Il est valable une heure, et n'est utilisable que depuis ce navigateur. Pensez aux indésirables.",
+    backToLogin: "Retour à la connexion",
+    remember: "Vous vous en souvenez ?",
+    login: "Se connecter",
+  },
+  reset: {
+    title: "Nouveau mot de passe",
+    subtitle: "Choisissez-en un, vous serez connecté dans la foulée.",
+    newLabel: "Nouveau mot de passe",
+    newPlaceholder: "Au moins {n} caractères",
+    confirmLabel: "Confirmation",
+    confirmPlaceholder: "Retapez le mot de passe",
+    submit: "Enregistrer et se connecter",
+    mismatch: "Les deux mots de passe ne correspondent pas.",
+    tooShort: "Le mot de passe doit faire au moins {n} caractères.",
+    expiredTitle: "Lien expiré ou déjà utilisé",
+    expiredBody:
+      "Un lien de réinitialisation ne sert qu'une fois, dure une heure, et ne fonctionne que dans le navigateur qui l'a demandé. Redemandez-en un.",
+    askNew: "Demander un nouveau lien",
   },
 };
 
@@ -1014,6 +1115,7 @@ const fr: Dictionary = {
     legal: "© 2026 PulseTrack. Fait en Europe.",
   },
 
+  auth: frAuth,
   assistant: {
     pill: "Poser une question",
     title: "Assistant PulseTrack",
