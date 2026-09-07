@@ -6,6 +6,7 @@ import { Database, ChevronRight, Loader2 } from "lucide-react";
 import { useSites } from "@/components/site-context";
 import { useT } from "@/components/locale-context";
 import { relativeTime } from "@/lib/relative-time";
+import { useEventAliases } from "@/components/use-event-aliases";
 import {
   FilterBar,
   SegmentedFilter,
@@ -66,6 +67,9 @@ export function EventsPanel() {
 function SiteEvents({ siteId, domain }: { siteId: string; domain: string }) {
   const { t, intl } = useT();
   const periodOptions = usePeriodOptions();
+  // An alias renames an event for the whole team; the raw name stays
+  // what the query and the tracker use.
+  const label = useEventAliases(siteId);
 
   const [period, setPeriod] = useState("30d");
   const [kind, setKind] = useState<string | null>(null);
@@ -138,7 +142,7 @@ function SiteEvents({ siteId, domain }: { siteId: string; domain: string }) {
 
   /** A row's headline: the custom name, or what the built-in type is. */
   function labelOf(e: EventRow): string {
-    if (e.event_name) return e.event_name;
+    if (e.event_name) return label(e.event_name);
     if (e.type === "pageview") return t.screens.events.pageview;
     if (e.type === "leave") return t.screens.events.leave;
     if (e.type === "identify") return t.screens.events.identify;
@@ -157,7 +161,7 @@ function SiteEvents({ siteId, domain }: { siteId: string; domain: string }) {
         <SegmentedFilter value={kind} options={kindOptions} onChange={setKind} />
         <SearchableSelect
           value={name}
-          options={names.map((n) => ({ value: n, label: n }))}
+          options={names.map((n) => ({ value: n, label: label(n) }))}
           onChange={(v) => setName(v || null)}
           placeholder={t.screens.events.allNames}
           minWidth={190}

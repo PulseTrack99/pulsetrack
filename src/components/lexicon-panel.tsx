@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Loader2, Eye, EyeOff, Pencil, AlertTriangle } from "lucide-react";
+import { BookOpen, Loader2, Eye, EyeOff, Pencil, AlertTriangle, Tag } from "lucide-react";
 import { useSites } from "@/components/site-context";
 import { useT } from "@/components/locale-context";
 import { relativeTime } from "@/lib/relative-time";
@@ -28,6 +28,7 @@ interface Entry {
   properties: string[];
   description: string | null;
   hidden: boolean;
+  display_name: string | null;
 }
 
 export function LexiconPanel() {
@@ -60,6 +61,8 @@ function SiteLexicon({ siteId }: { siteId: string }) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [alias, setAlias] = useState("");
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -171,13 +174,50 @@ function SiteLexicon({ siteId }: { siteId: string }) {
                   >
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-medium text-foreground">{e.name}</span>
+                        <span className="font-medium text-foreground">
+                          {e.display_name || e.name}
+                        </span>
+                        {e.display_name && (
+                          <span className="font-mono text-[10.5px] text-muted-light">
+                            {e.name}
+                          </span>
+                        )}
                         {e.hidden && (
                           <span className="rounded-sm bg-surface-sunken px-1.5 py-0.5 text-[10px] text-muted-light">
                             {t.screens.lexicon.hidden}
                           </span>
                         )}
                       </div>
+
+                      {renaming === e.name && (
+                        <div className="mt-1.5 flex items-start gap-1.5">
+                          <input
+                            value={alias}
+                            onChange={(ev) => setAlias(ev.target.value)}
+                            onKeyDown={(ev) => {
+                              if (ev.key === "Enter") {
+                                patch(e.name, { display_name: alias });
+                                setRenaming(null);
+                              }
+                              if (ev.key === "Escape") setRenaming(null);
+                            }}
+                            maxLength={80}
+                            autoFocus
+                            placeholder={t.screens.lexicon.aliasPlaceholder}
+                            className="w-56 rounded-sm border border-border bg-surface px-2 py-1 text-[12px] outline-none focus:border-primary"
+                          />
+                          <button
+                            onClick={() => {
+                              patch(e.name, { display_name: alias });
+                              setRenaming(null);
+                            }}
+                            disabled={saving}
+                            className="rounded-sm bg-primary px-2 py-1 text-[11.5px] font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
+                          >
+                            {saving ? t.screens.lexicon.saving : t.screens.lexicon.save}
+                          </button>
+                        </div>
+                      )}
 
                       {editing === e.name ? (
                         <div className="mt-1.5 flex items-start gap-1.5">
@@ -199,13 +239,25 @@ function SiteLexicon({ siteId }: { siteId: string }) {
                           </button>
                         </div>
                       ) : (
-                        <button
-                          onClick={() => startEdit(e)}
-                          className="mt-1 flex items-center gap-1 text-left text-[12px] text-muted transition-colors hover:text-foreground"
-                        >
-                          <Pencil className="h-3 w-3 shrink-0 text-muted-light" />
-                          {e.description || t.screens.lexicon.describe}
-                        </button>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <button
+                            onClick={() => startEdit(e)}
+                            className="flex items-center gap-1 text-left text-[12px] text-muted transition-colors hover:text-foreground"
+                          >
+                            <Pencil className="h-3 w-3 shrink-0 text-muted-light" />
+                            {e.description || t.screens.lexicon.describe}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setRenaming(e.name);
+                              setAlias(e.display_name ?? "");
+                            }}
+                            className="flex items-center gap-1 text-[12px] text-muted-light transition-colors hover:text-foreground"
+                          >
+                            <Tag className="h-3 w-3 shrink-0" />
+                            {e.display_name ? t.screens.lexicon.rename : t.screens.lexicon.addAlias}
+                          </button>
+                        </div>
                       )}
                     </td>
 

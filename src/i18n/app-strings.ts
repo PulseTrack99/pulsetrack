@@ -420,6 +420,9 @@ export interface AppStrings {
       colProperties: string;
       colLastSeen: string;
       describe: string;
+      rename: string;
+      addAlias: string;
+      aliasPlaceholder: string;
       describePlaceholder: string;
       save: string;
       saving: string;
@@ -1179,6 +1182,9 @@ const fr: AppStrings = {
       colProperties: "Propriétés",
       colLastSeen: "Dernier",
       describe: "Décrire",
+      rename: "Renommer",
+      addAlias: "Nommer autrement",
+      aliasPlaceholder: "Nom lisible, ex. « Inscription terminée »",
       describePlaceholder: "Ce que cet événement signifie, et quand il part…",
       save: "Enregistrer",
       saving: "Enregistrement…",
@@ -2034,6 +2040,9 @@ const en: AppStrings = {
       colProperties: "Properties",
       colLastSeen: "Last",
       describe: "Describe",
+      rename: "Rename",
+      addAlias: "Give it a readable name",
+      aliasPlaceholder: "Readable name, e.g. \"Signup completed\"",
       describePlaceholder: "What this event means, and when it fires…",
       save: "Save",
       saving: "Saving…",

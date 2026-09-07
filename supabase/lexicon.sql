@@ -105,3 +105,18 @@ AS $$
 $$;
 
 GRANT EXECUTE ON FUNCTION site_event_lexicon(UUID, TIMESTAMPTZ) TO authenticated;
+
+
+-- ── Migration `event_lexicon_display_name` ─────────────────────
+-- Conservée ici pour que ce fichier décrive toujours le schéma vivant.
+--
+-- Un nom d'événement est écrit une fois, dans le code, souvent vite et
+-- souvent mal : `generic low` pour ce qui est en réalité l'intégration
+-- du SDK. Le renommer dans le code perd l'historique et casse les
+-- rapports existants ; ne pas le renommer laisse toute l'équipe lire un
+-- nom qui ment.
+--
+-- Un alias résout les deux : la donnée garde son nom, l'interface
+-- affiche celui qu'on a choisi. C'est la raison d'être d'un lexique, et
+-- c'est ce qui manquait à la première version.
+ALTER TABLE event_lexicon ADD COLUMN IF NOT EXISTS display_name text;

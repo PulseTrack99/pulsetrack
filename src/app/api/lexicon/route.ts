@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
 
   const { data: notes, error: notesError } = await supabase
     .from("event_lexicon")
-    .select("name, description, hidden")
+    .select("name, description, hidden, display_name")
     .eq("site_id", siteId);
 
   if (notesError && isMissingSchema(notesError)) {
@@ -75,13 +75,17 @@ export async function GET(req: NextRequest) {
   }
 
   const noteByName = new Map(
-    (notes ?? []).map((n) => [n.name, { description: n.description, hidden: n.hidden }])
+    (notes ?? []).map((n) => [
+      n.name,
+      { description: n.description, hidden: n.hidden, display_name: n.display_name },
+    ])
   );
 
   const entries = (rows ?? []).map((e: Entry) => ({
     ...e,
     description: noteByName.get(e.name)?.description ?? null,
     hidden: noteByName.get(e.name)?.hidden ?? false,
+    display_name: noteByName.get(e.name)?.display_name ?? null,
   }));
 
   // A name nobody has sent lately but somebody documented still belongs
@@ -99,6 +103,7 @@ export async function GET(req: NextRequest) {
         properties: [],
         description: note.description,
         hidden: note.hidden,
+        display_name: note.display_name,
       });
     }
   }
@@ -120,12 +125,18 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "site_id and name are required" }, { status: 400 });
   }
 
-  const patch: { description?: string | null; hidden?: boolean } = {};
+  const patch: { description?: string | null; hidden?: boolean; display_name?: string | null } = {};
   if ("description" in body) {
     const d = typeof body.description === "string" ? body.description.trim() : "";
     patch.description = d.slice(0, 500) || null;
   }
   if ("hidden" in body) patch.hidden = Boolean(body.hidden);
+  if ("display_name" in body) {
+    // An empty alias means "go back to the real name", not "call it
+    // nothing" — so it clears rather than storing a blank.
+    const n = typeof body.display_name === "string" ? body.display_name.trim() : "";
+    patch.display_name = n.slice(0, 80) || null;
+  }
 
   // RLS on event_lexicon is what enforces ownership; a site the caller
   // has no access to fails the WITH CHECK rather than being written.

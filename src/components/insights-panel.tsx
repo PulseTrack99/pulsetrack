@@ -6,6 +6,7 @@ import { LineChart, Loader2, Plus, X, AlertTriangle, Pin, Check } from "lucide-r
 import { useSites } from "@/components/site-context";
 import { useT } from "@/components/locale-context";
 import { SERIES, Lines, Ranking } from "@/components/insight-chart";
+import { useEventAliases } from "@/components/use-event-aliases";
 import {
   FilterBar,
   SegmentedFilter,
@@ -57,6 +58,7 @@ export function InsightsPanel() {
 function SiteInsights({ siteId }: { siteId: string }) {
   const { t, intl } = useT();
   const periodOptions = usePeriodOptions();
+  const eventLabel = useEventAliases(siteId);
 
   const [period, setPeriod] = useState("30d");
   const [measure, setMeasure] = useState("pageviews");
@@ -156,7 +158,11 @@ function SiteInsights({ siteId }: { siteId: string }) {
   /** With no split, SQL files everything under one neutral key — it has
    *  no idea what is being measured. This does. */
   const groupLabel = (key: string) =>
-    breakdown ? key : measureOptions.find((m) => m.value === measure)?.label ?? key;
+    breakdown
+      ? breakdown === "event_name"
+        ? eventLabel(key)
+        : key
+      : measureOptions.find((m) => m.value === measure)?.label ?? key;
 
   const grainOptions = [
     { value: "day", label: t.screens.insights.gDay },
@@ -208,7 +214,7 @@ function SiteInsights({ siteId }: { siteId: string }) {
           {onEvents && (
             <SearchableSelect
               value={eventName}
-              options={eventNames.map((n) => ({ value: n, label: n }))}
+              options={eventNames.map((n) => ({ value: n, label: eventLabel(n) }))}
               onChange={(v) => setEventName(v || null)}
               placeholder={t.screens.insights.allEvents}
               minWidth={180}
