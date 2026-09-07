@@ -29,6 +29,7 @@ import {
   Bell,
   Radio,
   Database,
+  LineChart,
   ChevronDown,
   Share2,
   KeyRound,
@@ -71,6 +72,7 @@ type NavEntry = NavLeafEntry | { key: NavKey; icon: NavIcon; items: NavLeafEntry
 const navItems: NavEntry[] = [
   { href: "/dashboard", key: "home", icon: BarChart3 },
   { href: "/dashboard/agent", key: "agent", icon: Sparkles },
+  { href: "/dashboard/insights", key: "insights", icon: LineChart },
   { href: "/dashboard/revenue", key: "revenue", icon: DollarSign },
   { href: "/dashboard/funnels", key: "funnels", icon: Filter },
   { href: "/dashboard/flows", key: "flows", icon: Workflow },

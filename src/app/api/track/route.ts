@@ -50,10 +50,30 @@ function getBrowser(ua: string): string {
 }
 
 // Parse referrer source
-function getSource(referrer: string | null): string {
+/**
+ * Where a visit came from.
+ *
+ * siteDomain is not optional decoration: without it, a site that does
+ * ordinary full-page navigation reports *itself* as a traffic source,
+ * because the referrer of page two is page one. Every WordPress,
+ * Shopify or static site does this, and it corrupts more than the
+ * sources ranking — revenue attribution answers "which source turns
+ * into paying customers", and the site's own domain was competing in
+ * that answer. Found by pointing PulseTrack at pulsetrack.eu.
+ */
+function getSource(referrer: string | null, siteDomain?: string | null): string {
   if (!referrer) return "Direct";
   try {
     const host = new URL(referrer).hostname.replace("www.", "");
+
+    // Same domain, or one of its subdomains: this is the visitor moving
+    // around inside the site, not arriving from somewhere.
+    if (siteDomain) {
+      const own = siteDomain.replace(/^www./, "").toLowerCase();
+      const h = host.toLowerCase();
+      if (h === own || h.endsWith("." + own)) return "Direct";
+    }
+
     const sourceMap: Record<string, string> = {
       "google.com": "Google",
       "google.fr": "Google",
@@ -211,7 +231,7 @@ export async function POST(req: NextRequest) {
       path,
       referrer,
       title,
-      source: utm?.utm_source || getSource(referrer),
+      source: utm?.utm_source || getSource(referrer, site.domain),
       utm_medium: utm?.utm_medium || null,
       utm_campaign: utm?.utm_campaign || null,
       country,

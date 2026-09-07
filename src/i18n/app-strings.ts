@@ -46,6 +46,7 @@ export interface AppStrings {
       visitors: string;
       lexicon: string;
       destinations: string;
+      insights: string;
       data: string;
       settings: string;
       mySites: string;
@@ -314,6 +315,35 @@ export interface AppStrings {
       visitors: string;
       lexicon: string;
       destinations: string;
+      insights: string;
+    };
+    insights: {
+      noSiteBody: string;
+      measure: string;
+      mPageviews: string;
+      mSessions: string;
+      mVisitors: string;
+      mEvents: string;
+      mEventVisitors: string;
+      allEvents: string;
+      splitBy: string;
+      noSplit: string;
+      clearSplit: string;
+      property: string;
+      filters: string;
+      addFilter: string;
+      removeFilter: string;
+      chooseField: string;
+      chooseValue: string;
+      gDay: string;
+      gWeek: string;
+      gMonth: string;
+      gNone: string;
+      emptyTitle: string;
+      emptyBody: string;
+      pendingTitle: string;
+      pendingBody: string;
+      fields: Record<string, string>;
     };
     destinations: {
       configure: string;
@@ -676,6 +706,7 @@ const fr: AppStrings = {
       visitors: "Visiteurs",
       lexicon: "Lexique",
       destinations: "Destinations",
+      insights: "Insights",
       data: "Données",
       settings: "Paramètres",
       mySites: "Mes sites",
@@ -986,6 +1017,48 @@ const fr: AppStrings = {
       visitors: "Qui est passé, ce qu'il a regardé, d'où il venait — regroupé par visiteur plutôt que par page.",
       lexicon: "Le dictionnaire de vos événements : ce que chaque nom veut dire, et ce qu'il fait vraiment.",
       destinations: "Par où vos données sortent, et qui en a lu récemment.",
+      insights: "Posez la question que personne n'avait prévue : une mesure, une ventilation, des filtres.",
+    },
+    insights: {
+      noSiteBody: "Choisissez un site pour l'interroger.",
+      measure: "Mesurer",
+      mPageviews: "Pages vues",
+      mSessions: "Sessions",
+      mVisitors: "Visiteurs",
+      mEvents: "Événements",
+      mEventVisitors: "Visiteurs ayant déclenché",
+      allEvents: "Tous les événements",
+      splitBy: "Ventiler par",
+      noSplit: "Pas de ventilation",
+      clearSplit: "Retirer la ventilation",
+      property: "propriété",
+      filters: "Filtrer",
+      addFilter: "Ajouter un filtre",
+      removeFilter: "Retirer ce filtre",
+      chooseField: "Quel champ ?",
+      chooseValue: "Quelle valeur ?",
+      gDay: "Jour",
+      gWeek: "Semaine",
+      gMonth: "Mois",
+      gNone: "Classement",
+      emptyTitle: "Rien ne répond à cette question",
+      emptyBody:
+        "Aucune donnée ne correspond à cette combinaison sur la période. Retirez un filtre, ou élargissez la période.",
+      pendingTitle: "Une migration reste à lancer",
+      pendingBody:
+        "Cet écran a besoin de fonctions que la base n'a pas encore. Collez ce fichier dans l'éditeur SQL Supabase, puis rechargez :",
+      fields: {
+        path: "Page",
+        source: "Source",
+        country: "Pays",
+        device: "Appareil",
+        browser: "Navigateur",
+        language: "Langue",
+        utm_medium: "Support UTM",
+        utm_campaign: "Campagne UTM",
+        event_name: "Nom d'événement",
+        referrer: "Référent",
+      },
     },
     destinations: {
       configure: "Configurer",
@@ -1457,6 +1530,7 @@ const en: AppStrings = {
       visitors: "Visitors",
       lexicon: "Lexicon",
       destinations: "Destinations",
+      insights: "Insights",
       data: "Data",
       settings: "Settings",
       mySites: "My sites",
@@ -1762,6 +1836,48 @@ const en: AppStrings = {
       visitors: "Who came by, what they looked at, where they came from — grouped by visitor rather than by page.",
       lexicon: "The dictionary of your events: what each name means, and what it actually does.",
       destinations: "Where your data goes out, and who has read some lately.",
+      insights: "Ask the question nobody planned for: a measure, a split, some filters.",
+    },
+    insights: {
+      noSiteBody: "Pick a site to question.",
+      measure: "Measure",
+      mPageviews: "Pageviews",
+      mSessions: "Sessions",
+      mVisitors: "Visitors",
+      mEvents: "Events",
+      mEventVisitors: "Visitors who fired",
+      allEvents: "All events",
+      splitBy: "Split by",
+      noSplit: "No split",
+      clearSplit: "Clear the split",
+      property: "property",
+      filters: "Filter",
+      addFilter: "Add a filter",
+      removeFilter: "Remove this filter",
+      chooseField: "Which field?",
+      chooseValue: "Which value?",
+      gDay: "Day",
+      gWeek: "Week",
+      gMonth: "Month",
+      gNone: "Ranking",
+      emptyTitle: "Nothing answers that",
+      emptyBody:
+        "No data matches this combination over the period. Drop a filter, or widen the period.",
+      pendingTitle: "A migration still has to run",
+      pendingBody:
+        "This screen needs functions the database does not have yet. Paste this file into the Supabase SQL editor, then reload:",
+      fields: {
+        path: "Page",
+        source: "Source",
+        country: "Country",
+        device: "Device",
+        browser: "Browser",
+        language: "Language",
+        utm_medium: "UTM medium",
+        utm_campaign: "UTM campaign",
+        event_name: "Event name",
+        referrer: "Referrer",
+      },
     },
     destinations: {
       configure: "Configure",
