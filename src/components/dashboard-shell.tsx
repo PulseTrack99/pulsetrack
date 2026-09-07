@@ -32,6 +32,7 @@ import {
   LineChart,
   LayoutDashboard,
   UserCircle2,
+  Repeat,
   ChevronDown,
   Share2,
   KeyRound,
@@ -79,6 +80,7 @@ const navItems: NavEntry[] = [
   { href: "/dashboard/revenue", key: "revenue", icon: DollarSign },
   { href: "/dashboard/funnels", key: "funnels", icon: Filter },
   { href: "/dashboard/flows", key: "flows", icon: Workflow },
+  { href: "/dashboard/retention", key: "retention", icon: Repeat },
   { href: "/dashboard/replays", key: "replays", icon: Video },
   { href: "/dashboard/heatmaps", key: "heatmaps", icon: MousePointerClick },
   {

@@ -49,6 +49,7 @@ export interface AppStrings {
       insights: string;
       boards: string;
       profiles: string;
+      retention: string;
       data: string;
       settings: string;
       mySites: string;
@@ -320,6 +321,23 @@ export interface AppStrings {
       insights: string;
       boards: string;
       profiles: string;
+      retention: string;
+    };
+    retention: {
+      noSiteBody: string;
+      gDay: string;
+      gWeek: string;
+      gMonth: string;
+      colCohort: string;
+      colPeople: string;
+      start: string;
+      emptyTitle: string;
+      emptyBody: string;
+      whoTitle: string;
+      whoBody: string;
+      whoTip: string;
+      pendingTitle: string;
+      pendingBody: string;
     };
     profiles: {
       noSiteBody: string;
@@ -764,6 +782,7 @@ const fr: AppStrings = {
       insights: "Insights",
       boards: "Tableaux",
       profiles: "Profils",
+      retention: "Rétention",
       data: "Données",
       settings: "Paramètres",
       mySites: "Mes sites",
@@ -1077,6 +1096,27 @@ const fr: AppStrings = {
       insights: "Posez la question que personne n'avait prévue : une mesure, une ventilation, des filtres.",
       boards: "Vos pages à vous : des graphiques, et le texte qui dit quoi y chercher.",
       profiles: "Les personnes qui vous ont dit qui elles sont — et tout ce qu'elles ont fait depuis.",
+      retention: "Est-ce que les gens reviennent ? Chaque ligne suit un groupe arrivé la même semaine.",
+    },
+    retention: {
+      noSiteBody: "Choisissez un site pour mesurer sa rétention.",
+      gDay: "Jour",
+      gWeek: "Semaine",
+      gMonth: "Mois",
+      colCohort: "Arrivés en",
+      colPeople: "Personnes",
+      start: "Début",
+      emptyTitle: "Rien à mesurer pour l'instant",
+      emptyBody:
+        "La rétention a besoin de savoir qui est qui à travers les jours. Appelez cette fonction à chaque visite d'une personne connectée, pas seulement à son inscription :",
+      whoTitle: "Qui apparaît ici, et qui n'y apparaît pas",
+      whoBody:
+        "Seules les personnes que vous avez nommées avec identify() figurent dans ce tableau. Un visiteur anonyme ne peut pas y être : son identifiant vient d'un sel détruit chaque nuit, donc « est-il revenu la semaine suivante » est une question sans réponse pour lui. C'est le prix de l'absence de bandeau de consentement, et c'est aussi ainsi que fonctionnent les outils qui affichent des profils.",
+      whoTip:
+        "Le chiffre ne vaut que si identify() est appelé à chaque visite. Appelé uniquement à l'inscription, il ne relie jamais les visites suivantes et la rétention paraît nulle.",
+      pendingTitle: "Une migration reste à lancer",
+      pendingBody:
+        "Cet écran a besoin d'une fonction que la base n'a pas encore. Collez ce fichier dans l'éditeur SQL Supabase, puis rechargez :",
     },
     profiles: {
       noSiteBody: "Choisissez un site pour voir ses profils.",
@@ -1649,6 +1689,7 @@ const en: AppStrings = {
       insights: "Insights",
       boards: "Boards",
       profiles: "Profiles",
+      retention: "Retention",
       data: "Data",
       settings: "Settings",
       mySites: "My sites",
@@ -1957,6 +1998,27 @@ const en: AppStrings = {
       insights: "Ask the question nobody planned for: a measure, a split, some filters.",
       boards: "Your own pages: charts, and the words that say what to look for.",
       profiles: "The people who told you who they are — and everything they have done since.",
+      retention: "Do people come back? Each row follows a group that arrived in the same week.",
+    },
+    retention: {
+      noSiteBody: "Pick a site to measure retention for.",
+      gDay: "Day",
+      gWeek: "Week",
+      gMonth: "Month",
+      colCohort: "Arrived in",
+      colPeople: "People",
+      start: "Start",
+      emptyTitle: "Nothing to measure yet",
+      emptyBody:
+        "Retention needs to know who is who across days. Call this on every visit by a signed-in person, not only at signup:",
+      whoTitle: "Who is in here, and who is not",
+      whoBody:
+        "Only the people you named through identify() appear in this table. An anonymous visitor cannot: their id comes from a salt destroyed every night, so \"did they come back next week\" is a question with no answer for them. That is the price of having no consent banner — and it is also how the tools that show profiles work.",
+      whoTip:
+        "The figure is only worth something if identify() runs on every visit. Called at signup alone, it never links the later visits and retention looks like zero.",
+      pendingTitle: "A migration still has to run",
+      pendingBody:
+        "This screen needs a function the database does not have yet. Paste this file into the Supabase SQL editor, then reload:",
     },
     profiles: {
       noSiteBody: "Pick a site to see its profiles.",
