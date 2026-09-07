@@ -60,3 +60,27 @@ CREATE POLICY "Users can manage their stripe connections"
 CREATE POLICY "Users can view their revenue events"
   ON revenue_events FOR SELECT
   USING (site_id IN (SELECT id FROM sites WHERE user_id = auth.uid()));
+
+
+-- ════════════════════════════════════════════════════════════════
+-- Migration `revenue_events_team_access`.
+-- Conservée ici pour que ce fichier décrive toujours le schéma vivant.
+--
+-- revenue_events était la seule table rattachée à un site à s'en tenir
+-- au propriétaire, quand toutes les autres passent par
+-- has_account_access (supabase/team.sql). Un coéquipier invité voyait
+-- donc l'audience, les funnels et les parcours, mais pas ce que tout ça
+-- rapporte — c'est-à-dire précisément la question que l'équipe se pose.
+--
+-- La lecture seule reste la règle : ces lignes sont écrites par la
+-- synchronisation Stripe avec le service role, jamais depuis une
+-- session.
+DROP POLICY IF EXISTS "Users can view their revenue events" ON revenue_events;
+CREATE POLICY "Users can view their revenue events"
+  ON revenue_events FOR SELECT
+  USING (site_id IN (SELECT id FROM sites WHERE has_account_access(sites.user_id)));
+
+-- stripe_connections n'est délibérément PAS alignée : elle contient
+-- stripe_restricted_key en clair. Voir le revenu d'une entreprise et
+-- détenir la clé qui permet de le lire chez Stripe sont deux niveaux de
+-- confiance différents, et rien ne demande de les confondre.
