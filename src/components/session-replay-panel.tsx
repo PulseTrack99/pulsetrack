@@ -15,6 +15,7 @@ import {
 } from "@/components/filters";
 import { useT } from "@/components/locale-context";
 import { relativeTime } from "@/lib/relative-time";
+import { plural } from "@/lib/plural";
 import {
   Video,
   AlertTriangle,
@@ -937,7 +938,7 @@ function SiteReplays({
             {!loading && (
               <p className="border-b border-border px-4 py-2 text-[11.5px] text-muted-light">
                 <span className="font-medium text-foreground">{replays.length}</span>{" "}
-                {t.screens.replays.recordings}
+                {plural(replays.length, t.screens.replays.recording, t.screens.replays.recordings)}
                 {conditions.length > 0 || rageOnly || device || path
                   ? ` ${t.screens.replays.matchingFilters}`
                   : ` ${t.screens.replays.overPeriod[period]}`}

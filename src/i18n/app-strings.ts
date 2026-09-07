@@ -47,6 +47,7 @@ export interface AppStrings {
       lexicon: string;
       destinations: string;
       insights: string;
+      boards: string;
       data: string;
       settings: string;
       mySites: string;
@@ -316,6 +317,39 @@ export interface AppStrings {
       lexicon: string;
       destinations: string;
       insights: string;
+      boards: string;
+    };
+    boards: {
+      noSiteBody: string;
+      newBoard: string;
+      create: string;
+      namePlaceholder: string;
+      countSuffixOne: string;
+      countSuffix: string;
+      blocksSuffixOne: string;
+      blocksSuffix: string;
+      listEmptyTitle: string;
+      listEmptyBody: string;
+      notFound: string;
+      edit: string;
+      done: string;
+      deleteBoard: string;
+      addHeading: string;
+      addText: string;
+      addTile: string;
+      headingPlaceholder: string;
+      textPlaceholder: string;
+      newTile: string;
+      tileEmpty: string;
+      emptyTitle: string;
+      emptyBody: string;
+      full: string;
+      half: string;
+      pendingTitle: string;
+      pendingBody: string;
+      pinHere: string;
+      pinned: string;
+      pinTitle: string;
     };
     insights: {
       noSiteBody: string;
@@ -524,6 +558,7 @@ export interface AppStrings {
       cohorts: string;
       save: string;
       deleteCohort: string;
+      recording: string;
       recordings: string;
       matchingFilters: string;
       over: string;
@@ -707,6 +742,7 @@ const fr: AppStrings = {
       lexicon: "Lexique",
       destinations: "Destinations",
       insights: "Insights",
+      boards: "Tableaux",
       data: "Données",
       settings: "Paramètres",
       mySites: "Mes sites",
@@ -1018,6 +1054,42 @@ const fr: AppStrings = {
       lexicon: "Le dictionnaire de vos événements : ce que chaque nom veut dire, et ce qu'il fait vraiment.",
       destinations: "Par où vos données sortent, et qui en a lu récemment.",
       insights: "Posez la question que personne n'avait prévue : une mesure, une ventilation, des filtres.",
+      boards: "Vos pages à vous : des graphiques, et le texte qui dit quoi y chercher.",
+    },
+    boards: {
+      noSiteBody: "Choisissez un site pour composer un tableau.",
+      newBoard: "Nouveau tableau",
+      create: "Créer",
+      namePlaceholder: "Nom du tableau…",
+      countSuffixOne: "tableau",
+      countSuffix: "tableaux",
+      blocksSuffixOne: "bloc",
+      blocksSuffix: "blocs",
+      listEmptyTitle: "Aucun tableau",
+      listEmptyBody:
+        "Un tableau mêle des graphiques et du texte. C'est la différence entre une page de chiffres et un rapport qu'on envoie à son équipe sans avoir à l'expliquer.",
+      notFound: "Ce tableau n'existe pas, ou plus.",
+      edit: "Modifier",
+      done: "Terminé",
+      deleteBoard: "Supprimer ce tableau",
+      addHeading: "Titre",
+      addText: "Texte",
+      addTile: "Graphique",
+      headingPlaceholder: "Titre de section",
+      textPlaceholder: "Ce qu'il faut regarder ici, et pourquoi…",
+      newTile: "Nouveau graphique",
+      tileEmpty: "Rien sur cette période.",
+      emptyTitle: "Ce tableau est vide",
+      emptyBody:
+        "Passez en modification pour y ajouter un titre, un paragraphe ou un graphique. Vous pouvez aussi épingler une question depuis Insights.",
+      full: "Pleine largeur",
+      half: "Demi-largeur",
+      pendingTitle: "Une migration reste à lancer",
+      pendingBody:
+        "Les tableaux ont besoin de deux tables que la base n'a pas encore. Collez ce fichier dans l'éditeur SQL Supabase, puis rechargez :",
+      pinHere: "Épingler à un tableau",
+      pinned: "Épinglé",
+      pinTitle: "Titre du graphique…",
     },
     insights: {
       noSiteBody: "Choisissez un site pour l'interroger.",
@@ -1268,6 +1340,7 @@ const fr: AppStrings = {
       cohorts: "Cohorts :",
       save: "Sauvegarder",
       deleteCohort: "Supprimer ce cohort",
+      recording: "enregistrement",
       recordings: "enregistrements",
       matchingFilters: "correspondant aux filtres",
       over: "sur",
@@ -1531,6 +1604,7 @@ const en: AppStrings = {
       lexicon: "Lexicon",
       destinations: "Destinations",
       insights: "Insights",
+      boards: "Boards",
       data: "Data",
       settings: "Settings",
       mySites: "My sites",
@@ -1837,6 +1911,42 @@ const en: AppStrings = {
       lexicon: "The dictionary of your events: what each name means, and what it actually does.",
       destinations: "Where your data goes out, and who has read some lately.",
       insights: "Ask the question nobody planned for: a measure, a split, some filters.",
+      boards: "Your own pages: charts, and the words that say what to look for.",
+    },
+    boards: {
+      noSiteBody: "Pick a site to build a board for.",
+      newBoard: "New board",
+      create: "Create",
+      namePlaceholder: "Board name…",
+      countSuffixOne: "board",
+      countSuffix: "boards",
+      blocksSuffixOne: "block",
+      blocksSuffix: "blocks",
+      listEmptyTitle: "No boards yet",
+      listEmptyBody:
+        "A board mixes charts and words. That is the difference between a page of numbers and a report you can send to your team without explaining it.",
+      notFound: "This board does not exist, or no longer does.",
+      edit: "Edit",
+      done: "Done",
+      deleteBoard: "Delete this board",
+      addHeading: "Heading",
+      addText: "Text",
+      addTile: "Chart",
+      headingPlaceholder: "Section heading",
+      textPlaceholder: "What to look at here, and why…",
+      newTile: "New chart",
+      tileEmpty: "Nothing in this period.",
+      emptyTitle: "This board is empty",
+      emptyBody:
+        "Switch to editing to add a heading, a paragraph or a chart. You can also pin a question from Insights.",
+      full: "Full width",
+      half: "Half width",
+      pendingTitle: "A migration still has to run",
+      pendingBody:
+        "Boards need two tables the database does not have yet. Paste this file into the Supabase SQL editor, then reload:",
+      pinHere: "Pin to a board",
+      pinned: "Pinned",
+      pinTitle: "Chart title…",
     },
     insights: {
       noSiteBody: "Pick a site to question.",
@@ -2084,6 +2194,7 @@ const en: AppStrings = {
       cohorts: "Cohorts:",
       save: "Save",
       deleteCohort: "Delete this cohort",
+      recording: "recording",
       recordings: "recordings",
       matchingFilters: "matching the filters",
       over: "over",
