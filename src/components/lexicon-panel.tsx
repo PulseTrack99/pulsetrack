@@ -7,6 +7,7 @@ import { useSites } from "@/components/site-context";
 import { useT } from "@/components/locale-context";
 import { relativeTime } from "@/lib/relative-time";
 import { FilterBar, SegmentedFilter, usePeriodOptionsNoDay } from "@/components/filters";
+import { VolumeTab, EraseTab } from "@/components/lexicon-governance";
 
 /**
  * The event dictionary.
@@ -55,6 +56,11 @@ function SiteLexicon({ siteId }: { siteId: string }) {
   const { t, intl } = useT();
   const periodOptions = usePeriodOptionsNoDay();
 
+  /* Three subjects that share one noun. The inventory is what the
+     events are; volume is what they cost; erasure is how one goes away.
+     Mixpanel splits the same three into a whole sub-navigation — tabs
+     are the same idea at our size. */
+  const [tab, setTab] = useState<"events" | "volume" | "erase">("events");
   const [period, setPeriod] = useState("30d");
   const [entries, setEntries] = useState<Entry[]>([]);
   const [pending, setPending] = useState(false);
@@ -128,8 +134,35 @@ function SiteLexicon({ siteId }: { siteId: string }) {
     );
   }
 
+  const tabs = [
+    ["events", t.screens.lexicon.tabEvents],
+    ["volume", t.screens.lexicon.tabVolume],
+    ["erase", t.screens.lexicon.tabErase],
+  ] as const;
+
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap gap-0.5 border-b border-border">
+        {tabs.map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`-mb-px border-b-2 px-3 py-2 text-[13px] transition-colors ${
+              tab === id
+                ? "border-primary font-medium text-primary"
+                : "border-transparent text-muted hover:text-foreground"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "volume" && <VolumeTab siteId={siteId} />}
+      {tab === "erase" && <EraseTab siteId={siteId} />}
+
+      {tab === "events" && (
+      <>
       <FilterBar>
         <SegmentedFilter
           value={period}
@@ -327,6 +360,8 @@ function SiteLexicon({ siteId }: { siteId: string }) {
           {t.screens.lexicon.whyBody}
         </p>
       </div>
+      </>
+      )}
     </div>
   );
 }

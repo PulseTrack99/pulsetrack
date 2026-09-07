@@ -474,6 +474,28 @@ export interface AppStrings {
       pendingTitle: string;
       pendingBody: string;
       pendingFile: string;
+      tabEvents: string;
+      tabVolume: string;
+      tabErase: string;
+      volumeTitle: string;
+      thisMonth: string;
+      volumeNote: string;
+      spentOn: string;
+      noNamed: string;
+      hiddenStillCounts: string;
+      eraseWhyTitle: string;
+      eraseWhyBody: string;
+      eraseAnonNote: string;
+      erasePerson: string;
+      eraseEvent: string;
+      erasePersonPlaceholder: string;
+      eraseEventPlaceholder: string;
+      eraseRetype: string;
+      eraseNow: string;
+      eraseDone: string;
+      eraseNothing: string;
+      eraseFailed: string;
+      eraseRows: Record<string, string>;
     };
     visitors: {
       noSiteBody: string;
@@ -1281,6 +1303,38 @@ const fr: AppStrings = {
       pendingBody:
         "Le dictionnaire a besoin d'une fonction et d'une table que la base n'a pas encore. Collez ce fichier dans l'éditeur SQL Supabase, puis rechargez :",
       pendingFile: "supabase/lexicon.sql",
+      tabEvents: "Événements",
+      tabVolume: "Volume",
+      tabErase: "Suppression",
+      volumeTitle: "Consommation du mois",
+      thisMonth: "ce mois-ci",
+      volumeNote:
+        "Le quota est celui du compte, pas du site : un site qui le remplit prive les autres. Il se remet à zéro le 1er de chaque mois.",
+      spentOn: "À quoi il passe",
+      noNamed: "Aucun événement personnalisé ce mois-ci.",
+      hiddenStillCounts:
+        "Masquer ou renommer un événement change ce que vous lisez, pas ce qui est enregistré : un événement masqué continue de consommer le quota. Pour qu'il cesse de compter, il faut retirer l'appel de votre code.",
+      eraseWhyTitle: "Droit à l'effacement",
+      eraseWhyBody:
+        "Vos utilisateurs peuvent vous demander d'effacer leurs données, et l'article 17 du RGPD ne laisse pas le choix. Ce qui part ici part définitivement : les sessions, leurs événements, leurs interactions, leurs enregistrements — fichiers compris — et les paiements associés.",
+      eraseAnonNote:
+        "Les visiteurs anonymes ne sont pas concernés : leur identifiant vient d'un sel détruit chaque nuit, donc rien ne permet de retrouver « les lignes de cette personne ». C'est aussi pour ça qu'ils ne sont pas des données personnelles.",
+      erasePerson: "Une personne",
+      eraseEvent: "Un événement",
+      erasePersonPlaceholder: "Son adresse e-mail",
+      eraseEventPlaceholder: "Nom exact de l'événement",
+      eraseRetype: "Retapez pour confirmer :",
+      eraseNow: "Effacer définitivement",
+      eraseDone: "Effacé",
+      eraseNothing: "Rien à supprimer.",
+      eraseFailed: "La suppression a échoué.",
+      eraseRows: {
+        events: "événements",
+        interactions: "interactions",
+        replays: "enregistrements",
+        revenue: "paiements",
+        identities: "identifications",
+      },
     },
     visitors: {
       noSiteBody: "Choisissez un site pour voir qui le visite.",
@@ -2169,6 +2223,38 @@ const en: AppStrings = {
       unhide: "Show again",
       hidden: "Hidden",
       noProperties: "none",
+      tabEvents: "Events",
+      tabVolume: "Volume",
+      tabErase: "Deletion",
+      volumeTitle: "This month's usage",
+      thisMonth: "this month",
+      volumeNote:
+        "The allowance belongs to the account, not the site: one site filling it starves the others. It resets on the 1st of each month.",
+      spentOn: "Where it goes",
+      noNamed: "No custom events this month.",
+      hiddenStillCounts:
+        "Hiding or renaming an event changes what you read, not what is recorded: a hidden event keeps consuming the allowance. To stop it counting, remove the call from your code.",
+      eraseWhyTitle: "Right to erasure",
+      eraseWhyBody:
+        "Your users can ask you to delete their data, and GDPR Article 17 leaves no choice. What goes here goes for good: the sessions, their events, their interactions, their recordings — files included — and the payments attached.",
+      eraseAnonNote:
+        "Anonymous visitors are not covered: their id comes from a salt destroyed every night, so there is no way to find \"this person's\" rows. That is also why they are not personal data.",
+      erasePerson: "A person",
+      eraseEvent: "An event",
+      erasePersonPlaceholder: "Their email address",
+      eraseEventPlaceholder: "Exact event name",
+      eraseRetype: "Retype to confirm:",
+      eraseNow: "Erase permanently",
+      eraseDone: "Erased",
+      eraseNothing: "Nothing to delete.",
+      eraseFailed: "The deletion failed.",
+      eraseRows: {
+        events: "events",
+        interactions: "interactions",
+        replays: "recordings",
+        revenue: "payments",
+        identities: "identifications",
+      },
       neverFired: "Not sent in this period",
       visitorsSuffix: "visitors",
       emptyTitle: "No custom events",
