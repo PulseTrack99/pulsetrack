@@ -3,6 +3,7 @@ import { Inter_Tight, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { getLocale } from "@/i18n/get-locale";
 import { dictionaries } from "@/i18n/dictionaries";
+import { SelfAnalytics } from "@/components/self-analytics";
 
 const sans = Inter_Tight({
   variable: "--font-sans",
@@ -116,6 +117,9 @@ export default async function RootLayout({
     >
       <body className="min-h-full">
         {children}
+        {/* We are the first customer. It decides for itself which routes
+            it belongs on — see the component. */}
+        <SelfAnalytics />
         <script
           type="application/ld+json"
           // Serialised from our own dictionary — no user input reaches this.
