@@ -1,0 +1,111 @@
+<!--
+  Supabase Auth → Emails → Templates → "Confirm signup"
+
+  Bilingue parce que Supabase ne gère qu'une langue par gabarit, sans
+  conditionnel : impossible de suivre le cookie de langue comme le fait
+  le reste du produit. Français d'abord (marché principal), anglais
+  ensuite, chaque bloc complet avec son propre bouton — un lecteur
+  anglophone ne devrait pas avoir à cliquer un bouton français.
+
+  Tables et styles en ligne : Outlook ignore flexbox, grid et les
+  feuilles de style. Pas de police distante non plus, elles ne se
+  chargent pas dans la moitié des clients.
+
+  Objet à coller dans le champ "Subject heading" :
+  Confirmez votre inscription · Confirm your signup
+-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f6f6f8;margin:0;padding:32px 12px;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:560px;max-width:100%;background-color:#ffffff;border-radius:12px;border:1px solid #e8e8ee;">
+
+        <!-- Marque -->
+        <tr>
+          <td style="padding:28px 32px 0 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+            <span style="font-size:18px;font-weight:700;color:#1f2023;letter-spacing:-0.02em;">
+              <span style="color:#5b3df5;">&#9679;</span> PulseTrack
+            </span>
+          </td>
+        </tr>
+
+        <!-- Français -->
+        <tr>
+          <td style="padding:24px 32px 0 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+            <h1 style="margin:0 0 12px 0;font-size:20px;line-height:1.3;font-weight:700;color:#1f2023;">
+              Confirmez votre adresse
+            </h1>
+            <p style="margin:0 0 20px 0;font-size:15px;line-height:1.6;color:#62626a;">
+              Bienvenue. Un dernier clic et votre compte PulseTrack est actif :
+              vous pourrez ajouter votre premier site et voir vos données arriver
+              en quelques secondes.
+            </p>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="background-color:#5b3df5;border-radius:8px;">
+                  <a href="{{ .ConfirmationURL }}"
+                     style="display:inline-block;padding:12px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">
+                    Confirmer mon adresse
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:16px 0 0 0;font-size:13px;line-height:1.6;color:#8a8a93;">
+              Si vous n'avez pas créé de compte, ignorez ce message : rien ne sera activé.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Séparateur -->
+        <tr>
+          <td style="padding:28px 32px 0 32px;">
+            <div style="height:1px;background-color:#e8e8ee;line-height:1px;font-size:0;">&nbsp;</div>
+          </td>
+        </tr>
+
+        <!-- English -->
+        <tr>
+          <td style="padding:24px 32px 0 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+            <h2 style="margin:0 0 12px 0;font-size:20px;line-height:1.3;font-weight:700;color:#1f2023;">
+              Confirm your address
+            </h2>
+            <p style="margin:0 0 20px 0;font-size:15px;line-height:1.6;color:#62626a;">
+              Welcome. One last click and your PulseTrack account is live: you can
+              add your first site and watch the data arrive within seconds.
+            </p>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="background-color:#5b3df5;border-radius:8px;">
+                  <a href="{{ .ConfirmationURL }}"
+                     style="display:inline-block;padding:12px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">
+                    Confirm my address
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:16px 0 0 0;font-size:13px;line-height:1.6;color:#8a8a93;">
+              If you didn't create an account, ignore this message — nothing will be activated.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Repli : certains clients suppriment les boutons -->
+        <tr>
+          <td style="padding:28px 32px 28px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+            <div style="height:1px;background-color:#e8e8ee;line-height:1px;font-size:0;margin-bottom:20px;">&nbsp;</div>
+            <p style="margin:0 0 8px 0;font-size:12px;line-height:1.6;color:#8a8a93;">
+              Le bouton ne fonctionne pas ? Copiez ce lien &middot; Button not working? Copy this link:
+            </p>
+            <p style="margin:0;font-size:12px;line-height:1.6;word-break:break-all;">
+              <a href="{{ .ConfirmationURL }}" style="color:#5b3df5;text-decoration:underline;">{{ .ConfirmationURL }}</a>
+            </p>
+          </td>
+        </tr>
+
+      </table>
+
+      <p style="margin:20px 0 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;color:#8a8a93;">
+        PulseTrack &middot; <a href="https://pulsetrack.eu" style="color:#8a8a93;text-decoration:underline;">pulsetrack.eu</a>
+      </p>
+    </td>
+  </tr>
+</table>
