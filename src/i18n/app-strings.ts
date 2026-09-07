@@ -48,6 +48,7 @@ export interface AppStrings {
       destinations: string;
       insights: string;
       boards: string;
+      profiles: string;
       data: string;
       settings: string;
       mySites: string;
@@ -318,6 +319,22 @@ export interface AppStrings {
       destinations: string;
       insights: string;
       boards: string;
+      profiles: string;
+    };
+    profiles: {
+      noSiteBody: string;
+      colPerson: string;
+      colSeen: string;
+      colSessions: string;
+      colRevenue: string;
+      emptyTitle: string;
+      emptyBody: string;
+      truncated: string;
+      payments: string;
+      timeline: string;
+      timelineEmpty: string;
+      whyTitle: string;
+      whyBody: string;
     };
     boards: {
       noSiteBody: string;
@@ -746,6 +763,7 @@ const fr: AppStrings = {
       destinations: "Destinations",
       insights: "Insights",
       boards: "Tableaux",
+      profiles: "Profils",
       data: "Données",
       settings: "Paramètres",
       mySites: "Mes sites",
@@ -1058,6 +1076,25 @@ const fr: AppStrings = {
       destinations: "Par où vos données sortent, et qui en a lu récemment.",
       insights: "Posez la question que personne n'avait prévue : une mesure, une ventilation, des filtres.",
       boards: "Vos pages à vous : des graphiques, et le texte qui dit quoi y chercher.",
+      profiles: "Les personnes qui vous ont dit qui elles sont — et tout ce qu'elles ont fait depuis.",
+    },
+    profiles: {
+      noSiteBody: "Choisissez un site pour voir ses profils.",
+      colPerson: "Personne",
+      colSeen: "Vue",
+      colSessions: "Sessions",
+      colRevenue: "Revenu",
+      emptyTitle: "Personne n'est encore identifié",
+      emptyBody:
+        "Un profil apparaît quand votre application nous dit qui est quelqu'un. Appelez cette fonction au moment de la connexion ou du paiement :",
+      truncated:
+        "Trop d'identifications sur cette période pour tout regrouper : voici les plus récentes.",
+      payments: "Paiements",
+      timeline: "Ce qu'elle a fait",
+      timelineEmpty: "Aucune activité enregistrée pour ses sessions.",
+      whyTitle: "Pourquoi ce n'est pas l'écran Visiteurs avec des noms",
+      whyBody:
+        "Un visiteur ne dure qu'une journée, par construction : son identifiant vient d'un sel détruit chaque nuit, et c'est ce qui vous dispense de bandeau de consentement. Un profil, lui, dure — parce que c'est vous qui nous avez dit qui était cette personne, via identify(). On n'a rien ajouté au pistage pour l'obtenir : on affiche l'identité que vous aviez déjà.",
     },
     boards: {
       noSiteBody: "Choisissez un site pour composer un tableau.",
@@ -1611,6 +1648,7 @@ const en: AppStrings = {
       destinations: "Destinations",
       insights: "Insights",
       boards: "Boards",
+      profiles: "Profiles",
       data: "Data",
       settings: "Settings",
       mySites: "My sites",
@@ -1918,6 +1956,25 @@ const en: AppStrings = {
       destinations: "Where your data goes out, and who has read some lately.",
       insights: "Ask the question nobody planned for: a measure, a split, some filters.",
       boards: "Your own pages: charts, and the words that say what to look for.",
+      profiles: "The people who told you who they are — and everything they have done since.",
+    },
+    profiles: {
+      noSiteBody: "Pick a site to see its profiles.",
+      colPerson: "Person",
+      colSeen: "Seen",
+      colSessions: "Sessions",
+      colRevenue: "Revenue",
+      emptyTitle: "Nobody is identified yet",
+      emptyBody:
+        "A profile appears when your application tells us who someone is. Call this at sign-in or at checkout:",
+      truncated:
+        "Too many identifications in this period to group them all — these are the most recent.",
+      payments: "Payments",
+      timeline: "What they did",
+      timelineEmpty: "No activity recorded for their sessions.",
+      whyTitle: "Why this is not the Visitors screen with names on it",
+      whyBody:
+        "A visitor lasts one day by construction: their id comes from a salt destroyed every night, and that is what spares you a consent banner. A profile lasts — because you told us who that person was, through identify(). We added nothing to the tracking to get it: we are showing the identity you already had.",
     },
     boards: {
       noSiteBody: "Pick a site to build a board for.",

@@ -31,6 +31,7 @@ import {
   Database,
   LineChart,
   LayoutDashboard,
+  UserCircle2,
   ChevronDown,
   Share2,
   KeyRound,
@@ -86,6 +87,7 @@ const navItems: NavEntry[] = [
     items: [
       { href: "/dashboard/events", key: "events", icon: Activity },
       { href: "/dashboard/visitors", key: "visitors", icon: Users },
+      { href: "/dashboard/profiles", key: "profiles", icon: UserCircle2 },
       { href: "/dashboard/lexicon", key: "lexicon", icon: BookOpen },
       { href: "/dashboard/destinations", key: "destinations", icon: Share2 },
     ],
