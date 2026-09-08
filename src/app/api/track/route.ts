@@ -154,6 +154,8 @@ export async function POST(req: NextRequest) {
       event_name,
       event_props,
       email,
+      group_id,
+      group_name,
     } = body;
 
     // Validate required fields
@@ -214,6 +216,33 @@ export async function POST(req: NextRequest) {
           session_id,
           email: email.trim().toLowerCase(),
           identified_at: new Date().toISOString(),
+        },
+        { onConflict: "site_id,session_id" }
+      );
+
+      return NextResponse.json(
+        { ok: true },
+        { headers: { "Access-Control-Allow-Origin": "*" } }
+      );
+    }
+
+    /* Rattache la session à un compte — pulsetrack.group("acme-42",
+       "Acme Corp"). Comme identify(), c'est le client qui nous le dit :
+       rien n'est déduit d'un domaine d'e-mail, une déduction fausse
+       produisant des regroupements que personne ne pourrait corriger.
+
+       Un second appel déplace la session plutôt que d'en créer une
+       seconde appartenance : elle appartient à un compte à la fois. */
+    if (type === "group" && group_id) {
+      await supabase.from("session_groups").upsert(
+        {
+          site_id,
+          session_id,
+          group_id: String(group_id).trim().slice(0, 120),
+          group_name: group_name
+            ? String(group_name).trim().slice(0, 200)
+            : null,
+          joined_at: new Date().toISOString(),
         },
         { onConflict: "site_id,session_id" }
       );

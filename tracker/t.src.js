@@ -693,6 +693,20 @@
     }
   };
 
+  // Links this visit to an account, for products sold to companies:
+  // "is Acme leaving" is not a question about one person. The id is
+  // the customer's own key; the name is optional and can change
+  // without it moving.
+  api.group = function (id, name) {
+    if (id && typeof id === "string") {
+      send("group", {
+        group_id: String(id).trim().slice(0, 120),
+        group_name:
+          name && typeof name === "string" ? name.trim().slice(0, 200) : null,
+      });
+    }
+  };
+
   window.pulsetrack = api;
 
   scheduleSnapshot();

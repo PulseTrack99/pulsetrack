@@ -49,6 +49,7 @@ export interface AppStrings {
       insights: string;
       boards: string;
       profiles: string;
+      groups: string;
       retention: string;
       data: string;
       settings: string;
@@ -321,6 +322,7 @@ export interface AppStrings {
       insights: string;
       boards: string;
       profiles: string;
+      groups: string;
       retention: string;
     };
     retention: {
@@ -703,6 +705,26 @@ export interface AppStrings {
       valueDisclaimer: string;
       revenueLocked: string;
     };
+    groups: {
+      noSiteBody: string;
+      pendingTitle: string;
+      pendingBody: string;
+      emptyTitle: string;
+      emptyBody: string;
+      search: string;
+      colAccount: string;
+      colPeople: string;
+      colSessions: string;
+      colEvents: string;
+      colRevenue: string;
+      colLastSeen: string;
+      membersOf: string;
+      colMember: string;
+      noMembers: string;
+      close: string;
+      whoTitle: string;
+      whoBody: string;
+    };
     sitesPage: {
       intro: string; addSite: string; emptyTitle: string; emptyBody: string;
       addFirst: string; shown: string; show: string; checking: string;
@@ -828,6 +850,7 @@ const fr: AppStrings = {
       insights: "Insights",
       boards: "Tableaux",
       profiles: "Profils",
+      groups: "Comptes",
       retention: "Rétention",
       data: "Données",
       settings: "Paramètres",
@@ -1143,6 +1166,8 @@ const fr: AppStrings = {
       insights: "Posez la question que personne n'avait prévue : une mesure, une ventilation, des filtres.",
       boards: "Vos pages à vous : des graphiques, et le texte qui dit quoi y chercher.",
       profiles: "Les personnes qui vous ont dit qui elles sont — et tout ce qu'elles ont fait depuis.",
+      groups:
+        "Vos clients vus comme des entreprises, pas comme des individus. Trois personnes actives chez un compte qui en emploie quarante, c'est un compte qui part.",
       retention: "Est-ce que les gens reviennent ? Chaque ligne suit un groupe arrivé la même semaine.",
     },
     retention: {
@@ -1619,6 +1644,31 @@ const fr: AppStrings = {
       revenueLocked:
         "Chiffrer les abandons en euros demande l'offre Growth et une connexion Stripe.",
     },
+    groups: {
+      noSiteBody:
+        "Les comptes regroupent les visites d'un même client. Ajoutez un site pour commencer.",
+      pendingTitle: "Migration en attente",
+      pendingBody:
+        "Les comptes attendent leur migration : lancez supabase/groups.sql dans l'éditeur SQL.",
+      emptyTitle: "Aucun compte pour l'instant",
+      emptyBody:
+        "Appelez group() quand vous savez à quelle entreprise appartient la personne connectée — après votre propre authentification, là où vous appelez déjà identify().",
+      search: "Filtrer les comptes",
+      colAccount: "Compte",
+      colPeople: "Personnes",
+      colSessions: "Sessions",
+      colEvents: "Événements",
+      colRevenue: "Revenu",
+      colLastSeen: "Vu pour la dernière fois",
+      membersOf: "Qui compose",
+      colMember: "Personne",
+      noMembers:
+        "Personne d'identifié dans ce compte : les sessions y sont rattachées, mais identify() n'a jamais été appelé.",
+      close: "Fermer",
+      whoTitle: "D'où vient l'appartenance",
+      whoBody:
+        "De vous, comme l'identité. Rien n'est déduit d'un domaine d'e-mail : deux clients peuvent partager gmail.com, et une déduction fausse produirait des regroupements que personne ne pourrait corriger.",
+    },
     sitesPage: {
       intro: "Les sites que PulseTrack suit pour vous, et l'état de leur script.",
       addSite: "Ajouter un site",
@@ -1799,6 +1849,7 @@ const en: AppStrings = {
       insights: "Insights",
       boards: "Boards",
       profiles: "Profiles",
+      groups: "Accounts",
       retention: "Retention",
       data: "Data",
       settings: "Settings",
@@ -2109,6 +2160,8 @@ const en: AppStrings = {
       insights: "Ask the question nobody planned for: a measure, a split, some filters.",
       boards: "Your own pages: charts, and the words that say what to look for.",
       profiles: "The people who told you who they are — and everything they have done since.",
+      groups:
+        "Your customers seen as companies, not individuals. Three active people at an account that employs forty is an account on its way out.",
       retention: "Do people come back? Each row follows a group that arrived in the same week.",
     },
     retention: {
@@ -2580,6 +2633,31 @@ const en: AppStrings = {
         "Not everyone lost here would have paid: this figure ranks steps by what is at stake, it does not promise revenue.",
       revenueLocked:
         "Putting a euro figure on drop-off needs the Growth plan and a Stripe connection.",
+    },
+    groups: {
+      noSiteBody:
+        "Accounts group the visits of one customer together. Add a site to get started.",
+      pendingTitle: "Migration pending",
+      pendingBody:
+        "Accounts are waiting on their migration: run supabase/groups.sql in the SQL editor.",
+      emptyTitle: "No accounts yet",
+      emptyBody:
+        "Call group() once you know which company the signed-in person belongs to — right after your own authentication, where you already call identify().",
+      search: "Filter accounts",
+      colAccount: "Account",
+      colPeople: "People",
+      colSessions: "Sessions",
+      colEvents: "Events",
+      colRevenue: "Revenue",
+      colLastSeen: "Last seen",
+      membersOf: "Who is in",
+      colMember: "Person",
+      noMembers:
+        "Nobody identified in this account: sessions are attached to it, but identify() was never called.",
+      close: "Close",
+      whoTitle: "Where membership comes from",
+      whoBody:
+        "From you, like identity. Nothing is inferred from an email domain: two customers can share gmail.com, and a wrong inference would produce groupings nobody could correct.",
     },
     sitesPage: {
       intro: "The sites PulseTrack tracks for you, and the state of their script.",

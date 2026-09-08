@@ -32,6 +32,7 @@ import {
   LineChart,
   LayoutDashboard,
   UserCircle2,
+  Building2,
   Repeat,
   ChevronDown,
   Share2,
@@ -90,6 +91,10 @@ const navItems: NavEntry[] = [
       { href: "/dashboard/events", key: "events", icon: Activity },
       { href: "/dashboard/visitors", key: "visitors", icon: Users },
       { href: "/dashboard/profiles", key: "profiles", icon: UserCircle2 },
+      // Après les profils : une personne, puis l'entreprise qui la
+      // contient. C'est l'ordre dans lequel on remonte quand un chiffre
+      // inquiète.
+      { href: "/dashboard/groups", key: "groups", icon: Building2 },
       { href: "/dashboard/lexicon", key: "lexicon", icon: BookOpen },
       { href: "/dashboard/destinations", key: "destinations", icon: Share2 },
     ],
