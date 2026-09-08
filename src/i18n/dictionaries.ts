@@ -129,6 +129,37 @@ export interface Dictionary {
 
   assistant: AssistantLabels;
   auth: AuthLabels;
+  publicDashboard: PublicDashboardLabels;
+}
+
+/**
+ * Le tableau de bord partagé publiquement.
+ *
+ * Seule page du produit qu'un client montre à *ses* clients, et la
+ * dernière restée en français figé. La langue y suit celle du visiteur
+ * (getLocale : cookie, sinon Accept-Language) et non celle du
+ * propriétaire du site : le lien peut être ouvert par n'importe qui.
+ */
+export interface PublicDashboardLabels {
+  badge: string;
+  loading: string;
+  notFoundTitle: string;
+  notFoundBody: string;
+  discover: string;
+  chartTitle: string;
+  visitors: string;
+  pageviews: string;
+  bounce: string;
+  duration: string;
+  topPages: string;
+  topSources: string;
+  countries: string;
+  views: string;
+  visitorsLower: string;
+  noData: string;
+  poweredBy: string;
+  tagline: string;
+  cta: string;
 }
 
 const enAuth: AuthLabels = {
@@ -614,6 +645,27 @@ const en: Dictionary = {
   },
 
   auth: enAuth,
+  publicDashboard: {
+    badge: "Public dashboard",
+    loading: "Loading dashboard…",
+    notFoundTitle: "Dashboard not found",
+    notFoundBody: "This public dashboard doesn't exist, or sharing has been turned off.",
+    discover: "Discover PulseTrack",
+    chartTitle: "Visitors per day",
+    visitors: "Visitors",
+    pageviews: "Pageviews",
+    bounce: "Bounce rate",
+    duration: "Avg. session",
+    topPages: "Top pages",
+    topSources: "Traffic sources",
+    countries: "Countries",
+    views: "views",
+    visitorsLower: "visitors",
+    noData: "No data yet",
+    poweredBy: "This dashboard runs on",
+    tagline: "Simple analytics, cookie-free and GDPR-friendly.",
+    cta: "Create your free account →",
+  },
   assistant: {
     pill: "Ask PulseTrack",
     title: "PulseTrack Assistant",
@@ -1124,6 +1176,27 @@ const fr: Dictionary = {
   },
 
   auth: frAuth,
+  publicDashboard: {
+    badge: "Tableau de bord public",
+    loading: "Chargement du tableau de bord…",
+    notFoundTitle: "Tableau de bord introuvable",
+    notFoundBody: "Ce tableau de bord public n'existe pas, ou son partage a été désactivé.",
+    discover: "Découvrir PulseTrack",
+    chartTitle: "Visiteurs par jour",
+    visitors: "Visiteurs",
+    pageviews: "Pages vues",
+    bounce: "Taux de rebond",
+    duration: "Durée moy. session",
+    topPages: "Pages populaires",
+    topSources: "Sources de trafic",
+    countries: "Pays",
+    views: "vues",
+    visitorsLower: "visiteurs",
+    noData: "Pas encore de données",
+    poweredBy: "Ce tableau de bord est propulsé par",
+    tagline: "Analytics simple, sans cookie et respectueux du RGPD.",
+    cta: "Créez votre compte gratuitement →",
+  },
   assistant: {
     pill: "Poser une question",
     title: "Assistant PulseTrack",
