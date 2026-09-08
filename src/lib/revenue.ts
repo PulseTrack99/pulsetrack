@@ -1,4 +1,18 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { scanRows } from "@/lib/scan";
+
+/** Assez pour couvrir un an d'activité soutenue sans lire sans fin. Au-delà,
+ *  `truncated` le dit à l'écran plutôt que de laisser croire au total. */
+const REVENUE_SCAN_MAX = 50_000;
+
+interface RevenueEventRow {
+  amount: number;
+  currency: string;
+  customer_email: string | null;
+  source: string | null;
+  landing_page: string | null;
+  stripe_created_at: string;
+}
 
 /**
  * Revenue computation, shared between the dashboard route
@@ -16,6 +30,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export interface RevenueResult {
   connected: boolean;
   last_synced_at?: string;
+  /** Vrai quand la période contient plus de paiements que le balayage
+   *  n'en lit. Les chiffres décrivent alors les plus récents, et
+   *  l'écran doit le dire au lieu de les présenter comme le total. */
+  truncated?: boolean;
   overview?: {
     total_revenue: number;
     total_transactions: number;
@@ -56,14 +74,33 @@ export async function getSiteRevenue(
   const days = period === "7d" ? 7 : period === "90d" ? 90 : 30;
   const since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
-  const { data: events } = await supabase
-    .from("revenue_events")
-    .select("*")
-    .eq("site_id", siteId)
-    .gte("stripe_created_at", since.toISOString())
-    .order("stripe_created_at", { ascending: false });
+  /* Paginé, et non demandé d'un coup. PostgREST plafonne une réponse à
+     1000 lignes, et ce plafond ne se voit pas : la requête réussit, elle
+     rend simplement moins. Chaque chiffre de cet écran étant calculé
+     ici, en JavaScript, à partir de ces lignes, un site dépassant mille
+     paiements sur la période voyait son revenu, son nombre de
+     transactions, sa répartition par source et par page d'atterrissage
+     sous-déclarés en silence.
 
-  const revenueEvents = events || [];
+     Le tri décroissant rendait la chose plus sournoise encore : les
+     mille conservées étant les plus récentes, le graphe journalier
+     affichait zéro sur les jours anciens — l'image d'une activité qui
+     vient de démarrer. Mesuré sur 1102 paiements : 10 000 € affichés
+     pour 11 020 € réels.
+
+     Même correctif que les écrans de statistiques, de funnels et de
+     heatmap avant lui (src/lib/scan.ts). */
+  const { rows: revenueEvents, truncated } = await scanRows<RevenueEventRow>(
+    (from, to) =>
+      supabase
+        .from("revenue_events")
+        .select("*")
+        .eq("site_id", siteId)
+        .gte("stripe_created_at", since.toISOString())
+        .order("stripe_created_at", { ascending: false })
+        .range(from, to),
+    REVENUE_SCAN_MAX
+  );
 
   const totalRevenue = revenueEvents.reduce((sum, e) => sum + e.amount, 0);
   const totalTransactions = revenueEvents.length;
@@ -75,15 +112,24 @@ export async function getSiteRevenue(
   const avgOrderValue =
     totalTransactions > 0 ? Math.round(totalRevenue / totalTransactions) : 0;
 
+  /* La période précédente souffrait du même plafond, et comparer deux
+     nombres tronqués chacun de leur côté produit une croissance qui ne
+     décrit rien. */
   const prevSince = new Date(since.getTime() - days * 24 * 60 * 60 * 1000);
-  const { data: prevEvents } = await supabase
-    .from("revenue_events")
-    .select("amount")
-    .eq("site_id", siteId)
-    .gte("stripe_created_at", prevSince.toISOString())
-    .lt("stripe_created_at", since.toISOString());
+  const { rows: prevEvents } = await scanRows<{ amount: number }>(
+    (from, to) =>
+      supabase
+        .from("revenue_events")
+        .select("amount")
+        .eq("site_id", siteId)
+        .gte("stripe_created_at", prevSince.toISOString())
+        .lt("stripe_created_at", since.toISOString())
+        .order("stripe_created_at", { ascending: false })
+        .range(from, to),
+    REVENUE_SCAN_MAX
+  );
 
-  const prevRevenue = (prevEvents || []).reduce((sum, e) => sum + e.amount, 0);
+  const prevRevenue = prevEvents.reduce((sum, e) => sum + e.amount, 0);
   const revenueGrowth =
     prevRevenue > 0
       ? Math.round(((totalRevenue - prevRevenue) / prevRevenue) * 100)
@@ -137,6 +183,7 @@ export async function getSiteRevenue(
   return {
     connected: true,
     last_synced_at: connection.last_synced_at,
+    truncated,
     overview: {
       total_revenue: totalRevenue,
       total_transactions: totalTransactions,
