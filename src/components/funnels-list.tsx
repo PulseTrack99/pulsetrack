@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Filter,
   Plus,
@@ -9,6 +9,9 @@ import {
   Trash2,
   ArrowDown,
   Loader2,
+  Archive,
+  Undo2,
+  AlertTriangle,
 } from "lucide-react";
 import { useSites } from "@/components/site-context";
 import { SegmentedFilter, usePeriodOptionsNoDay } from "@/components/filters";
@@ -27,6 +30,8 @@ interface Funnel {
   name: string;
   site_id: string;
   created_at: string;
+  /** Absent tant que supabase/funnel-archive.sql n'a pas tourné. */
+  archived_at?: string | null;
   funnel_steps: FunnelStep[];
 }
 
@@ -49,7 +54,15 @@ interface FunnelStepResult {
  * switching site invalidates the opened funnel, its results and a
  * half-filled create form. Remounting drops all of it at once.
  */
-export function FunnelsList({ funnels }: { funnels: Funnel[] }) {
+export function FunnelsList({
+  funnels,
+  canArchive = false,
+}: {
+  funnels: Funnel[];
+  /** Faux tant que la colonne archived_at n'existe pas : l'écran se
+   *  comporte alors exactement comme avant, sans bouton mort. */
+  canArchive?: boolean;
+}) {
   const { site, siteId, ready } = useSites();
   const { t } = useT();
 
@@ -77,6 +90,7 @@ export function FunnelsList({ funnels }: { funnels: Funnel[] }) {
       siteId={siteId}
       siteName={site?.name ?? "ce site"}
       funnels={funnels.filter((f) => f.site_id === siteId)}
+      canArchive={canArchive}
     />
   );
 }
@@ -85,10 +99,12 @@ function SiteFunnels({
   siteId,
   siteName,
   funnels: initialFunnels,
+  canArchive,
 }: {
   siteId: string;
   siteName: string;
   funnels: Funnel[];
+  canArchive: boolean;
 }) {
   const { t, intl } = useT();
   const [funnels, setFunnels] = useState(initialFunnels);
@@ -98,6 +114,53 @@ function SiteFunnels({
   const [loadingResults, setLoadingResults] = useState(false);
   const periodOptions = usePeriodOptionsNoDay();
   const [period, setPeriod] = useState("30d");
+  const [showArchived, setShowArchived] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+
+  const active = funnels.filter((f) => !f.archived_at);
+  const archived = funnels.filter((f) => f.archived_at);
+
+  /* Archiver, ou sortir des archives. Le plafond du plan n'est
+     réappliqué qu'au retour, et en base — la réponse 402 ne fait que
+     rapporter ce que le trigger a refusé. */
+  const setArchivedState = useCallback(
+    async (id: string, archive: boolean) => {
+      setBusyId(id);
+      setArchiveError(null);
+      try {
+        const res = await fetch(`/api/funnels/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ archived: archive }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          setArchiveError(
+            data.error === "upgrade_required"
+              ? t.screens.funnels.archiveFull
+              : data.error === "migration_pending"
+                ? t.screens.funnels.archivePending
+                : t.screens.funnels.archiveError
+          );
+          return;
+        }
+
+        setFunnels((prev) =>
+          prev.map((f) => (f.id === id ? { ...f, archived_at: data.archived_at } : f))
+        );
+        // Le panneau de résultats d'un funnel qu'on vient de ranger
+        // n'aurait plus de carte à laquelle se rattacher.
+        if (archive) setSelectedFunnel((cur) => (cur === id ? null : cur));
+      } catch {
+        setArchiveError(t.screens.funnels.archiveError);
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [t]
+  );
 
   // Load funnel results when selected
   useEffect(() => {
@@ -154,7 +217,14 @@ function SiteFunnels({
       )}
 
       {/* Funnels list */}
-      {funnels.length === 0 && !showCreate ? (
+      {archiveError && (
+        <div className="app-card flex items-start gap-2 border-coral/40 py-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-coral" />
+          <p className="text-[12.5px] leading-relaxed text-coral">{archiveError}</p>
+        </div>
+      )}
+
+      {active.length === 0 && !showCreate ? (
         <div className="app-card flex flex-col items-center justify-center py-16 text-center">
           <Filter className="h-7 w-7 text-muted-light" />
           <h3 className="mt-3 text-[15px] font-semibold">
@@ -175,45 +245,73 @@ function SiteFunnels({
         <div className="grid gap-4 lg:grid-cols-3">
           {/* Funnel cards */}
           <div className="space-y-3 lg:col-span-1">
-            {funnels.map((funnel) => {
+            {active.map((funnel) => {
               const steps = funnel.funnel_steps?.sort(
                 (a, b) => a.step_order - b.step_order
               ) || [];
 
+              /* La carte n'est plus un seul bouton : archiver est une
+                 action à part, et un bouton n'en contient pas un autre.
+                 Le chevron devient décoratif, l'espace qu'il occupait
+                 étant réservé dans le flux du bouton d'ouverture. */
               return (
-                <button
+                <div
                   key={funnel.id}
-                  onClick={() => setSelectedFunnel(
-                    selectedFunnel === funnel.id ? null : funnel.id
-                  )}
-                  className={`w-full rounded-xl border p-4 text-left transition-all ${
+                  className={`relative rounded-xl border transition-all ${
                     selectedFunnel === funnel.id
                       ? "border-primary bg-primary/5 shadow-md"
                       : "border-border bg-background hover:border-primary/30"
                   }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-semibold">{funnel.name}</h3>
-                      <p className="text-xs text-muted mt-0.5">
-                        {steps.length} {t.screens.funnels.steps}
-                      </p>
+                  <button
+                    onClick={() => setSelectedFunnel(
+                      selectedFunnel === funnel.id ? null : funnel.id
+                    )}
+                    className="w-full p-4 text-left"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="truncate font-semibold">{funnel.name}</h3>
+                        <p className="text-xs text-muted mt-0.5">
+                          {steps.length} {t.screens.funnels.steps}
+                        </p>
+                      </div>
+                      <span className={canArchive ? "w-12 shrink-0" : "w-4 shrink-0"} />
                     </div>
+                    <div className="mt-3 flex items-center gap-1 text-xs text-muted">
+                      {steps.map((step, i) => (
+                        <span key={step.id} className="flex items-center gap-1">
+                          <span className="truncate max-w-[80px]">{step.name}</span>
+                          {i < steps.length - 1 && <ChevronRight className="h-3 w-3 flex-shrink-0" />}
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+
+                  <div className="absolute right-4 top-4 flex items-center gap-1.5">
+                    {canArchive && (
+                      <button
+                        onClick={() => setArchivedState(funnel.id, true)}
+                        disabled={busyId === funnel.id}
+                        title={t.screens.funnels.archive}
+                        aria-label={`${t.screens.funnels.archive} — ${funnel.name}`}
+                        className="rounded-sm p-1 text-muted transition-colors hover:bg-surface-hover hover:text-foreground disabled:opacity-40"
+                      >
+                        {busyId === funnel.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Archive className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    )}
                     <ChevronRight
+                      aria-hidden
                       className={`h-4 w-4 text-muted transition-transform ${
                         selectedFunnel === funnel.id ? "rotate-90" : ""
                       }`}
                     />
                   </div>
-                  <div className="mt-3 flex items-center gap-1 text-xs text-muted">
-                    {steps.map((step, i) => (
-                      <span key={step.id} className="flex items-center gap-1">
-                        <span className="truncate max-w-[80px]">{step.name}</span>
-                        {i < steps.length - 1 && <ChevronRight className="h-3 w-3 flex-shrink-0" />}
-                      </span>
-                    ))}
-                  </div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -246,6 +344,66 @@ function SiteFunnels({
                   </p>
                 )}
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Les archives. Repliées par défaut : c'est un filet de
+          sécurité, pas une seconde liste à parcourir. */}
+      {archived.length > 0 && (
+        <div className="app-card">
+          <button
+            onClick={() => setShowArchived((v) => !v)}
+            className="flex w-full items-center justify-between gap-2 text-left"
+          >
+            <span className="flex items-center gap-1.5 text-[13px] font-semibold">
+              <Archive className="h-3.5 w-3.5 text-muted" />
+              {t.screens.funnels.archivedTitle}
+              <span className="text-muted">({archived.length})</span>
+            </span>
+            <ChevronRight
+              aria-hidden
+              className={`h-4 w-4 text-muted transition-transform ${
+                showArchived ? "rotate-90" : ""
+              }`}
+            />
+          </button>
+
+          {showArchived && (
+            <div className="mt-3 space-y-1.5">
+              {archived.map((funnel) => (
+                <div
+                  key={funnel.id}
+                  className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] font-medium">{funnel.name}</p>
+                    <p className="mt-0.5 text-[11.5px] text-muted">
+                      {funnel.funnel_steps?.length ?? 0} {t.screens.funnels.steps}
+                      {funnel.archived_at && (
+                        <>
+                          {" · "}
+                          {t.screens.funnels.archivedOn}{" "}
+                          {new Date(funnel.archived_at).toLocaleDateString(intl)}
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setArchivedState(funnel.id, false)}
+                    disabled={busyId === funnel.id}
+                    className="flex shrink-0 items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-[12.5px] text-muted transition-colors hover:bg-surface-hover hover:text-foreground disabled:opacity-40"
+                  >
+                    {busyId === funnel.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Undo2 className="h-3.5 w-3.5" />
+                    )}
+                    {t.screens.funnels.restore}
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>

@@ -678,6 +678,13 @@ export interface AppStrings {
       overallConversion: string;
       startedWith: string;
       endedWith: string;
+      archive: string;
+      archivedTitle: string;
+      restore: string;
+      archivedOn: string;
+      archiveFull: string;
+      archiveError: string;
+      archivePending: string;
     };
     sitesPage: {
       intro: string; addSite: string; emptyTitle: string; emptyBody: string;
@@ -1563,6 +1570,15 @@ const fr: AppStrings = {
       overallConversion: "Conversion globale",
       startedWith: "visiteurs au départ →",
       endedWith: "à la fin",
+      archive: "Archiver",
+      archivedTitle: "Archivés",
+      restore: "Restaurer",
+      archivedOn: "archivé le",
+      archiveFull:
+        "Votre offre est déjà au complet en funnels actifs. Archivez-en un autre pour faire de la place, ou passez à une offre supérieure.",
+      archiveError: "L'archivage a échoué. Réessayez.",
+      archivePending:
+        "L'archivage attend sa migration : lancez supabase/funnel-archive.sql dans l'éditeur SQL.",
     },
     sitesPage: {
       intro: "Les sites que PulseTrack suit pour vous, et l'état de leur script.",
@@ -2495,6 +2511,15 @@ const en: AppStrings = {
       overallConversion: "Overall conversion",
       startedWith: "visitors at the start →",
       endedWith: "at the end",
+      archive: "Archive",
+      archivedTitle: "Archived",
+      restore: "Restore",
+      archivedOn: "archived on",
+      archiveFull:
+        "Your plan is already full of active funnels. Archive another one to make room, or move to a higher plan.",
+      archiveError: "Archiving failed. Try again.",
+      archivePending:
+        "Archiving is waiting on its migration: run supabase/funnel-archive.sql in the SQL editor.",
     },
     sitesPage: {
       intro: "The sites PulseTrack tracks for you, and the state of their script.",

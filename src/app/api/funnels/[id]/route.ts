@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isMissingSchema } from "@/lib/schema-guard";
 
 function getPeriodStart(period: string): string {
   const now = new Date();
@@ -129,6 +130,89 @@ export async function GET(
     });
   } catch (err) {
     console.error("Funnel results error:", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}
+
+/**
+ * Archiver un funnel, ou le sortir des archives.
+ *
+ * Pas de DELETE : les étapes, et surtout la lecture qu'on a pu faire
+ * d'un funnel, valent mieux qu'une corbeille. Un funnel archivé quitte
+ * la liste et cesse de consommer le plafond du plan, sans que rien ne
+ * soit perdu. C'est ce qui rend l'offre Free vivable, où une faute de
+ * frappe sur le premier funnel bloquait jusque-là le compte à vie.
+ *
+ * Le plafond est réappliqué à la restauration, en base
+ * (supabase/funnel-archive.sql) plutôt qu'ici : le trigger couvre
+ * l'UPDATE comme l'INSERT, donc aucun chemin d'écriture ne peut le
+ * contourner. Cette route se contente de traduire son erreur.
+ */
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: funnelId } = await params;
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    if (typeof body?.archived !== "boolean") {
+      return NextResponse.json(
+        { error: "archived must be a boolean" },
+        { status: 400 }
+      );
+    }
+
+    // La RLS de funnels passe par has_account_access : un équipier
+    // archive comme le propriétaire, et un tiers ne touche à rien. Pas
+    // de vérification d'accès en plus ici, elle ne dirait rien de neuf.
+    const { data, error } = await supabase
+      .from("funnels")
+      .update({ archived_at: body.archived ? new Date().toISOString() : null })
+      .eq("id", funnelId)
+      .select("id, archived_at")
+      .maybeSingle();
+
+    if (error) {
+      if (isMissingSchema(error)) {
+        return NextResponse.json(
+          { error: "migration_pending", file: "supabase/funnel-archive.sql" },
+          { status: 503 }
+        );
+      }
+
+      // Restaurer alors que le plan est plein : c'est une limite
+      // d'offre, pas une panne, et l'écran propose de monter en gamme.
+      const limit = error.message.match(/funnel_limit_reached:(\d+)/);
+      if (limit) {
+        return NextResponse.json(
+          { error: "upgrade_required", feature: "funnels", limit: Number(limit[1]) },
+          { status: 402 }
+        );
+      }
+
+      console.error("Failed to archive funnel:", error);
+      return NextResponse.json({ error: "Failed to update funnel" }, { status: 500 });
+    }
+
+    // Zéro ligne touchée = la RLS a filtré. Indiscernable, volontairement,
+    // d'un funnel qui n'existe pas.
+    if (!data) {
+      return NextResponse.json({ error: "Funnel not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ id: data.id, archived_at: data.archived_at });
+  } catch (err) {
+    console.error("Funnel archive error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
