@@ -625,8 +625,11 @@ const en: Dictionary = {
       "Which plan fits 100K pageviews?",
     ],
     answer:
-      "Thanks for asking. The assistant is not wired to a live model yet — in the meantime, the pricing and feature pages cover this, or you can reach a human from the contact link in the footer.",
-    disclaimer: "Scripted responses for now. A live model is on the roadmap.",
+      "I don't have that one to hand. The Pricing and Features pages most likely cover it, and the contact link in the footer reaches a person.",
+    rateLimited:
+      "That's a lot of questions at once. Try again in a few minutes, or write to us from the contact link in the footer.",
+    disclaimer:
+      "The assistant can be wrong. The Pricing and Features pages are what count.",
   },
 };
 
@@ -1131,9 +1134,14 @@ const fr: Dictionary = {
       "Ai-je besoin d'une bannière cookies ?",
       "Quelle offre pour 100K pages vues ?",
     ],
+    // Dernier recours seulement : la banque de FAQ répond d'abord, et
+    // /api/ask prend le relais pour tout le reste.
     answer:
-      "Merci pour votre question. L'assistant n'est pas encore relié à un modèle en direct — en attendant, les pages tarifs et fonctionnalités couvrent le sujet, ou vous pouvez joindre un humain via le lien contact en bas de page.",
-    disclaimer: "Réponses scriptées pour l'instant. Un modèle en direct arrive.",
+      "Je n'ai pas la réponse sous la main. Les pages Tarifs et Fonctionnalités la couvrent sans doute, et le lien contact en bas de page mène à quelqu'un.",
+    rateLimited:
+      "Beaucoup de questions d'un coup. Réessayez dans quelques minutes, ou écrivez-nous via le lien contact en bas de page.",
+    disclaimer:
+      "L'assistant peut se tromper. Les pages Tarifs et Fonctionnalités font foi.",
   },
 };
 

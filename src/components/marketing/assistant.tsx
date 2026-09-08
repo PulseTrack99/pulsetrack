@@ -12,17 +12,34 @@ export interface AssistantLabels {
   placeholder: string;
   suggestions: string[];
   answer: string;
+  rateLimited: string;
   disclaimer: string;
 }
 
 /**
- * Floating assistant. Answers come from a fixed bank (src/content/
- * assistant-faq.ts) matched client-side by keyword overlap (src/lib/
- * assistant-match.ts) — no API call, so no per-visitor cost. Falls back to
- * `t.answer` when nothing matches well enough. The panel is still wired so
- * a real endpoint can replace this lookup later without touching the shell.
+ * Assistant flottant, en deux temps.
+ *
+ * La banque de FAQ (src/content/assistant-faq.ts) est consultée d'abord,
+ * côté client par recouvrement de mots-clés (src/lib/assistant-match.ts) :
+ * une question courante répond instantanément et ne coûte rien.
+ *
+ * Ce qu'elle ne reconnaît pas part vers /api/ask, qui interroge un modèle
+ * borné aux faits du produit. Avant, cette question-là recevait « the
+ * assistant is not wired to a live model yet », sur une page qui vend un
+ * copilote IA deux sections plus haut.
+ *
+ * `t.answer` ne sert plus que de dernier recours — clé API absente,
+ * modèle injoignable — et le dit sans s'excuser d'exister.
  */
-export function Assistant({ t, faq }: { t: AssistantLabels; faq: FaqEntry[] }) {
+export function Assistant({
+  t,
+  faq,
+  locale,
+}: {
+  t: AssistantLabels;
+  faq: FaqEntry[];
+  locale: string;
+}) {
   const [open, setOpen] = useState(false);
   const [thread, setThread] = useState<{ role: "user" | "bot"; text: string }[]>(
     []
@@ -35,17 +52,43 @@ export function Assistant({ t, faq }: { t: AssistantLabels; faq: FaqEntry[] }) {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [thread, typing]);
 
-  function send(text: string) {
+  async function send(text: string) {
     const q = text.trim();
-    if (!q) return;
-    const reply = findAnswer(q, faq) ?? t.answer;
+    if (!q || typing) return;
+
     setThread((p) => [...p, { role: "user", text: q }]);
     setDraft("");
     setTyping(true);
-    window.setTimeout(() => {
-      setTyping(false);
-      setThread((p) => [...p, { role: "bot", text: reply }]);
-    }, 700);
+
+    // La banque d'abord : gratuite, immédiate, et vérifiée à la main.
+    const known = findAnswer(q, faq);
+    if (known) {
+      // Le court délai n'est pas cosmétique : une réponse qui apparaît
+      // avant que la question ait fini de s'afficher se lit mal.
+      window.setTimeout(() => {
+        setTyping(false);
+        setThread((p) => [...p, { role: "bot", text: known }]);
+      }, 550);
+      return;
+    }
+
+    let reply = t.answer;
+    try {
+      const res = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q, locale }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.answer) reply = data.answer;
+      else if (res.status === 429) reply = t.rateLimited;
+    } catch {
+      // On garde t.answer : dire « je n'ai pas la réponse sous la main »
+      // vaut mieux qu'afficher une panne au visiteur.
+    }
+
+    setTyping(false);
+    setThread((p) => [...p, { role: "bot", text: reply }]);
   }
 
   return (

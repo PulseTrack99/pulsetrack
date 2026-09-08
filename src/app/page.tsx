@@ -241,7 +241,7 @@ export default async function Home() {
         legal={t.footer.legal}
       />
 
-      <Assistant t={t.assistant} faq={getAssistantFaq(locale)} />
+      <Assistant t={t.assistant} faq={getAssistantFaq(locale)} locale={locale} />
     </>
   );
 }
