@@ -68,8 +68,16 @@ interface Stats {
   }[];
   rage_spots: { selector: string; text: string; count: number }[];
   scroll_bands: { depth: number; reached: number; pct: number }[];
-  sampled: boolean;
-  sample_size: number;
+  /** Les valeurs réellement présentes sur cette page, pour ne proposer
+   *  que des filtres qui donnent quelque chose. */
+  sources: string[];
+  countries: string[];
+  source: string | null;
+  country: string | null;
+  /** Le nuage n'affiche pas tous les points. Les chiffres, eux, sont
+   *  exacts depuis que l'agrégation se fait en base. */
+  points_capped: boolean;
+  points_shown: number;
 }
 
 // No "all" option on purpose. An x ratio locates a different place on a
@@ -143,6 +151,8 @@ export function HeatmapPanel() {
   }, [initial, sites]);
   // null lets the server pick the breakpoint with the most data.
   const [device, setDevice] = useState<string | null>(null);
+  const [source, setSource] = useState<string | null>(null);
+  const [country, setCountry] = useState<string | null>(null);
   const periodOptions = usePeriodOptions();
   const [period, setPeriod] = useState("30d");
   // Off by default: it only works when the domain is reachable and allows
@@ -165,6 +175,8 @@ export function HeatmapPanel() {
         const params = new URLSearchParams({ site_id: siteId, period });
         if (device) params.set("device", device);
         if (path) params.set("path", path);
+        if (source) params.set("source", source);
+        if (country) params.set("country", country);
 
         const res = await fetch(`/api/heatmap/stats?${params}`);
         if (cancelled) return;
@@ -184,7 +196,7 @@ export function HeatmapPanel() {
     return () => {
       cancelled = true;
     };
-  }, [siteId, path, device, period]);
+  }, [siteId, path, device, period, source, country]);
 
   // A short list of individual sessions on the same page — the pivot
   // from "here's the aggregate pattern" to "show me one person's actual
@@ -286,7 +298,14 @@ export function HeatmapPanel() {
       <FilterBar>
         <SearchableSelect
           value={s?.path ?? ""}
-          onChange={setPath}
+          /* Source et pays sont propres à une page : les garder en
+             changeant de page afficherait une carte vide sans dire
+             pourquoi. */
+          onChange={(v) => {
+            setPath(v);
+            setSource(null);
+            setCountry(null);
+          }}
           minWidth={220}
           placeholder={t.screens.heatmaps.choosePage}
           emptyLabel={t.screens.heatmaps.noPage}
@@ -312,6 +331,39 @@ export function HeatmapPanel() {
             };
           })}
         />
+
+        {/* « Segmentation par appareil, source ou pays » : seul
+            l'appareil existait. Les valeurs proposées sont celles
+            réellement présentes sur la page choisie. */}
+        {(s?.sources?.length ?? 0) > 1 && (
+          <SearchableSelect
+            value={s?.source ?? ""}
+            onChange={(v) => setSource(v || null)}
+            minWidth={150}
+            placeholder={t.screens.heatmaps.allSources}
+            emptyLabel={t.screens.heatmaps.allSources}
+            searchPlaceholder={t.screens.heatmaps.filterSources}
+            options={[
+              { value: "", label: t.screens.heatmaps.allSources },
+              ...(s?.sources ?? []).map((v) => ({ value: v, label: v })),
+            ]}
+          />
+        )}
+
+        {(s?.countries?.length ?? 0) > 1 && (
+          <SearchableSelect
+            value={s?.country ?? ""}
+            onChange={(v) => setCountry(v || null)}
+            minWidth={150}
+            placeholder={t.screens.heatmaps.allCountries}
+            emptyLabel={t.screens.heatmaps.allCountries}
+            searchPlaceholder={t.screens.heatmaps.filterCountries}
+            options={[
+              { value: "", label: t.screens.heatmaps.allCountries },
+              ...(s?.countries ?? []).map((v) => ({ value: v, label: v })),
+            ]}
+          />
+        )}
 
         <SegmentedFilter
           ariaLabel={t.filters.period}
@@ -459,7 +511,7 @@ export function HeatmapPanel() {
             )}
           </div>
 
-          {(overlay || s?.sampled) && (
+          {(overlay || s?.points_capped) && (
             <div className="space-y-1 border-t border-border px-4 py-2 text-[11px] text-muted-light">
               {overlay && (
                 <p>
@@ -482,10 +534,10 @@ export function HeatmapPanel() {
                   </p>
                 )
               )}
-              {s?.sampled && (
+              {s?.points_capped && (
                 <p>
                   {t.screens.heatmaps.sampledNote1}{" "}
-                  {s.sample_size.toLocaleString(intl)}{" "}
+                  {s.points_shown.toLocaleString(intl)}{" "}
                   {t.screens.heatmaps.sampledNote2}
                 </p>
               )}

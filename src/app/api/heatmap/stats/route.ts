@@ -1,17 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getUserPlan, planHas } from "@/lib/plan";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { isMissingSchema } from "@/lib/schema-guard";
 
 /**
- * Aggregates interactions into everything the heatmap view renders:
- * the page picker, the click cloud, scroll depth and the element table.
+ * Tout ce que la vue heatmap affiche, en une question.
  *
- * PostgREST caps a response at its max-rows setting (1000 by default), and
- * .limit() does not raise that ceiling — asking for 20k rows silently
- * returns 1000. So totals come from exact head-counts, which transfer no
- * rows at all, and the shapes that genuinely need rows read a paged,
- * bounded sample of the most recent interactions.
+ * Cette route enchaînait une quinzaine d'allers-retours PostgREST —
+ * balayage des pages, trois comptages par appareil, deux totaux, trois
+ * échantillons paginés, dont plusieurs séquentiels — ce qui en faisait
+ * la route la plus lente du produit, la seule au-dessus de 400 ms sur
+ * un site quasi vide.
+ *
+ * Deux conséquences de fond, au-delà de la vitesse :
+ *
+ *   Le classement des éléments, la profondeur de scroll et les clics
+ *   morts venaient d'un échantillon de 5 000 lignes puis étaient remis
+ *   à l'échelle, alors que les clics et les clics de rage étaient
+ *   exacts. La même carte mélangeait deux natures de nombre. Tout est
+ *   exact désormais ; seul le nuage reste plafonné, parce que c'est
+ *   une limite d'affichage et non de calcul.
+ *
+ *   La source et le pays vivent sur events, pas sur interactions, donc
+ *   « segmentation par appareil, source ou pays » — vendue par le site
+ *   vitrine — était infaisable ici sans transporter une liste de
+ *   sessions. La fonction SQL les joint (supabase/heatmap-stats.sql).
  */
 
 const PERIODS: Record<string, number> = {
@@ -21,82 +34,34 @@ const PERIODS: Record<string, number> = {
   "90d": 90,
 };
 
-const PAGE = 1000;
-const PATH_SCAN = 5000;
-const CLICK_SAMPLE = 5000;
-const RAGE_SAMPLE = 2000;
-const SCROLL_SAMPLE = 5000;
-const CLOUD_POINTS = 4000;
-
-interface Row {
-  x_ratio: number | null;
-  y_px: number | null;
-  doc_h: number | null;
-  viewport_w: number | null;
-  selector: string | null;
-  elem_text: string | null;
-  interactive: boolean | null;
-  scroll_pct: number | null;
-  session_id: string | null;
-}
-
-function median(values: number[]): number {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.floor(sorted.length / 2)];
-}
-
-type Filters = {
-  siteId: string;
+interface Stats {
   path: string;
-  since: string;
   device: string;
-};
-
-function base(supabase: SupabaseClient, f: Filters, select: string, opts?: object) {
-  let q = supabase
-    .from("interactions")
-    .select(select, opts)
-    .eq("site_id", f.siteId)
-    .eq("path", f.path)
-    .gte("created_at", f.since);
-  if (f.device !== "all") q = q.eq("device", f.device);
-  return q;
-}
-
-/** Exact total without transferring any rows. */
-async function countOf(
-  supabase: SupabaseClient,
-  f: Filters,
-  type: string
-): Promise<number> {
-  const { count } = await base(supabase, f, "id", { count: "exact", head: true }).eq(
-    "type",
-    type
-  );
-  return count ?? 0;
-}
-
-/** Most recent rows of one type, walked in pages up to `max`. */
-async function sample(
-  supabase: SupabaseClient,
-  f: Filters,
-  type: string,
-  select: string,
-  max: number
-): Promise<Row[]> {
-  const out: Row[] = [];
-  for (let from = 0; from < max; from += PAGE) {
-    const { data, error } = await base(supabase, f, select)
-      .eq("type", type)
-      .order("created_at", { ascending: false })
-      .range(from, Math.min(from + PAGE, max) - 1);
-
-    if (error || !data || data.length === 0) break;
-    out.push(...(data as unknown as Row[]));
-    if (data.length < PAGE) break;
-  }
-  return out;
+  devices: { device: string; count: number }[];
+  sources: string[];
+  countries: string[];
+  pages: { path: string; count: number }[];
+  summary: {
+    clicks: number;
+    rage_clicks: number;
+    sessions: number;
+    dead_clicks: number;
+    avg_scroll: number;
+  };
+  geometry: { viewport_w: number; doc_h: number };
+  points: { x: number; y: number }[];
+  rage_points: { x: number; y: number }[];
+  elements: {
+    selector: string;
+    text: string;
+    clicks: number;
+    interactive: boolean;
+    share: number;
+  }[];
+  rage_spots: { selector: string; text: string; count: number }[];
+  scroll_bands: { depth: number; reached: number; pct: number }[];
+  points_capped: boolean;
+  points_shown: number;
 }
 
 export async function GET(req: NextRequest) {
@@ -113,9 +78,10 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const siteId = searchParams.get("site_id");
-    const requestedPath = searchParams.get("path");
-    const device = searchParams.get("device") || "all";
     const period = searchParams.get("period") || "30d";
+
+    // "all" est l'absence de filtre, pas une valeur à chercher en base.
+    const asFilter = (v: string | null) => (v && v !== "all" ? v : null);
 
     if (!siteId) {
       return NextResponse.json({ error: "site_id is required" }, { status: 400 });
@@ -144,197 +110,63 @@ export async function GET(req: NextRequest) {
     const days = PERIODS[period] ?? 30;
     const since = new Date(Date.now() - days * 86_400_000).toISOString();
 
-    // ── Pages with data, for the picker ──
-    // Walked over several ranges rather than one, so a page that is
-    // quieter than a busy neighbour still shows up in the list.
-    const seen = new Map<string, number>();
-    for (let from = 0; from < PATH_SCAN; from += PAGE) {
-      const { data, error } = await supabase
-        .from("interactions")
-        .select("path")
-        .eq("site_id", siteId)
-        .gte("created_at", since)
-        .order("created_at", { ascending: false })
-        .range(from, from + PAGE - 1);
+    const { data, error } = await supabase.rpc("heatmap_stats", {
+      p_site: siteId,
+      // Vide plutôt que nul : la fonction choisit alors la page la plus
+      // active, ce qui évite un aller-retour rien que pour la trouver.
+      p_path: searchParams.get("path") || "",
+      p_since: since,
+      p_device: asFilter(searchParams.get("device")),
+      p_source: asFilter(searchParams.get("source")),
+      p_country: asFilter(searchParams.get("country")),
+    });
 
-      if (error || !data || data.length === 0) break;
-      (data as { path: string }[]).forEach((r) =>
-        seen.set(r.path, (seen.get(r.path) ?? 0) + 1)
-      );
-      if (data.length < PAGE) break;
+    if (error) {
+      if (isMissingSchema(error)) {
+        return NextResponse.json(
+          { error: "migration_pending", file: "supabase/heatmap-stats.sql" },
+          { status: 503 }
+        );
+      }
+      console.error("Heatmap stats error:", error);
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
 
-    const pages = [...seen.entries()]
-      .map(([p, count]) => ({ path: p, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 50);
+    const s = data as Stats;
 
-    const path = requestedPath || pages[0]?.path || "/";
+    /* La structure de la page, pour le calque sous la chaleur. `dom` est
+       l'arbre rrweb que le tableau de bord reconstruit quand il existe ;
+       `elements` est le repli en boîtes pour les pages capturées avant
+       rrweb, ou dont la sérialisation a été refusée.
 
-    // ── Which breakpoints this page was seen at ──
-    // A click map may only ever cover one breakpoint: an x ratio means a
-    // different place on a 390px phone than on a 1440px desktop, and
-    // stacking them produces a cloud that corresponds to no real layout.
-    const deviceCounts = await Promise.all(
-      (["Desktop", "Mobile", "Tablet"] as const).map(async (d) => {
-        const { count } = await supabase
-          .from("interactions")
-          .select("id", { count: "exact", head: true })
-          .eq("site_id", siteId)
-          .eq("path", path)
-          .eq("device", d)
-          .eq("type", "click")
-          .gte("created_at", since);
-        return { device: d, count: count ?? 0 };
-      })
-    );
-
-    const available = deviceCounts.filter((d) => d.count > 0);
-    const dominant = available.sort((a, b) => b.count - a.count)[0]?.device;
-
-    // Fall back to the breakpoint with the most data rather than mixing.
-    const resolvedDevice =
-      device !== "all" && available.some((d) => d.device === device)
-        ? device
-        : (dominant ?? "Desktop");
-
-    const f: Filters = { siteId, path, since, device: resolvedDevice };
-
-    // ── Exact totals ──
-    const [clickTotal, rageTotal] = await Promise.all([
-      countOf(supabase, f, "click"),
-      countOf(supabase, f, "rage"),
-    ]);
-
-    // ── Samples for the shapes that need rows ──
-    const [clicks, rage, scrolls] = await Promise.all([
-      sample(
-        supabase,
-        f,
-        "click",
-        "x_ratio, y_px, doc_h, viewport_w, selector, elem_text, interactive, session_id",
-        CLICK_SAMPLE
-      ),
-      sample(supabase, f, "rage", "x_ratio, y_px, doc_h, selector, elem_text", RAGE_SAMPLE),
-      sample(supabase, f, "scroll", "scroll_pct, session_id", SCROLL_SAMPLE),
-    ]);
-
-    // ── Click cloud ──
-    // x is already a ratio; y is expressed as a ratio of the document
-    // height it was captured on, so pages of differing length line up.
-    const toPoint = (r: Row) => ({
-      x: Number(r.x_ratio),
-      y: Math.min(1, r.y_px! / r.doc_h!),
-    });
-    const usable = (r: Row) =>
-      r.x_ratio !== null && r.y_px !== null && (r.doc_h ?? 0) > 0;
-
-    const points = clicks.filter(usable).slice(0, CLOUD_POINTS).map(toPoint);
-    const ragePoints = rage.filter(usable).map(toPoint);
-
-    // ── Element ranking, over the sampled clicks ──
-    const byElement = new Map<
-      string,
-      { selector: string; text: string; clicks: number; interactive: boolean }
-    >();
-
-    clicks.forEach((r) => {
-      if (!r.selector) return;
-      const entry = byElement.get(r.selector);
-      if (entry) entry.clicks++;
-      else
-        byElement.set(r.selector, {
-          selector: r.selector,
-          text: r.elem_text || "",
-          clicks: 1,
-          interactive: Boolean(r.interactive),
-        });
-    });
-
-    const elements = [...byElement.values()]
-      .sort((a, b) => b.clicks - a.clicks)
-      .slice(0, 15)
-      .map((e) => ({
-        ...e,
-        share: clicks.length ? Math.round((e.clicks / clicks.length) * 1000) / 10 : 0,
-      }));
-
-    // ── Rage hot spots, grouped by element ──
-    const rageByElement = new Map<string, { selector: string; text: string; count: number }>();
-    rage.forEach((r) => {
-      if (!r.selector) return;
-      const entry = rageByElement.get(r.selector);
-      if (entry) entry.count++;
-      else rageByElement.set(r.selector, { selector: r.selector, text: r.elem_text || "", count: 1 });
-    });
-
-    const rageSpots = [...rageByElement.values()]
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 8);
-
-    // ── Scroll depth ──
-    // Each band is the share of pageviews reaching at least that far, so
-    // the curve only ever descends.
-    const depths = scrolls.map((r) => r.scroll_pct ?? 0).filter((d) => d > 0);
-
-    const bands = Array.from({ length: 10 }, (_, i) => {
-      const depth = (i + 1) * 10;
-      const reached = depths.filter((d) => d >= depth).length;
-      return {
-        depth,
-        reached,
-        pct: depths.length ? Math.round((reached / depths.length) * 100) : 0,
-      };
-    });
-
-    const avgScroll = depths.length
-      ? Math.round(depths.reduce((a, b) => a + b, 0) / depths.length)
-      : 0;
-
-    // One scroll record is emitted per pageview, so distinct sessions
-    // across them is the pageview-level session count.
-    const sessions = new Set(
-      [...scrolls, ...clicks].map((r) => r.session_id).filter(Boolean)
-    ).size;
-
-    const deadRate = clicks.length
-      ? clicks.filter((r) => !r.interactive).length / clicks.length
-      : 0;
-
-    // ── Page structure, for the replay under the heat ──
-    // `dom` is the rrweb tree and is what the dashboard rebuilds when it
-    // exists; `elements` is the lightweight box fallback for pages
-    // captured before rrweb, or where serialising was refused.
+       Séparé de l'agrégat : c'est une autre table, une autre clé, et
+       une ligne au plus. */
     const { data: snapshot } = await supabase
       .from("page_snapshots")
       .select("viewport_w, doc_h, elements, dom, dom_bytes, captured_at")
       .eq("site_id", siteId)
-      .eq("path", path)
-      .eq("device", resolvedDevice)
+      .eq("path", s.path)
+      .eq("device", s.device)
       .maybeSingle();
-
-    // ── Page geometry ──
-    // Drives the aspect ratio the map is drawn at, so a tall page renders
-    // tall instead of being squashed into a fixed box. Median rather than
-    // mean because one outlier page length would skew the whole frame.
-    // The snapshot wins when present: the wireframe and the heat must be
-    // drawn at the same proportions or they will not line up.
-    const geometry = snapshot
-      ? { viewport_w: snapshot.viewport_w, doc_h: snapshot.doc_h }
-      : {
-          viewport_w: median(
-            clicks.map((r) => r.viewport_w ?? 0).filter((n) => n > 0)
-          ),
-          doc_h: median(clicks.map((r) => r.doc_h ?? 0).filter((n) => n > 0)),
-        };
 
     return NextResponse.json({
       site: { domain: site.domain },
-      path,
+      path: s.path,
       period,
-      device: resolvedDevice,
-      devices: available,
-      geometry,
+      device: s.device,
+      devices: s.devices,
+      sources: s.sources,
+      countries: s.countries,
+      // Renvoyés tels quels pour que l'écran puisse montrer ce qui est
+      // filtré, y compris quand la valeur demandée n'existait pas.
+      source: asFilter(searchParams.get("source")),
+      country: asFilter(searchParams.get("country")),
+      /* Le calque et la chaleur doivent être dessinés aux mêmes
+         proportions ou ils ne se superposeront pas : la capture
+         l'emporte quand elle existe. */
+      geometry: snapshot
+        ? { viewport_w: snapshot.viewport_w, doc_h: snapshot.doc_h }
+        : s.geometry,
       snapshot: snapshot
         ? {
             elements: snapshot.elements ?? [],
@@ -343,24 +175,17 @@ export async function GET(req: NextRequest) {
             captured_at: snapshot.captured_at,
           }
         : null,
-      pages,
-      summary: {
-        clicks: clickTotal,
-        rage_clicks: rageTotal,
-        sessions,
-        avg_scroll: avgScroll,
-        // Scaled from the sample rate onto the exact total.
-        dead_clicks: Math.round(deadRate * clickTotal),
-      },
-      // True when the cloud and rankings are drawn from a sample rather
-      // than every row, so the UI can say so.
-      sampled: clickTotal > clicks.length,
-      sample_size: clicks.length,
-      points,
-      rage_points: ragePoints,
-      elements,
-      rage_spots: rageSpots,
-      scroll_bands: bands,
+      pages: s.pages,
+      summary: s.summary,
+      // Ne dit plus « ces chiffres sont estimés » mais « le nuage
+      // n'affiche pas tous les points » : les chiffres sont exacts.
+      points_capped: s.points_capped,
+      points_shown: s.points_shown,
+      points: s.points,
+      rage_points: s.rage_points,
+      elements: s.elements,
+      rage_spots: s.rage_spots,
+      scroll_bands: s.scroll_bands,
     });
   } catch (err) {
     console.error("Heatmap stats error:", err);

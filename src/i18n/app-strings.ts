@@ -582,6 +582,10 @@ export interface AppStrings {
       inert: string;
       sampledNote1: string;
       sampledNote2: string;
+      allSources: string;
+      filterSources: string;
+      allCountries: string;
+      filterCountries: string;
       loadLive: string;
       cold: string;
       hot: string;
@@ -1454,9 +1458,15 @@ const fr: AppStrings = {
       inert: "inerte",
       noSnapshot:
         "Aucune structure relevée pour cette page. Elle sera capturée au prochain passage d'un visiteur avec le script à jour.",
-      sampledNote1: "Carte et classement calculés sur les",
+      // Le classement et les paliers ne sont plus estimés : depuis que
+      // l'agrégation se fait en base, seul le nuage est plafonné.
+      sampledNote1: "Le nuage affiche les",
       sampledNote2:
-        "interactions les plus récentes. Les totaux ci-dessus portent sur la période entière.",
+        "clics les plus récents. Tous les chiffres, eux, portent sur la période entière.",
+      allSources: "Toutes les sources",
+      filterSources: "Filtrer les sources",
+      allCountries: "Tous les pays",
+      filterCountries: "Filtrer les pays",
       loadLive: "Charger la page live",
       cold: "Froid",
       hot: "Chaud",
@@ -2412,8 +2422,13 @@ const en: AppStrings = {
       inert: "inert",
       noSnapshot:
         "No structure captured for this page yet. It will be captured the next time a visitor comes through with an up-to-date script.",
-      sampledNote1: "Map and ranking computed on the",
-      sampledNote2: "most recent interactions. The totals above cover the whole period.",
+      sampledNote1: "The cloud shows the",
+      sampledNote2:
+        "most recent clicks. Every figure, though, covers the whole period.",
+      allSources: "All sources",
+      filterSources: "Filter sources",
+      allCountries: "All countries",
+      filterCountries: "Filter countries",
       loadLive: "Load the live page",
       cold: "Cold",
       hot: "Hot",
