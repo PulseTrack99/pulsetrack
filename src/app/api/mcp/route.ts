@@ -186,8 +186,16 @@ const baseHandler = createMcpHandler(
         }
 
         const reached = new Map<number, number>();
-        ((matched ?? []) as { step_index: number; sessions: number }[]).forEach((r) =>
-          reached.set(Number(r.step_index), Number(r.sessions))
+        // `visitors` depuis supabase/funnel-visitors.sql ; `sessions`
+        // tant que cette migration n'a pas tourné.
+        (
+          (matched ?? []) as {
+            step_index: number;
+            visitors?: number;
+            sessions?: number;
+          }[]
+        ).forEach((r) =>
+          reached.set(Number(r.step_index), Number(r.visitors ?? r.sessions ?? 0))
         );
         const totalStart = reached.get(0) ?? 0;
         const stepResults = steps.map((step, i) => {

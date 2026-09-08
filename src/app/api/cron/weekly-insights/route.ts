@@ -176,8 +176,14 @@ export async function GET(req: NextRequest) {
           }),
         ]);
 
-        const rate = (rows: { step_index: number; sessions: number }[] | null) => {
-          const byStep = new Map((rows ?? []).map((r) => [r.step_index, Number(r.sessions)]));
+        // `visitors` depuis supabase/funnel-visitors.sql ; `sessions`
+        // tant que cette migration n'a pas tourné.
+        const rate = (
+          rows: { step_index: number; visitors?: number; sessions?: number }[] | null
+        ) => {
+          const byStep = new Map(
+            (rows ?? []).map((r) => [r.step_index, Number(r.visitors ?? r.sessions ?? 0)])
+          );
           const first = byStep.get(0) ?? 0;
           const last = byStep.get(steps.length - 1) ?? 0;
           return first > 0 ? Math.round((last / first) * 100) : null;

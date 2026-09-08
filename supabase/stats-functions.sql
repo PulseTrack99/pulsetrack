@@ -162,6 +162,11 @@ GRANT EXECUTE ON FUNCTION stats_daily(UUID, TIMESTAMPTZ)                 TO auth
 -- unquoted.
 -- ════════════════════════════════════════════════════════════════
 
+-- ⚠ Cette définition n'est plus celle qui tourne. supabase/funnel-visitors.sql
+-- la remplace : le comptage est passé de session_id à visitor_id et la
+-- colonne de sortie s'appelle désormais `visitors`, pour que le mot
+-- affiché à l'écran dise ce que le chiffre compte. La version ci-dessous
+-- est conservée telle quelle comme point de départ de cette migration.
 CREATE OR REPLACE FUNCTION funnel_results(
   p_site  UUID,
   p_since TIMESTAMPTZ,

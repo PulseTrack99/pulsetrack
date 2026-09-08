@@ -94,10 +94,19 @@ export async function GET(
       return NextResponse.json({ error: "Query failed" }, { status: 500 });
     }
 
-    // Steps nobody reached are absent from the result rather than zero.
+    /* Steps nobody reached are absent from the result rather than zero.
+     *
+     * La colonne s'appelle `visitors` depuis supabase/funnel-visitors.sql,
+     * qui a fait passer le comptage de session_id à visitor_id pour que
+     * le mot affiché dise ce que le chiffre compte. Tant que cette
+     * migration n'a pas tourné la fonction rend encore `sessions` : lire
+     * les deux évite qu'un funnel affiche zéro partout entre le
+     * déploiement et le passage en base. */
     const reached = new Map<number, number>();
-    ((matched ?? []) as { step_index: number; sessions: number }[]).forEach((r) =>
-      reached.set(Number(r.step_index), Number(r.sessions))
+    (
+      (matched ?? []) as { step_index: number; visitors?: number; sessions?: number }[]
+    ).forEach((r) =>
+      reached.set(Number(r.step_index), Number(r.visitors ?? r.sessions ?? 0))
     );
 
     const stepResults = steps.map((step, stepIndex) => ({
