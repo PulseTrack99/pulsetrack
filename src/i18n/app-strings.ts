@@ -675,6 +675,7 @@ export interface AppStrings {
       visitors: string;
       dropoffs: string;
       lostVisitors: string;
+      lostVisitorOne: string;
       overallConversion: string;
       startedWith: string;
       endedWith: string;
@@ -685,6 +686,18 @@ export interface AppStrings {
       archiveFull: string;
       archiveError: string;
       archivePending: string;
+      medianLabel: string;
+      sourcesTitle: string;
+      sourcesIntro: string;
+      colSource: string;
+      colEntered: string;
+      colCompleted: string;
+      colRate: string;
+      valueBasis: string;
+      valuePayersOf: string;
+      valuePerConversion: string;
+      valueDisclaimer: string;
+      revenueLocked: string;
     };
     sitesPage: {
       intro: string; addSite: string; emptyTitle: string; emptyBody: string;
@@ -1567,6 +1580,7 @@ const fr: AppStrings = {
       visitors: "visiteurs",
       dropoffs: "abandons",
       lostVisitors: "visiteurs perdus",
+      lostVisitorOne: "visiteur perdu",
       overallConversion: "Conversion globale",
       startedWith: "visiteurs au départ →",
       endedWith: "à la fin",
@@ -1579,6 +1593,21 @@ const fr: AppStrings = {
       archiveError: "L'archivage a échoué. Réessayez.",
       archivePending:
         "L'archivage attend sa migration : lancez supabase/funnel-archive.sql dans l'éditeur SQL.",
+      medianLabel: "en médiane",
+      sourcesTitle: "Le même funnel, canal par canal",
+      sourcesIntro:
+        "Par où les gens entrent, et lesquels vont jusqu'au bout. Un canal qui amène beaucoup de monde sans jamais convertir se voit ici.",
+      colSource: "Source",
+      colEntered: "Entrés",
+      colCompleted: "Au bout",
+      colRate: "Conversion",
+      valueBasis: "Base du calcul",
+      valuePayersOf: "payeurs sur",
+      valuePerConversion: "arrivés au bout, soit",
+      valueDisclaimer:
+        "Les gens perdus n'auraient pas tous payé : ce montant sert à classer les étapes par enjeu, il ne promet pas une recette.",
+      revenueLocked:
+        "Chiffrer les abandons en euros demande l'offre Growth et une connexion Stripe.",
     },
     sitesPage: {
       intro: "Les sites que PulseTrack suit pour vous, et l'état de leur script.",
@@ -2508,6 +2537,7 @@ const en: AppStrings = {
       visitors: "visitors",
       dropoffs: "drop-offs",
       lostVisitors: "visitors lost",
+      lostVisitorOne: "visitor lost",
       overallConversion: "Overall conversion",
       startedWith: "visitors at the start →",
       endedWith: "at the end",
@@ -2520,6 +2550,21 @@ const en: AppStrings = {
       archiveError: "Archiving failed. Try again.",
       archivePending:
         "Archiving is waiting on its migration: run supabase/funnel-archive.sql in the SQL editor.",
+      medianLabel: "median",
+      sourcesTitle: "The same funnel, channel by channel",
+      sourcesIntro:
+        "Where people come in, and which ones make it to the end. A channel that brings crowds and never converts shows up here.",
+      colSource: "Source",
+      colEntered: "Entered",
+      colCompleted: "Reached the end",
+      colRate: "Conversion",
+      valueBasis: "How this is worked out",
+      valuePayersOf: "payers out of",
+      valuePerConversion: "who reached the end, so",
+      valueDisclaimer:
+        "Not everyone lost here would have paid: this figure ranks steps by what is at stake, it does not promise revenue.",
+      revenueLocked:
+        "Putting a euro figure on drop-off needs the Growth plan and a Stripe connection.",
     },
     sitesPage: {
       intro: "The sites PulseTrack tracks for you, and the state of their script.",

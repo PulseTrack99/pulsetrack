@@ -12,8 +12,11 @@ import {
   Archive,
   Undo2,
   AlertTriangle,
+  Clock,
+  Euro,
 } from "lucide-react";
 import { useSites } from "@/components/site-context";
+import { plural } from "@/lib/plural";
 import { SegmentedFilter, usePeriodOptionsNoDay } from "@/components/filters";
 import { useT } from "@/components/locale-context";
 
@@ -42,6 +45,52 @@ interface FunnelStepResult {
   visitors: number;
   conversion_rate: number;
   drop_off_rate: number;
+  /** Temps médian depuis l'étape précédente. Nul sur la première. */
+  median_seconds: number | null;
+  lost: number;
+  /** Nul quand l'offre n'inclut pas le revenu, ou qu'aucun paiement
+   *  n'est rattaché aux visiteurs arrivés au bout. */
+  lost_value_cents: number | null;
+}
+
+interface SourceRow {
+  source: string;
+  entered: number;
+  completed: number;
+  conversion_rate: number;
+}
+
+interface FunnelValue {
+  completed: number;
+  revenue_cents: number;
+  payers: number;
+  currency: string;
+  per_completed_cents: number;
+}
+
+interface FunnelResults {
+  steps: FunnelStepResult[];
+  sources: SourceRow[];
+  value: FunnelValue | null;
+  revenue_available: boolean;
+}
+
+/** Une durée lisible, à un cran de précision : « 12 s », « 20 min »,
+ *  « 3 h ». Deux décimales sur un délai médian donneraient une fausse
+ *  idée de la précision de la mesure. */
+function humanDuration(seconds: number, intl: string): string {
+  if (seconds < 60) return `${Math.round(seconds)} s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
+  if (seconds < 86400) return `${Math.round(seconds / 3600)} h`;
+  return new Intl.NumberFormat(intl).format(Math.round(seconds / 86400)) + " j";
+}
+
+function money(cents: number, currency: string, intl: string): string {
+  return new Intl.NumberFormat(intl, {
+    style: "currency",
+    currency: currency.toUpperCase(),
+    maximumFractionDigits: 0,
+  }).format(cents / 100);
 }
 
 /**
@@ -110,7 +159,7 @@ function SiteFunnels({
   const [funnels, setFunnels] = useState(initialFunnels);
   const [showCreate, setShowCreate] = useState(false);
   const [selectedFunnel, setSelectedFunnel] = useState<string | null>(null);
-  const [funnelResults, setFunnelResults] = useState<FunnelStepResult[] | null>(null);
+  const [funnelResults, setFunnelResults] = useState<FunnelResults | null>(null);
   const [loadingResults, setLoadingResults] = useState(false);
   const periodOptions = usePeriodOptionsNoDay();
   const [period, setPeriod] = useState("30d");
@@ -177,7 +226,12 @@ function SiteFunnels({
         );
         if (res.ok) {
           const data = await res.json();
-          setFunnelResults(data.steps);
+          setFunnelResults({
+            steps: data.steps ?? [],
+            sources: data.sources ?? [],
+            value: data.value ?? null,
+            revenue_available: Boolean(data.revenue_available),
+          });
         }
       } catch (err) {
         console.error("Failed to load funnel results:", err);
@@ -337,7 +391,7 @@ function SiteFunnels({
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
                 ) : funnelResults ? (
-                  <FunnelVisualization steps={funnelResults} />
+                  <FunnelVisualization results={funnelResults} />
                 ) : (
                   <p className="text-center text-sm text-muted py-12">
                     {t.screens.funnels.selectFunnel}
@@ -600,8 +654,10 @@ function CreateFunnelForm({
 }
 
 /* ─────────── FUNNEL VISUALIZATION ─────────── */
-function FunnelVisualization({ steps }: { steps: FunnelStepResult[] }) {
+function FunnelVisualization({ results }: { results: FunnelResults }) {
   const { t, intl } = useT();
+  const { steps, sources, value } = results;
+
   if (steps.length === 0) {
     return (
       <div className="py-8 text-center">
@@ -657,8 +713,17 @@ function FunnelVisualization({ steps }: { steps: FunnelStepResult[] }) {
                     style={{ width: `${widthPercent}%` }}
                   />
                 </div>
-                <p className="mt-0.5 text-xs text-muted">
-                  {step.match_value}
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted">
+                  <span>{step.match_value}</span>
+                  {/* Le temps mis pour arriver ici depuis l'étape
+                      précédente. Absent sur la première, qui n'en a pas. */}
+                  {step.median_seconds !== null && (
+                    <span className="inline-flex items-center gap-1 text-muted-light">
+                      <Clock className="h-3 w-3" />
+                      {humanDuration(step.median_seconds, intl)}{" "}
+                      {t.screens.funnels.medianLabel}
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
@@ -679,10 +744,31 @@ function FunnelVisualization({ steps }: { steps: FunnelStepResult[] }) {
                   {steps[i + 1] && (
                     <span className="text-muted font-normal">
                       {" "}
-                      ({(step.visitors - steps[i + 1].visitors).toLocaleString(
-                        intl
-                      )}{" "}
-                      {t.screens.funnels.lostVisitors})
+                      ({steps[i + 1].lost.toLocaleString(intl)}{" "}
+                      {plural(
+                        steps[i + 1].lost,
+                        t.screens.funnels.lostVisitorOne,
+                        t.screens.funnels.lostVisitors
+                      )}
+                      {/* Ce que cette fuite pèse, quand le revenu est
+                          rattaché. Le « ≈ » n'est pas décoratif : c'est
+                          une estimation, et la base du calcul est
+                          rappelée sous le funnel. */}
+                      {steps[i + 1].lost_value_cents !== null &&
+                        value !== null &&
+                        steps[i + 1].lost_value_cents! > 0 && (
+                          <>
+                            {" · ≈ "}
+                            <span className="font-medium text-foreground">
+                              {money(
+                                steps[i + 1].lost_value_cents!,
+                                value.currency,
+                                intl
+                              )}
+                            </span>
+                          </>
+                        )}
+                      )
                     </span>
                   )}
                 </span>
@@ -717,6 +803,84 @@ function FunnelVisualization({ steps }: { steps: FunnelStepResult[] }) {
           {steps[steps.length - 1]?.visitors.toLocaleString(intl)} {t.screens.funnels.endedWith}
         </p>
       </div>
+
+      {/* Sur quoi repose le chiffrage des abandons. Un montant dont on
+          ne peut pas voir la provenance ne mérite pas d'être cru. */}
+      {value !== null && value.per_completed_cents > 0 && (
+        <div className="mt-3 rounded-lg border border-border bg-surface p-3">
+          <p className="flex items-center gap-1.5 text-[12.5px] font-semibold">
+            <Euro className="h-3.5 w-3.5 text-primary" />
+            {t.screens.funnels.valueBasis}
+          </p>
+          <p className="mt-1 text-[12px] text-muted">
+            {money(value.revenue_cents, value.currency, intl)} ·{" "}
+            {value.payers.toLocaleString(intl)} {t.screens.funnels.valuePayersOf}{" "}
+            {value.completed.toLocaleString(intl)}{" "}
+            {t.screens.funnels.valuePerConversion}{" "}
+            <span className="font-medium text-foreground">
+              {money(value.per_completed_cents, value.currency, intl)}
+            </span>
+          </p>
+          <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted-light">
+            {t.screens.funnels.valueDisclaimer}
+          </p>
+        </div>
+      )}
+
+      {!results.revenue_available && (
+        <p className="mt-3 text-[11.5px] leading-relaxed text-muted-light">
+          {t.screens.funnels.revenueLocked}
+        </p>
+      )}
+
+      {/* Le même funnel, canal par canal. */}
+      {sources.length > 0 && (
+        <div className="mt-3 rounded-lg border border-border bg-surface p-3">
+          <p className="text-[12.5px] font-semibold">
+            {t.screens.funnels.sourcesTitle}
+          </p>
+          <p className="mt-1 text-[11.5px] leading-relaxed text-muted-light">
+            {t.screens.funnels.sourcesIntro}
+          </p>
+
+          <div className="mt-2.5 overflow-x-auto">
+            <table className="w-full text-[12.5px]">
+              <thead>
+                <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted-light">
+                  <th className="py-1.5 pr-3 text-left font-medium">
+                    {t.screens.funnels.colSource}
+                  </th>
+                  <th className="px-2 py-1.5 text-right font-medium">
+                    {t.screens.funnels.colEntered}
+                  </th>
+                  <th className="px-2 py-1.5 text-right font-medium">
+                    {t.screens.funnels.colCompleted}
+                  </th>
+                  <th className="py-1.5 pl-2 text-right font-medium">
+                    {t.screens.funnels.colRate}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sources.map((s) => (
+                  <tr key={s.source} className="border-b border-border/60 last:border-0">
+                    <td className="py-1.5 pr-3">{s.source}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums text-muted">
+                      {s.entered.toLocaleString(intl)}
+                    </td>
+                    <td className="px-2 py-1.5 text-right tabular-nums text-muted">
+                      {s.completed.toLocaleString(intl)}
+                    </td>
+                    <td className="py-1.5 pl-2 text-right font-medium tabular-nums">
+                      {s.conversion_rate}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

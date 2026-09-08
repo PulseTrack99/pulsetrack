@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isMissingSchema } from "@/lib/schema-guard";
+import { getUserPlan, planHas } from "@/lib/plan";
 
 function getPeriodStart(period: string): string {
   const now = new Date();
@@ -77,22 +78,57 @@ export async function GET(
     // period's whole event log, which PostgREST truncates at its max-rows
     // setting — so every funnel on a site past a thousand events was
     // computed from a fraction of the data, and silently under-reported.
-    const { data: matched, error: funnelError } = await supabase.rpc(
-      "funnel_results",
-      {
-        p_site: funnel.site_id,
-        p_since: periodStart,
-        p_steps: steps.map((s) => ({
-          match_type: s.match_type,
-          match_value: s.match_value,
-        })),
-      }
-    );
+    const rpcArgs = {
+      p_site: funnel.site_id,
+      p_since: periodStart,
+      p_steps: steps.map((s) => ({
+        match_type: s.match_type,
+        match_value: s.match_value,
+      })),
+    };
+
+    /* Le revenu est une capacité de l'offre Growth et au-delà. Sans
+       elle on ne demande même pas le montant : un abandon chiffré en
+       euros sur un compte qui n'a jamais connecté Stripe serait une
+       colonne de zéros présentée comme une mesure. */
+    const plan = await getUserPlan(supabase, user.id);
+    const withRevenue = planHas(plan, "revenue");
+
+    const [
+      { data: matched, error: funnelError },
+      { data: bySource, error: sourceError },
+      { data: valueRows, error: valueError },
+    ] = await Promise.all([
+      supabase.rpc("funnel_results", rpcArgs),
+      supabase.rpc("funnel_by_source", rpcArgs),
+      withRevenue
+        ? supabase.rpc("funnel_value", rpcArgs)
+        : Promise.resolve({ data: null, error: null }),
+    ]);
 
     if (funnelError) {
       console.error("Funnel query error:", funnelError);
       return NextResponse.json({ error: "Query failed" }, { status: 500 });
     }
+
+    /* La comparaison par source et la valeur viennent de
+       supabase/funnel-insights.sql. Si cette migration n'a pas encore
+       tourné, le funnel lui-même reste lisible : ces deux blocs
+       disparaissent au lieu d'emporter l'écran avec eux. */
+    const sources =
+      sourceError || !bySource
+        ? []
+        : (bySource as { source: string; entered: number; completed: number }[]).map(
+            (r) => ({
+              source: r.source,
+              entered: Number(r.entered),
+              completed: Number(r.completed),
+              conversion_rate:
+                Number(r.entered) > 0
+                  ? Math.round((Number(r.completed) / Number(r.entered)) * 100)
+                  : 0,
+            })
+          );
 
     /* Steps nobody reached are absent from the result rather than zero.
      *
@@ -109,14 +145,76 @@ export async function GET(
       reached.set(Number(r.step_index), Number(r.visitors ?? r.sessions ?? 0))
     );
 
-    const stepResults = steps.map((step, stepIndex) => ({
-      step_order: step.step_order,
-      name: step.name,
-      match_value: step.match_value,
-      visitors: reached.get(stepIndex) ?? 0,
-      conversion_rate: 0, // Calculated below
-      drop_off_rate: 0, // Calculated below
-    }));
+    /* Le temps médian pour franchir une étape depuis la précédente.
+       Médiane et non moyenne : quelques personnes qui reviennent trois
+       jours plus tard décaleraient la moyenne au point qu'elle ne
+       décrive plus personne. Nul sur la première étape, qui n'a pas de
+       précédente. */
+    const medians = new Map<number, number | null>();
+    (
+      (matched ?? []) as { step_index: number; median_seconds?: number | null }[]
+    ).forEach((r) =>
+      medians.set(
+        Number(r.step_index),
+        r.median_seconds === null || r.median_seconds === undefined
+          ? null
+          : Math.round(Number(r.median_seconds))
+      )
+    );
+
+    /* Ce que vaut un visiteur arrivé au bout, pour pouvoir chiffrer un
+       abandon. Les convertis qui n'ont rien payé comptent au
+       dénominateur : sinon la valeur décrirait les acheteurs et non les
+       convertis, et surestimerait chaque étape perdue. */
+    const v = (
+      (valueRows ?? []) as {
+        completed: number;
+        revenue_cents: number;
+        payers: number;
+        currency: string;
+      }[]
+    )[0];
+
+    const value =
+      valueError || !v
+        ? null
+        : {
+            completed: Number(v.completed),
+            revenue_cents: Number(v.revenue_cents),
+            payers: Number(v.payers),
+            currency: v.currency,
+            per_completed_cents:
+              Number(v.completed) > 0
+                ? Math.round(Number(v.revenue_cents) / Number(v.completed))
+                : 0,
+          };
+
+    const stepResults = steps.map((step, stepIndex) => {
+      const visitors = reached.get(stepIndex) ?? 0;
+      // Perdus *en arrivant* à cette étape, comme le taux d'abandon.
+      const lost =
+        stepIndex === 0
+          ? 0
+          : Math.max(0, (reached.get(stepIndex - 1) ?? 0) - visitors);
+
+      return {
+        step_order: step.step_order,
+        name: step.name,
+        match_value: step.match_value,
+        visitors,
+        conversion_rate: 0, // Calculated below
+        drop_off_rate: 0, // Calculated below
+        median_seconds: medians.get(stepIndex) ?? null,
+        lost,
+        // Une estimation, et l'écran le dit : les gens perdus ici
+        // n'auraient pas tous payé. Elle répond à « quelle correction
+        // rapporte le plus », pas à « combien exactement ».
+        lost_value_cents:
+          value && value.per_completed_cents > 0
+            ? lost * value.per_completed_cents
+            : null,
+      };
+    });
 
     // Calculate conversion and drop-off rates
     const totalStart = stepResults[0]?.visitors || 0;
@@ -136,6 +234,10 @@ export async function GET(
       funnel_name: funnel.name,
       period,
       steps: stepResults,
+      sources,
+      value,
+      // Pour que l'écran propose l'offre plutôt que de taire la colonne.
+      revenue_available: withRevenue,
     });
   } catch (err) {
     console.error("Funnel results error:", err);
