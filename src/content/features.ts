@@ -399,7 +399,7 @@ const en: Catalog = {
       "PulseTrack never sets a cookie and never stores personal data, so there is nothing to ask consent for — and 42× less weight on every page load.",
     metaTitle: "Cookie-free, GDPR-native web analytics",
     metaDescription:
-      "Analytics with no cookies, no personal data and no consent banner. GDPR, ePrivacy and CCPA compliant by architecture, hosted in the EU, 3.4 KB script.",
+      "Analytics with no cookies, no personal data and no consent banner. GDPR, ePrivacy and CCPA compliant by architecture, hosted in the EU, 3.4 KB gzipped script.",
     highlights: [
       {
         title: "Cookie-free by architecture",
@@ -818,7 +818,7 @@ const fr: Catalog = {
       "PulseTrack ne pose jamais de cookie et ne stocke aucune donnée personnelle : il n'y a rien à faire consentir — et 42× moins de poids sur chaque chargement.",
     metaTitle: "Analytics web sans cookie et conforme RGPD",
     metaDescription:
-      "Un analytics sans cookie, sans donnée personnelle et sans bannière de consentement. Conforme RGPD, ePrivacy et CCPA par conception, hébergé en Europe, script de 3,4 Ko.",
+      "Un analytics sans cookie, sans donnée personnelle et sans bannière de consentement. Conforme RGPD, ePrivacy et CCPA par conception, hébergé en Europe, script de 3,4 Ko gzippé.",
     highlights: [
       {
         title: "Sans cookie par architecture",
