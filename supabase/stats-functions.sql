@@ -240,6 +240,13 @@ GRANT EXECUTE ON FUNCTION funnel_results(UUID, TIMESTAMPTZ, JSONB) TO authentica
 -- and stays in the route.
 -- ════════════════════════════════════════════════════════════════
 
+-- ⚠ Les trois fonctions ci-dessous ne sont plus celles qui tournent.
+-- supabase/realtime-visitors.sql les remplace : elles comptaient
+-- count(DISTINCT session_id) sous une colonne nommée `visitors`, donc
+-- une personne à deux onglets comptait pour deux. Signatures et noms
+-- de colonnes inchangés ; seul le calcul l'est. Les versions ci-dessous
+-- sont conservées comme point de départ de cette migration.
+
 -- Active visitors and the pages they are on, in one pass.
 CREATE OR REPLACE FUNCTION realtime_pages(
   p_site UUID, p_minutes INT DEFAULT 5, p_limit INT DEFAULT 10
