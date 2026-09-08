@@ -396,6 +396,13 @@ export interface AppStrings {
       mVisitors: string;
       mEvents: string;
       mEventVisitors: string;
+      combineWith: string;
+      fNone: string;
+      fRatio: string;
+      fDifference: string;
+      fSum: string;
+      perUnit: string;
+      ratioDisplay: string;
       allEvents: string;
       splitBy: string;
       noSplit: string;
@@ -1251,6 +1258,13 @@ const fr: AppStrings = {
       mVisitors: "Visiteurs",
       mEvents: "Événements",
       mEventVisitors: "Visiteurs ayant déclenché",
+      combineWith: "Combiner avec",
+      fNone: "Aucune",
+      fRatio: "Ratio",
+      fDifference: "Différence",
+      fSum: "Somme",
+      perUnit: "par unité",
+      ratioDisplay: "Affichage du ratio",
       allEvents: "Tous les événements",
       splitBy: "Ventiler par",
       noSplit: "Pas de ventilation",
@@ -2245,6 +2259,13 @@ const en: AppStrings = {
       mVisitors: "Visitors",
       mEvents: "Events",
       mEventVisitors: "Visitors who fired",
+      combineWith: "Combine with",
+      fNone: "None",
+      fRatio: "Ratio",
+      fDifference: "Difference",
+      fSum: "Sum",
+      perUnit: "per unit",
+      ratioDisplay: "Ratio display",
       allEvents: "All events",
       splitBy: "Split by",
       noSplit: "No split",

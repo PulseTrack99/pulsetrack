@@ -33,6 +33,11 @@ interface Row {
   bucket: string;
   group_key: string;
   value: number;
+  /** Présents seulement sous formule : les deux opérandes, dont le
+   *  total a besoin — la somme des ratios de chaque seau ne veut rien
+   *  dire, seul le ratio des sommes en a un. */
+  value_a?: number;
+  value_b?: number;
 }
 
 export function InsightsPanel() {
@@ -66,8 +71,22 @@ function SiteInsights({ siteId }: { siteId: string }) {
   const [breakdown, setBreakdown] = useState<string | null>(null);
   const [grain, setGrain] = useState<string | null>("day");
   const [filters, setFilters] = useState<{ field: string; value: string }[]>([]);
+  const [formula, setFormula] = useState<string | null>(null);
+  const [measureB, setMeasureB] = useState("visitors");
+  const [eventNameB, setEventNameB] = useState<string | null>(null);
+  /* Un ratio se lit « 4,2 % » pour une conversion et « 2,01 par
+     personne » pour des pages par visiteur. Deviner d'après les mesures
+     choisies serait faux une fois sur deux, donc c'est un choix. */
+  const [asPercent, setAsPercent] = useState(true);
 
   const [rows, setRows] = useState<Row[]>([]);
+  /* Le taux de la période, demandé sans granularité. Additionner les
+     seaux donnerait autre chose : « visiteurs » n'est pas additif, une
+     personne revue le lendemain comptant deux fois dans la somme et une
+     seule sur la période. */
+  const [periodTotals, setPeriodTotals] = useState<
+    { group_key: string; value: number | null }[] | null
+  >(null);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
 
@@ -102,8 +121,18 @@ function SiteInsights({ siteId }: { siteId: string }) {
     if (breakdown) p.set("breakdown", breakdown);
     if (grain) p.set("grain", grain);
     if (filters.length) p.set("filters", JSON.stringify(filters));
+    if (formula) {
+      p.set("formula", formula);
+      p.set("measure_b", measureB);
+      if ((measureB === "events" || measureB === "event_visitors") && eventNameB) {
+        p.set("event_name_b", eventNameB);
+      }
+    }
     return p;
-  }, [siteId, period, measure, onEvents, eventName, breakdown, grain, filters]);
+  }, [
+    siteId, period, measure, onEvents, eventName, breakdown, grain, filters,
+    formula, measureB, eventNameB,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,6 +143,7 @@ function SiteInsights({ siteId }: { siteId: string }) {
         const data = await res.json();
         if (cancelled) return;
         setRows(data.rows ?? []);
+        setPeriodTotals(data.period_totals ?? null);
         setPending(Boolean(data.migration_pending));
       } finally {
         if (!cancelled) setLoading(false);
@@ -134,8 +164,30 @@ function SiteInsights({ siteId }: { siteId: string }) {
       m.set(r.bucket, Number(r.value));
       byGroup.set(r.group_key, m);
     }
+    /* Le total d'un ratio n'est pas la somme des ratios : additionner
+       « 12 % » et « 8 % » ne donne pas « 20 % ». C'est le ratio des
+       sommes qui veut dire quelque chose, d'où les deux opérandes
+       remontés par la route. Les autres formules s'additionnent
+       normalement. */
+    const opA = new Map<string, number>();
+    const opB = new Map<string, number>();
+    if (formula === "ratio") {
+      for (const r of rows) {
+        opA.set(r.group_key, (opA.get(r.group_key) ?? 0) + Number(r.value_a ?? 0));
+        opB.set(r.group_key, (opB.get(r.group_key) ?? 0) + Number(r.value_b ?? 0));
+      }
+    }
+
     const tot = [...byGroup.entries()]
-      .map(([key, m]) => ({ key, total: [...m.values()].reduce((a, b) => a + b, 0) }))
+      .map(([key, m]) => ({
+        key,
+        total:
+          formula === "ratio"
+            ? (opB.get(key) ?? 0) > 0
+              ? Math.round(((opA.get(key) ?? 0) / (opB.get(key) ?? 1)) * 1000) / 10
+              : 0
+            : [...m.values()].reduce((a, b) => a + b, 0),
+      }))
       .sort((a, b) => b.total - a.total);
     return {
       buckets: bucketSet,
@@ -145,7 +197,26 @@ function SiteInsights({ siteId }: { siteId: string }) {
       })),
       totals: tot,
     };
-  }, [rows]);
+  }, [rows, formula]);
+
+  const onEventsB = measureB === "events" || measureB === "event_visitors";
+
+  const formulaOptions = [
+    { value: "", label: t.screens.insights.fNone },
+    { value: "ratio", label: t.screens.insights.fRatio },
+    { value: "difference", label: t.screens.insights.fDifference },
+    { value: "sum", label: t.screens.insights.fSum },
+  ];
+
+  /* Un ratio est rendu en pourcentage par la route, pour que l'axe du
+     graphe reste lisible. L'affichage « par unité » le ramène donc à sa
+     valeur brute. */
+  const fmtValue = (v: number) =>
+    formula === "ratio"
+      ? asPercent
+        ? `${v.toLocaleString(intl, { maximumFractionDigits: 1 })} %`
+        : (v / 100).toLocaleString(intl, { maximumFractionDigits: 2 })
+      : v.toLocaleString(intl);
 
   const measureOptions = [
     { value: "pageviews", label: t.screens.insights.mPageviews },
@@ -219,6 +290,49 @@ function SiteInsights({ siteId }: { siteId: string }) {
               placeholder={t.screens.insights.allEvents}
               minWidth={180}
             />
+          )}
+        </div>
+
+        {/* Combiner deux mesures : c'est ce qui fait passer l'écran du
+            comptage au calcul. « 312 visiteurs » et « 47 inscriptions »
+            côte à côte laissaient la division à la tête du lecteur. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-light">
+            {t.screens.insights.combineWith}
+          </span>
+          <SegmentedFilter
+            value={formula ?? ""}
+            options={formulaOptions}
+            onChange={(v) => setFormula(v || null)}
+          />
+          {formula && (
+            <>
+              <SegmentedFilter
+                value={measureB}
+                options={measureOptions}
+                onChange={setMeasureB}
+              />
+              {onEventsB && (
+                <SearchableSelect
+                  value={eventNameB}
+                  options={eventNames.map((n) => ({ value: n, label: eventLabel(n) }))}
+                  onChange={(v) => setEventNameB(v || null)}
+                  placeholder={t.screens.insights.allEvents}
+                  minWidth={180}
+                />
+              )}
+              {formula === "ratio" && (
+                <SegmentedFilter
+                  value={asPercent ? "pct" : "per"}
+                  options={[
+                    { value: "pct", label: "%" },
+                    { value: "per", label: t.screens.insights.perUnit },
+                  ]}
+                  onChange={(v) => setAsPercent(v === "pct")}
+                  ariaLabel={t.screens.insights.ratioDisplay}
+                />
+              )}
+            </>
           )}
         </div>
 
@@ -322,7 +436,13 @@ function SiteInsights({ siteId }: { siteId: string }) {
                     </span>
                   </td>
                   <td className="px-3 py-2 text-right font-medium tabular-nums">
-                    {g.total.toLocaleString(intl)}
+                    {(() => {
+                      // Sous formule, le total de la période prime sur la
+                      // somme des seaux — voir periodTotals.
+                      const p = periodTotals?.find((x) => x.group_key === g.key);
+                      if (p) return p.value === null ? "—" : fmtValue(p.value);
+                      return fmtValue(g.total);
+                    })()}
                   </td>
                 </tr>
               ))}
