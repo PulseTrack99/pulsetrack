@@ -108,3 +108,29 @@ $$;
 -- vraiment. Même piège que has_account_access (supabase/team.sql).
 REVOKE EXECUTE ON FUNCTION retention_cohorts(UUID, TIMESTAMPTZ, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION retention_cohorts(UUID, TIMESTAMPTZ, TEXT) TO authenticated;
+
+-- ─────────────────────────────────────────────────────────────
+-- Correctif (audit 2026-09-08) — le REVOKE ci-dessus n'a pas pris.
+--
+-- Le linter de la base vivante signale retention_cohorts comme
+-- exécutable par anon, et pg_proc.proacl le confirme :
+--   {postgres=X/postgres, anon=X/postgres, authenticated=X/postgres, ...}
+--
+-- Cause probable : REVOKE ... FROM PUBLIC ne retire rien à anon quand
+-- anon détient un GRANT nominatif — hérité d'un GRANT ... TO anon posé
+-- plus tôt, ou du template de la fonction remplacée. Révoquer PUBLIC
+-- ne suffit alors pas, il faut nommer anon.
+--
+-- Ce que ça valait vraiment : rien n'a fuité. Vérifié en appelant la
+-- fonction avec la clé publishable seule, sans session — HTTP 200 et
+-- zéro ligne, parce que has_account_access(auth.uid() = NULL) est faux
+-- et que la CTE `allowed` reste vide. Ce qui restait ouvert, c'est le
+-- droit de faire *travailler* la base sans être connecté : une
+-- agrégation multi-CTE joignable par n'importe qui avec la clé
+-- publique, qui est dans le bundle de chaque page.
+REVOKE EXECUTE ON FUNCTION retention_cohorts(UUID, TIMESTAMPTZ, TEXT) FROM anon, PUBLIC;
+GRANT  EXECUTE ON FUNCTION retention_cohorts(UUID, TIMESTAMPTZ, TEXT) TO authenticated;
+
+-- Contrôle : la ligne ne doit plus contenir "anon=X".
+-- select proname, proacl from pg_proc
+--  where proname = 'retention_cohorts';

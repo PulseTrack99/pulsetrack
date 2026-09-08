@@ -408,7 +408,7 @@ const en: Dictionary = {
     eyebrow: "Privacy by design",
     title: "No cookies. No consent banner. No lawyer.",
     body:
-      "PulseTrack never sets a cookie and never stores personal data, so there is nothing to ask consent for. Your visitors get a faster page and you get one less thing to worry about.",
+      "PulseTrack never sets a cookie and its measurement collects no personal data, so there is nothing to ask consent for. You only hand us an email if you choose to call identify(), and you can erase it in one click.",
     bullets: [
       "Cookie-free by architecture, not by setting",
       "Data hosted in the EU",
@@ -907,7 +907,12 @@ const fr: Dictionary = {
     eyebrow: "Vie privée par conception",
     title: "Aucun cookie. Aucune bannière. Aucun avocat.",
     body:
-      "PulseTrack ne pose jamais de cookie et ne stocke aucune donnée personnelle : il n'y a donc rien à faire consentir. Vos visiteurs ont une page plus rapide et vous avez un souci de moins.",
+      // « Aucune donnée personnelle » était vrai tant que le produit ne
+      // savait qu'observer. Depuis les Profils et la Rétention, un client
+      // peut nous envoyer un e-mail via identify() — c'est sa décision,
+      // sur ses propres utilisateurs, et il peut l'effacer (Art. 17).
+      // La mesure, elle, n'a toujours besoin de rien.
+      "PulseTrack ne pose jamais de cookie et sa mesure ne collecte aucune donnée personnelle : il n'y a rien à faire consentir. Vous ne nous confiez un e-mail que si vous choisissez d'appeler identify(), et vous pouvez l'effacer d'un clic.",
     bullets: [
       "Sans cookie par architecture, pas par réglage",
       "Données hébergées dans l'Union européenne",

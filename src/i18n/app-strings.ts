@@ -948,7 +948,8 @@ const fr: AppStrings = {
     insightsWeekOf: "Insights de la semaine du",
     metrics: {
       visitors: "Visiteurs",
-      visitorsHint: "Personnes distinctes, identifiées par un hash sans cookie.",
+      visitorsHint:
+        "Personnes distinctes par jour, via un hash sans cookie. Le sel étant détruit chaque nuit, quelqu'un qui revient demain est recompté.",
       sessions: "Sessions",
       sessionsHint: "Visites : une même personne qui revient compte plusieurs fois.",
       pageviews: "Pages vues",
@@ -1886,7 +1887,8 @@ const en: AppStrings = {
     insightsWeekOf: "Insights for the week of",
     metrics: {
       visitors: "Visitors",
-      visitorsHint: "Distinct people, identified by a cookie-free hash.",
+      visitorsHint:
+        "Distinct people per day, via a cookie-free hash. The salt is destroyed nightly, so someone returning tomorrow is counted again.",
       sessions: "Sessions",
       sessionsHint: "Visits: the same person coming back counts several times.",
       pageviews: "Pageviews",

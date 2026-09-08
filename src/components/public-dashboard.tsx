@@ -226,7 +226,11 @@ export function PublicDashboard({ shareId }: { shareId: string }) {
         {/* Stats cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            label="Visiteurs uniques"
+            /* Pas « uniques » : l'identifiant de visiteur vient d'un sel
+               détruit chaque nuit, donc au-delà de 24 h le chiffre compte
+               des visiteurs-jours, pas des personnes. Le tableau privé dit
+               déjà « Visiteurs » — les deux vues doivent s'accorder. */
+            label="Visiteurs"
             value={stats.visitors.toLocaleString("fr-FR")}
             icon={Users}
           />
