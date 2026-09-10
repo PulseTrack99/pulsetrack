@@ -720,6 +720,8 @@
      Et rien n'est demandé tant que personne ne demande de flag : un
      site qui n'en utilise pas ne paie aucune requête. */
   var flagCache = null;
+  var expCache = null;
+  var expSeen = {};
   var flagWaiting = [];
   var flagUid = null;
   var flagAsked = false;
@@ -742,8 +744,11 @@
         body: JSON.stringify({ site_id: siteId, uid: flagUid }),
       })
         .then(function (r) { return r.json(); })
-        .then(function (d) { flagCache = (d && d.flags) || {}; })
-        .catch(function () { flagCache = {}; })
+        .then(function (d) {
+          flagCache = (d && d.flags) || {};
+          expCache = (d && d.experiments) || {};
+        })
+        .catch(function () { flagCache = {}; expCache = {}; })
         .then(function () {
           var q = flagWaiting;
           flagWaiting = [];
@@ -765,6 +770,28 @@
     if (flagCache) { cb(flagCache); return; }
     flagWaiting.push(cb);
     loadFlags();
+  };
+
+  /* La version d'une expérience, et l'enregistrement de l'exposition.
+     Les deux ensemble, exprès : une exposition qu'on doit penser à
+     déclarer soi-même finit par manquer là où le résultat se joue, et
+     l'expérience mesure alors autre chose que ce qu'elle croit.
+
+     Une fois par clé et par chargement de page. Recharger dix fois
+     n'expose pas dix personnes, et la mesure dédoublonne de toute
+     façon — mais autant ne pas dépenser dix événements de quota. */
+  api.variant = function (key) {
+    if (!expCache || !key) return null;
+    var v = expCache[key];
+    if (!v) return null;
+    if (!expSeen[key]) {
+      expSeen[key] = true;
+      send("event", {
+        event_name: "$exposure",
+        event_props: { experiment: key, variant: v },
+      });
+    }
+    return v;
   };
 
   window.pulsetrack = api;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getDailySalt, computeVisitorId, getClientIp } from "@/lib/visitor";
 import { evaluateAll, type Flag } from "@/lib/flags";
+import { variantOf, type Variant } from "@/lib/experiments";
 
 /**
  * Ce que cette personne doit voir, maintenant.
@@ -72,8 +73,21 @@ export async function POST(req: NextRequest) {
     }
 
     const flags = (data ?? []) as Flag[];
-    if (flags.length === 0) {
-      return NextResponse.json({ flags: {} }, { headers: CORS });
+
+    /* Les expériences en cours passent par la même porte : c'est le
+       même hachage, le même identifiant, et surtout le même unique
+       aller-retour. Deux appels au chargement d'une page coûteraient
+       deux fois plus pour la même réponse. */
+    const { data: expData } = await supabase
+      .from("experiments")
+      .select("key, variants")
+      .eq("site_id", siteId)
+      .eq("status", "running");
+
+    const experiments = (expData ?? []) as { key: string; variants: Variant[] }[];
+
+    if (flags.length === 0 && experiments.length === 0) {
+      return NextResponse.json({ flags: {}, experiments: {} }, { headers: CORS });
     }
 
     let id: string | undefined =
@@ -95,13 +109,19 @@ export async function POST(req: NextRequest) {
       stable = false;
     }
 
+    const variants: Record<string, string> = {};
+    for (const e of experiments) {
+      const v = variantOf(e.key, e.variants ?? [], id);
+      if (v) variants[e.key] = v;
+    }
+
     return NextResponse.json(
-      { flags: evaluateAll(flags, id), stable },
+      { flags: evaluateAll(flags, id), experiments: variants, stable },
       { headers: CORS }
     );
   } catch (err) {
     console.error("flags evaluate error:", err);
-    // Même posture : faux partout plutôt qu'une page cassée.
-    return NextResponse.json({ flags: {} }, { headers: CORS });
+    // Même posture : rien plutôt qu'une page cassée.
+    return NextResponse.json({ flags: {}, experiments: {} }, { headers: CORS });
   }
 }

@@ -51,6 +51,7 @@ export interface AppStrings {
       profiles: string;
       groups: string;
       flags: string;
+      experiments: string;
       retention: string;
       data: string;
       settings: string;
@@ -744,6 +745,50 @@ export interface AppStrings {
       stableBody: string;
       stableNote: string;
     };
+    experiments: {
+      noSiteBody: string;
+      intro: string;
+      pendingTitle: string;
+      pendingBody: string;
+      emptyTitle: string;
+      emptyBody: string;
+      create: string;
+      createCta: string;
+      cancel: string;
+      namePlaceholder: string;
+      keyPlaceholder: string;
+      controlPlaceholder: string;
+      challengerPlaceholder: string;
+      metricPlaceholder: string;
+      createHint: string;
+      duplicateKey: string;
+      invalidKey: string;
+      needTwo: string;
+      createFailed: string;
+      updateFailed: string;
+      draft: string;
+      running: string;
+      stopped: string;
+      start: string;
+      stop: string;
+      draftNote: string;
+      noDataYet: string;
+      metric: string;
+      colVariant: string;
+      colSubjects: string;
+      colConversions: string;
+      colRate: string;
+      colLift: string;
+      reference: string;
+      wins: string;
+      pValue: string;
+      notYet: string;
+      wouldNeed: string;
+      perVariant: string;
+      readTitle: string;
+      readBody: string;
+      readNote: string;
+    };
     groups: {
       noSiteBody: string;
       pendingTitle: string;
@@ -891,6 +936,7 @@ const fr: AppStrings = {
       profiles: "Profils",
       groups: "Comptes",
       flags: "Feature flags",
+      experiments: "Experiments",
       retention: "Rétention",
       data: "Données",
       settings: "Paramètres",
@@ -1729,6 +1775,50 @@ const fr: AppStrings = {
       stableNote:
         "Sans lui, la répartition se fait sur un hachage valable la journée : un visiteur anonyme peut changer de groupe le lendemain. Retenir son choix exigerait d'écrire sur son appareil, ce que ce produit refuse.",
     },
+    experiments: {
+      noSiteBody: "Une expérience compare deux versions sur un site précis. Ajoutez un site pour commencer.",
+      intro: "Deux versions, la moitié des gens sur chacune, et un verdict qui ne parle que lorsqu'il a de quoi.",
+      pendingTitle: "Migration en attente",
+      pendingBody: "Les expériences attendent leur migration : lancez supabase/experiments.sql dans l'éditeur SQL.",
+      emptyTitle: "Aucune expérience pour l'instant",
+      emptyBody: "Créez-en une, lisez la version dans votre code, et l'exposition est enregistrée pour vous.",
+      create: "Créer une expérience",
+      createCta: "Créer",
+      cancel: "Annuler",
+      namePlaceholder: "Nom lisible, ex. « Titre d'accueil »",
+      keyPlaceholder: "titre-accueil",
+      controlPlaceholder: "control",
+      challengerPlaceholder: "b",
+      metricPlaceholder: "nom_evenement_de_conversion",
+      createHint: "La première version est la référence : c'est à elle que l'autre est comparée. L'expérience naît à l'arrêt, personne n'est exposé avant que vous ne la démarriez.",
+      duplicateKey: "Cette clé existe déjà sur ce site.",
+      invalidKey: "Clé invalide : minuscules, chiffres et tirets uniquement.",
+      needTwo: "Il faut deux versions au minimum, sinon il n'y a rien à comparer.",
+      createFailed: "La création a échoué. Réessayez.",
+      updateFailed: "La modification a échoué. Réessayez.",
+      draft: "Brouillon",
+      running: "En cours",
+      stopped: "Arrêtée",
+      start: "Démarrer",
+      stop: "Arrêter",
+      draftNote: "Rien n'est exposé tant que l'expérience n'a pas démarré. Vérifiez vos noms de versions, ils ne pourront plus changer ensuite.",
+      noDataYet: "Aucune exposition enregistrée pour l'instant. Vérifiez que votre code appelle bien variant() avec cette clé.",
+      metric: "conversion :",
+      colVariant: "Version",
+      colSubjects: "Exposés",
+      colConversions: "Convertis",
+      colRate: "Taux",
+      colLift: "Écart",
+      reference: "référence",
+      wins: "l'emporte, de",
+      pValue: "— p =",
+      notYet: "Pas encore concluant : l'écart observé peut venir du hasard.",
+      wouldNeed: "À cet écart, il faudrait environ",
+      perVariant: "personnes par version pour trancher.",
+      readTitle: "Pourquoi l'écran se tait parfois",
+      readBody: "Un gagnant n'est annoncé que si l'écart a moins d'une chance sur vingt d'être dû au hasard. En dessous, aucun nom n'est mis en avant : décider sur du bruit coûte plus cher que d'attendre.",
+      readNote: "L'estimation du nombre de personnes nécessaires part de l'écart observé aujourd'hui, qui bouge tant que les données arrivent. Elle donne un ordre de grandeur, pas un objectif. Et sans identifiant stable passé à setUser(), une expérience regroupe des journées plutôt que des personnes : suffisant pour un test dont la conversion suit de quelques minutes, pas pour un effet qui met des jours à se voir.",
+    },
     groups: {
       noSiteBody:
         "Les comptes regroupent les visites d'un même client. Ajoutez un site pour commencer.",
@@ -1936,6 +2026,7 @@ const en: AppStrings = {
       profiles: "Profiles",
       groups: "Accounts",
       flags: "Feature flags",
+      experiments: "Experiments",
       retention: "Retention",
       data: "Data",
       settings: "Settings",
@@ -2763,6 +2854,50 @@ const en: AppStrings = {
         "Pass us your own user id and the same person stays on the same side of a rollout, from one visit to the next and from one device to another.",
       stableNote:
         "Without it, the split runs on a hash that lasts a day: an anonymous visitor can change group tomorrow. Remembering their side would mean writing to their device, which this product refuses to do.",
+    },
+    experiments: {
+      noSiteBody: "An experiment compares two versions on one specific site. Add a site to get started.",
+      intro: "Two versions, half the audience on each, and a verdict that only speaks when it can.",
+      pendingTitle: "Migration pending",
+      pendingBody: "Experiments are waiting on their migration: run supabase/experiments.sql in the SQL editor.",
+      emptyTitle: "No experiments yet",
+      emptyBody: "Create one, read the variant in your code, and exposure is recorded for you.",
+      create: "Create an experiment",
+      createCta: "Create",
+      cancel: "Cancel",
+      namePlaceholder: "Readable name, e.g. 'Homepage headline'",
+      keyPlaceholder: "homepage-headline",
+      controlPlaceholder: "control",
+      challengerPlaceholder: "b",
+      metricPlaceholder: "conversion_event_name",
+      createHint: "The first version is the reference: the other is compared to it. An experiment is born stopped — nobody is exposed until you start it.",
+      duplicateKey: "That key already exists on this site.",
+      invalidKey: "Invalid key: lowercase, digits and dashes only.",
+      needTwo: "Two versions at least, otherwise there is nothing to compare.",
+      createFailed: "Creating it failed. Try again.",
+      updateFailed: "The change failed. Try again.",
+      draft: "Draft",
+      running: "Running",
+      stopped: "Stopped",
+      start: "Start",
+      stop: "Stop",
+      draftNote: "Nothing is exposed until the experiment starts. Check your variant names — they cannot change afterwards.",
+      noDataYet: "No exposure recorded yet. Check that your code calls variant() with this key.",
+      metric: "conversion:",
+      colVariant: "Variant",
+      colSubjects: "Exposed",
+      colConversions: "Converted",
+      colRate: "Rate",
+      colLift: "Difference",
+      reference: "reference",
+      wins: "wins, by",
+      pValue: "— p =",
+      notYet: "Not conclusive yet: the difference could be chance.",
+      wouldNeed: "At this difference, it would take roughly",
+      perVariant: "people per variant to decide.",
+      readTitle: "Why this screen sometimes says nothing",
+      readBody: "A winner is only named when the difference has less than a one-in-twenty chance of being luck. Below that, no name is put forward: deciding on noise costs more than waiting.",
+      readNote: "The estimated number of people starts from the difference seen today, which moves as data comes in. It gives an order of magnitude, not a target. And without a stable id passed to setUser(), an experiment groups days rather than people: fine for a test whose conversion follows within minutes, not for an effect that takes days to show.",
     },
     groups: {
       noSiteBody:

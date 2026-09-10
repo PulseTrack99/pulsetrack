@@ -34,6 +34,7 @@ import {
   UserCircle2,
   Building2,
   ToggleLeft,
+  FlaskConical,
   Repeat,
   ChevronDown,
   Share2,
@@ -90,6 +91,7 @@ const navItems: NavEntry[] = [
      Données : ce n'est pas de la matière première à inspecter, c'est un
      levier qu'on actionne. */
   { href: "/dashboard/flags", key: "flags", icon: ToggleLeft },
+  { href: "/dashboard/experiments", key: "experiments", icon: FlaskConical },
   {
     key: "data",
     icon: Database,
