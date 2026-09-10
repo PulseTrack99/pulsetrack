@@ -420,6 +420,21 @@ function InsightTile({
   );
 
   const grain = config.grain ? String(config.grain) : null;
+  const formula = config.formula ? String(config.formula) : null;
+  const asPercent = config.as_percent !== false;
+
+  /* Le ratio arrive de la route en pourcentage, pour que l'axe reste
+     lisible ; l'affichage « par unité » le ramène à sa valeur brute. */
+  const fmtValue = (v: number) =>
+    formula === "ratio"
+      ? asPercent
+        ? `${v.toLocaleString(intl, { maximumFractionDigits: 1 })} %`
+        : (v / 100).toLocaleString(intl, { maximumFractionDigits: 2 })
+      : v.toLocaleString(intl);
+
+  const [periodTotals, setPeriodTotals] = useState<
+    { group_key: string; value: number | null }[] | null
+  >(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -434,10 +449,21 @@ function InsightTile({
       if (grain) p.set("grain", grain);
       const filters = config.filters as unknown[] | undefined;
       if (filters?.length) p.set("filters", JSON.stringify(filters));
+      /* La formule fait partie de la question posée au moment de
+         l'épinglage. L'omettre afficherait la mesure brute sous le titre
+         du ratio, sans que rien ne le signale. */
+      if (config.formula) {
+        p.set("formula", String(config.formula));
+        p.set("measure_b", String(config.measure_b ?? "visitors"));
+        if (config.event_name_b) p.set("event_name_b", String(config.event_name_b));
+      }
 
       const res = await fetch(`/api/insights?${p}`);
       const data = await res.json();
-      if (!cancelled) setRows(data.rows ?? []);
+      if (!cancelled) {
+        setRows(data.rows ?? []);
+        setPeriodTotals(data.period_totals ?? null);
+      }
     })();
     return () => {
       cancelled = true;
@@ -454,8 +480,21 @@ function InsightTile({
       m.set(r.bucket, Number(r.value));
       byGroup.set(r.group_key, m);
     }
+    /* Même règle que l'écran Insights : la somme des ratios ne veut rien
+       dire, et « visiteurs » ne s'additionne pas d'un seau à l'autre. Le
+       total de la période, calculé sans granularité par la route, prime
+       donc quand il existe. */
     const tot = [...byGroup.entries()]
-      .map(([key, m]) => ({ key, total: [...m.values()].reduce((a, b) => a + b, 0) }))
+      .map(([key, m]) => {
+        const p = periodTotals?.find((x) => x.group_key === key);
+        return {
+          key,
+          total:
+            p !== undefined
+              ? (p.value ?? 0)
+              : [...m.values()].reduce((a, b) => a + b, 0),
+        };
+      })
       .sort((a, b) => b.total - a.total);
     return {
       buckets: bucketSet,
@@ -465,7 +504,7 @@ function InsightTile({
       })),
       totals: tot,
     };
-  }, [rows]);
+  }, [rows, periodTotals]);
 
   if (rows === null) {
     return (
@@ -488,6 +527,10 @@ function InsightTile({
       intl={intl}
     />
   ) : (
-    <Ranking totals={totals.map((x) => ({ ...x, key: label(x.key) }))} intl={intl} />
+    <Ranking
+      totals={totals.map((x) => ({ ...x, key: label(x.key) }))}
+      intl={intl}
+      format={formula ? fmtValue : undefined}
+    />
   );
 }

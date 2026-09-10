@@ -386,6 +386,13 @@ function SiteInsights({ siteId }: { siteId: string }) {
             breakdown,
             grain,
             filters,
+            /* La formule fait partie de la question. Sans elle, la tuile
+               épinglée afficherait la mesure brute en croyant montrer le
+               ratio — le chiffre serait faux et rien ne le dirait. */
+            formula,
+            measure_b: formula ? measureB : null,
+            event_name_b: formula && onEventsB ? eventNameB : null,
+            as_percent: formula === "ratio" ? asPercent : null,
           }}
         />
       </FilterBar>
@@ -415,6 +422,7 @@ function SiteInsights({ siteId }: { siteId: string }) {
           <Ranking
             totals={totals.map((x) => ({ ...x, key: groupLabel(x.key) }))}
             intl={intl}
+            format={formula ? fmtValue : undefined}
           />
         )}
       </div>

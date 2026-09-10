@@ -176,9 +176,14 @@ export function Lines({
 export function Ranking({
   totals,
   intl,
+  format,
 }: {
   totals: { key: string; total: number }[];
   intl: string;
+  /** Comment écrire la valeur. Par défaut un entier localisé — mais un
+   *  ratio se lit « 4,2 % », pas « 4 ». Optionnel pour que les appelants
+   *  qui ne combinent rien n'aient pas à s'en soucier. */
+  format?: (n: number) => string;
 }) {
   const max = Math.max(...totals.map((t) => t.total), 1);
   return (
@@ -198,7 +203,7 @@ export function Ranking({
             />
           </div>
           <span className="w-20 shrink-0 text-right text-[12.5px] font-medium tabular-nums">
-            {g.total.toLocaleString(intl)}
+            {format ? format(g.total) : g.total.toLocaleString(intl)}
           </span>
         </div>
       ))}
