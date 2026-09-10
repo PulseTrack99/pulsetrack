@@ -50,6 +50,7 @@ export interface AppStrings {
       boards: string;
       profiles: string;
       groups: string;
+      flags: string;
       retention: string;
       data: string;
       settings: string;
@@ -714,6 +715,35 @@ export interface AppStrings {
       valueDisclaimer: string;
       revenueLocked: string;
     };
+    flags: {
+      noSiteBody: string;
+      intro: string;
+      pendingTitle: string;
+      pendingBody: string;
+      emptyTitle: string;
+      emptyBody: string;
+      create: string;
+      createCta: string;
+      cancel: string;
+      namePlaceholder: string;
+      keyPlaceholder: string;
+      keyHint: string;
+      duplicateKey: string;
+      invalidKey: string;
+      createFailed: string;
+      updateFailed: string;
+      on: string;
+      off: string;
+      rollout: string;
+      liveNote: string;
+      offNote: string;
+      archive: string;
+      archivedTitle: string;
+      restore: string;
+      stableTitle: string;
+      stableBody: string;
+      stableNote: string;
+    };
     groups: {
       noSiteBody: string;
       pendingTitle: string;
@@ -860,6 +890,7 @@ const fr: AppStrings = {
       boards: "Tableaux",
       profiles: "Profils",
       groups: "Comptes",
+      flags: "Feature flags",
       retention: "Rétention",
       data: "Données",
       settings: "Paramètres",
@@ -1662,6 +1693,42 @@ const fr: AppStrings = {
       revenueLocked:
         "Chiffrer les abandons en euros demande l'offre Growth et une connexion Stripe.",
     },
+    flags: {
+      noSiteBody:
+        "Un flag pilote une fonctionnalité sur un site précis. Ajoutez un site pour commencer.",
+      intro:
+        "Un interrupteur à distance dans votre application : déployer progressivement, et éteindre sans redéployer.",
+      pendingTitle: "Migration en attente",
+      pendingBody:
+        "Les feature flags attendent leur migration : lancez supabase/feature-flags.sql dans l'éditeur SQL.",
+      emptyTitle: "Aucun flag pour l'instant",
+      emptyBody:
+        "Créez un flag, puis lisez-le dans votre code. Il naît éteint : personne ne le voit tant que vous ne l'allumez pas.",
+      create: "Créer un flag",
+      createCta: "Créer",
+      cancel: "Annuler",
+      namePlaceholder: "Nom lisible, ex. « Nouveau panier »",
+      keyPlaceholder: "nouveau-panier",
+      keyHint:
+        "La clé est ce que vous écrirez dans votre code. Minuscules, chiffres, tirets — et elle ne pourra plus changer, la renommer ici éteindrait votre fonctionnalité sans prévenir.",
+      duplicateKey: "Cette clé existe déjà sur ce site.",
+      invalidKey: "Clé invalide : minuscules, chiffres et tirets uniquement.",
+      createFailed: "La création a échoué. Réessayez.",
+      updateFailed: "La modification a échoué. Réessayez.",
+      on: "Allumé",
+      off: "Éteint",
+      rollout: "Part du public exposée",
+      liveNote: "Part du public qui voit la fonctionnalité. La même personne obtient toujours la même réponse.",
+      offNote: "Éteint : répond faux à tout le monde, quel que soit le pourcentage. C'est le geste d'urgence.",
+      archive: "Archiver",
+      archivedTitle: "Archivés",
+      restore: "Restaurer",
+      stableTitle: "Ce qui rend la répartition stable",
+      stableBody:
+        "Passez-nous votre propre identifiant d'utilisateur et la même personne restera du même côté d'un déploiement, d'une visite à l'autre et d'un appareil à l'autre.",
+      stableNote:
+        "Sans lui, la répartition se fait sur un hachage valable la journée : un visiteur anonyme peut changer de groupe le lendemain. Retenir son choix exigerait d'écrire sur son appareil, ce que ce produit refuse.",
+    },
     groups: {
       noSiteBody:
         "Les comptes regroupent les visites d'un même client. Ajoutez un site pour commencer.",
@@ -1868,6 +1935,7 @@ const en: AppStrings = {
       boards: "Boards",
       profiles: "Profiles",
       groups: "Accounts",
+      flags: "Feature flags",
       retention: "Retention",
       data: "Data",
       settings: "Settings",
@@ -2660,6 +2728,41 @@ const en: AppStrings = {
         "Not everyone lost here would have paid: this figure ranks steps by what is at stake, it does not promise revenue.",
       revenueLocked:
         "Putting a euro figure on drop-off needs the Growth plan and a Stripe connection.",
+    },
+    flags: {
+      noSiteBody: "A flag drives a feature on one specific site. Add a site to get started.",
+      intro:
+        "A remote switch inside your application: roll out gradually, and turn off without redeploying.",
+      pendingTitle: "Migration pending",
+      pendingBody:
+        "Feature flags are waiting on their migration: run supabase/feature-flags.sql in the SQL editor.",
+      emptyTitle: "No flags yet",
+      emptyBody:
+        "Create a flag, then read it from your code. It is born off: nobody sees it until you turn it on.",
+      create: "Create a flag",
+      createCta: "Create",
+      cancel: "Cancel",
+      namePlaceholder: "Readable name, e.g. 'New cart'",
+      keyPlaceholder: "new-cart",
+      keyHint:
+        "The key is what you will write in your code. Lowercase, digits, dashes — and it cannot change later: renaming it here would turn your feature off without warning.",
+      duplicateKey: "That key already exists on this site.",
+      invalidKey: "Invalid key: lowercase, digits and dashes only.",
+      createFailed: "Creating it failed. Try again.",
+      updateFailed: "The change failed. Try again.",
+      on: "On",
+      off: "Off",
+      rollout: "Share of the audience exposed",
+      liveNote: "Share of the audience that sees the feature. The same person always gets the same answer.",
+      offNote: "Off: returns false for everyone, whatever the percentage. This is the emergency switch.",
+      archive: "Archive",
+      archivedTitle: "Archived",
+      restore: "Restore",
+      stableTitle: "What makes the split stable",
+      stableBody:
+        "Pass us your own user id and the same person stays on the same side of a rollout, from one visit to the next and from one device to another.",
+      stableNote:
+        "Without it, the split runs on a hash that lasts a day: an anonymous visitor can change group tomorrow. Remembering their side would mean writing to their device, which this product refuses to do.",
     },
     groups: {
       noSiteBody:

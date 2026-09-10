@@ -33,6 +33,7 @@ import {
   LayoutDashboard,
   UserCircle2,
   Building2,
+  ToggleLeft,
   Repeat,
   ChevronDown,
   Share2,
@@ -84,6 +85,11 @@ const navItems: NavEntry[] = [
   { href: "/dashboard/retention", key: "retention", icon: Repeat },
   { href: "/dashboard/replays", key: "replays", icon: Video },
   { href: "/dashboard/heatmaps", key: "heatmaps", icon: MousePointerClick },
+  /* Le seul écran qui écrit dans l'app du client au lieu de
+     l'observer. Il reste dans le rail plutôt que dans le tiroir
+     Données : ce n'est pas de la matière première à inspecter, c'est un
+     levier qu'on actionne. */
+  { href: "/dashboard/flags", key: "flags", icon: ToggleLeft },
   {
     key: "data",
     icon: Database,

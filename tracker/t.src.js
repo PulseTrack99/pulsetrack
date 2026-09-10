@@ -707,6 +707,66 @@
     }
   };
 
+  /* ── Feature flags ──────────────────────────────────────────────
+     Le seul endroit où ce script décide de ce que la page affiche, et
+     non l'inverse. Deux conséquences assumées.
+
+     La réponse vient du réseau, donc enabled() ne peut pas être vraie
+     avant qu'elle arrive : elle rend faux jusque-là. Le code du client
+     reprend donc le chemin qu'il avait avant d'ajouter le flag, ce qui
+     est le bon repli — mieux vaut ne pas montrer une nouveauté que
+     montrer une page à moitié construite.
+
+     Et rien n'est demandé tant que personne ne demande de flag : un
+     site qui n'en utilise pas ne paie aucune requête. */
+  var flagCache = null;
+  var flagWaiting = [];
+  var flagUid = null;
+  var flagAsked = false;
+
+  // L'identifiant stable du client — le sien, celui de sa propre
+  // authentification. Sans lui le serveur retombe sur un hachage
+  // valable la journée, et un visiteur anonyme peut changer de groupe
+  // le lendemain. À poser avant le premier onFlags().
+  api.setUser = function (id) {
+    if (id && typeof id === "string") flagUid = String(id).trim().slice(0, 200);
+  };
+
+  function loadFlags() {
+    if (flagAsked) return;
+    flagAsked = true;
+    try {
+      fetch(base + "/api/flags/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ site_id: siteId, uid: flagUid }),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { flagCache = (d && d.flags) || {}; })
+        .catch(function () { flagCache = {}; })
+        .then(function () {
+          var q = flagWaiting;
+          flagWaiting = [];
+          for (var i = 0; i < q.length; i++) {
+            try { q[i](flagCache); } catch (e) { /* le rappel du client */ }
+          }
+        });
+    } catch (e) {
+      flagCache = {};
+    }
+  }
+
+  api.enabled = function (key) {
+    return !!(flagCache && flagCache[key] === true);
+  };
+
+  api.onFlags = function (cb) {
+    if (typeof cb !== "function") return;
+    if (flagCache) { cb(flagCache); return; }
+    flagWaiting.push(cb);
+    loadFlags();
+  };
+
   window.pulsetrack = api;
 
   scheduleSnapshot();
