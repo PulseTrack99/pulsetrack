@@ -33,18 +33,31 @@ export function Lines({
   series,
   grain,
   intl,
+  compare,
 }: {
   buckets: string[];
   series: { key: string; points: number[] }[];
   grain: string;
   intl: string;
+  /** La période précédente, alignée par rang de seau et non par date :
+   *  le premier jour de la fenêtre précédente se lit au-dessus du
+   *  premier jour de celle-ci. Même couleur que sa contrepartie, en
+   *  pointillé et en retrait, parce que c'est la même mesure sur une
+   *  autre fenêtre et non une septième série. */
+  compare?: { key: string; points: number[] }[];
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const W = 900;
   const H = 260;
   const PAD = { top: 12, right: 12, bottom: 26, left: 44 };
 
-  const peak = Math.max(...series.flatMap((s) => s.points), 0);
+  // L'échelle couvre les deux fenêtres, sinon la comparaison sortirait
+  // du cadre dès que la période précédente a été meilleure.
+  const peak = Math.max(
+    ...series.flatMap((s) => s.points),
+    ...(compare ?? []).flatMap((s) => s.points),
+    0
+  );
   const top = niceTop(peak);
   const innerW = W - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
@@ -89,6 +102,22 @@ export function Lines({
               {Math.round(top * f).toLocaleString(intl)}
             </text>
           </g>
+        ))}
+
+        {/* La période précédente d'abord, pour qu'elle passe sous la
+            courante quand les deux se croisent. */}
+        {(compare ?? []).map((s, si) => (
+          <polyline
+            key={`prev-${s.key}`}
+            fill="none"
+            stroke={SERIES[si % SERIES.length]}
+            strokeWidth="1.5"
+            strokeDasharray="4 3"
+            strokeOpacity="0.45"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            points={s.points.map((v, i) => `${x(i)},${y(v)}`).join(" ")}
+          />
         ))}
 
         {series.map((s, si) => (

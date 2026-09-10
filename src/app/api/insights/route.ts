@@ -112,58 +112,62 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const ask = (m: string, eventName: string | null) =>
+  /* La fenêtre de même longueur qui précède celle-ci. Une comparaison
+     sur une durée différente ne compare rien. */
+  const compare = searchParams.get("compare") === "1";
+  const prevSince = new Date(
+    new Date(since).getTime() - days * 86_400_000
+  ).toISOString();
+
+  const ask = (
+    m: string,
+    eventName: string | null,
+    win: "current" | "previous" = "current",
+    withGrain = true
+  ) =>
     supabase.rpc("insights_query", {
       p_site: siteId,
-      p_since: since,
-      p_until: null,
+      p_since: win === "current" ? since : prevSince,
+      p_until: win === "current" ? null : since,
       p_measure: m,
       p_event_name: eventName,
       p_breakdown: breakdown || null,
-      p_grain: grain,
+      p_grain: withGrain ? grain : null,
       p_filters: filters.length ? filters : null,
       p_limit: 12,
     });
 
-  /* Sans granularité, pour le total de la période.
-   *
-   * Un ratio par semaine ne se totalise pas en additionnant les
-   * semaines : « visiteurs » n'est pas additif, puisqu'une même
-   * personne revue la semaine suivante compte deux fois dans la somme
-   * et une seule sur la période. Mesuré ici : 306 visiteurs en
-   * additionnant les jours, 302 sur les trente jours.
-   *
-   * Le total est donc redemandé sans granularité, ce qui donne le taux
-   * de la période — celui que l'accueil affiche, et celui qu'on cite. */
-  const askFlat = (m: string, eventName: string | null) =>
-    supabase.rpc("insights_query", {
-      p_site: siteId,
-      p_since: since,
-      p_until: null,
-      p_measure: m,
-      p_event_name: eventName,
-      p_breakdown: breakdown || null,
-      p_grain: null,
-      p_filters: filters.length ? filters : null,
-      p_limit: 12,
-    });
+  const evA = searchParams.get("event_name") || null;
+  const evB = searchParams.get("event_name_b") || null;
+  const none = Promise.resolve({ data: null, error: null });
 
-  // Tout en parallèle : une formule ne doit pas coûter le double du
-  // temps d'une mesure simple.
-  const [a, b, flatA, flatB] = await Promise.all([
-    ask(measure, searchParams.get("event_name") || null),
-    formula
-      ? ask(measureB!, searchParams.get("event_name_b") || null)
-      : Promise.resolve({ data: null, error: null }),
-    formula && grain
-      ? askFlat(measure, searchParams.get("event_name") || null)
-      : Promise.resolve({ data: null, error: null }),
-    formula && grain
-      ? askFlat(measureB!, searchParams.get("event_name_b") || null)
-      : Promise.resolve({ data: null, error: null }),
+  /* Le total de la période est redemandé sans granularité dès qu'on en
+     a besoin, et pour deux raisons distinctes.
+     
+     Sous formule, parce que la somme des ratios de chaque seau ne veut
+     rien dire — seul le ratio des sommes en a un.
+     
+     Sous comparaison, parce que « visiteurs » n'est pas additif : une
+     personne revue la semaine suivante compte deux fois en additionnant
+     les seaux et une seule sur la période. Mesuré ici, 306 contre 302
+     sur trente jours. Un écart lu sur des sommes de seaux décrirait
+     autre chose que l'évolution de la période. */
+  const needFlat = Boolean((formula && grain) || compare);
+
+  // Tout en parallèle : ni une formule ni une comparaison ne doivent
+  // coûter un multiple du temps d'une mesure simple.
+  const [a, b, flatA, flatB, prevA, prevB, prevFlatA, prevFlatB] = await Promise.all([
+    ask(measure, evA),
+    formula ? ask(measureB!, evB) : none,
+    needFlat ? ask(measure, evA, "current", false) : none,
+    needFlat && formula ? ask(measureB!, evB, "current", false) : none,
+    compare ? ask(measure, evA, "previous") : none,
+    compare && formula ? ask(measureB!, evB, "previous") : none,
+    compare ? ask(measure, evA, "previous", false) : none,
+    compare && formula ? ask(measureB!, evB, "previous", false) : none,
   ]);
 
-  const error = a.error ?? b.error;
+  const error = a.error ?? b.error ?? prevA.error ?? flatA.error;
   if (error) {
     if (isMissingSchema(error)) {
       return NextResponse.json({ migration_pending: true, rows: [] });
@@ -172,80 +176,75 @@ export async function GET(req: NextRequest) {
   }
 
   type Row = { bucket: string | null; group_key: string; value: number };
-  const rowsA = (a.data ?? []) as Row[];
+  type Out = Row & { value_a?: number; value_b?: number };
 
-  if (!formula) {
-    return NextResponse.json({
-      rows: rowsA,
-      measure,
-      grain,
-      breakdown: breakdown || null,
-      formula: null,
-      migration_pending: false,
-    });
-  }
-
-  /* Recollage par (seau, groupe). Le second opérande peut ne pas avoir
-     de ligne là où le premier en a — personne n'a rien fait ce jour-là —
-     et c'est zéro, pas une absence. */
   const key = (r: Row) => `${r.bucket ?? ""}|${r.group_key}`;
-  const bByKey = new Map(((b.data ?? []) as Row[]).map((r) => [key(r), Number(r.value)]));
 
-  const rows = rowsA
-    .map((r) => {
-      const va = Number(r.value);
-      const vb = bByKey.get(key(r)) ?? 0;
+  /** Une série, formule appliquée s'il y en a une. */
+  const combine = (
+    ra: { data: unknown } | null,
+    rb: { data: unknown } | null
+  ): Out[] => {
+    const rowsA = ((ra?.data ?? []) as Row[]);
+    if (!formula) return rowsA;
 
-      let value: number;
-      if (formula === "ratio") {
-        // Diviser par zéro n'a pas de réponse. La ligne disparaît plutôt
-        // que d'afficher un zéro qui se lirait comme « 0 % de
-        // conversion » là où il n'y avait personne à convertir.
-        if (vb === 0) return null;
-        // Rendu en pourcentage, à une décimale : l'axe du graphe arrondit
-        // à l'entier, et un ratio brut de 0,043 s'y afficherait « 0 ».
-        value = Math.round((va / vb) * 1000) / 10;
-      } else if (formula === "difference") {
-        value = va - vb;
-      } else {
-        value = va + vb;
-      }
+    const bBy = new Map(((rb?.data ?? []) as Row[]).map((r) => [key(r), Number(r.value)]));
+    return rowsA
+      .map((r): Out | null => {
+        const va = Number(r.value);
+        // Le second opérande peut n'avoir aucune ligne là où le premier
+        // en a — personne n'a rien fait ce jour-là — et c'est zéro.
+        const vb = bBy.get(key(r)) ?? 0;
 
-      // value_a et value_b remontent pour que l'écran puisse recomposer
-      // le total : la somme des ratios de chaque seau ne vaut rien, seul
-      // le ratio des sommes veut dire quelque chose.
-      return { ...r, value, value_a: va, value_b: vb };
-    })
-    .filter((r) => r !== null);
+        let value: number;
+        if (formula === "ratio") {
+          /* Diviser par zéro n'a pas de réponse. La ligne disparaît
+             plutôt que d'afficher « 0 % de conversion » là où il n'y
+             avait personne à convertir. */
+          if (vb === 0) return null;
+          /* Rendu en pourcentage à une décimale : l'axe du graphe
+             arrondit à l'entier, et un ratio brut de 0,043 s'y
+             afficherait « 0 ». */
+          value = Math.round((va / vb) * 1000) / 10;
+        } else if (formula === "difference") {
+          value = va - vb;
+        } else {
+          value = va + vb;
+        }
+        return { ...r, value, value_a: va, value_b: vb };
+      })
+      .filter((r): r is Out => r !== null);
+  };
 
-  /* Le total de la période, par groupe. Absent sans granularité :
-     la ligne elle-même est déjà le total. */
-  const flatBByGroup = new Map(
-    ((flatB.data ?? []) as Row[]).map((r) => [r.group_key, Number(r.value)])
-  );
-  const period_totals = ((flatA.data ?? []) as Row[]).map((r) => {
-    const va = Number(r.value);
-    const vb = flatBByGroup.get(r.group_key) ?? 0;
-    return {
+  const rows = combine(a, b);
+  const flat = needFlat ? combine(flatA, flatB) : [];
+  const previousRows = compare ? combine(prevA, prevB) : [];
+  const previousFlat = compare ? combine(prevFlatA, prevFlatB) : [];
+
+  const totalsOf = (list: Out[]) =>
+    list.map((r) => ({
       group_key: r.group_key,
-      value:
-        formula === "ratio"
-          ? vb === 0
-            ? null
-            : Math.round((va / vb) * 1000) / 10
-          : formula === "difference"
-            ? va - vb
-            : va + vb,
-      value_a: va,
-      value_b: vb,
-    };
-  });
+      value: r.value,
+      value_a: r.value_a,
+      value_b: r.value_b,
+    }));
 
   return NextResponse.json({
     rows,
-    period_totals: period_totals.length ? period_totals : null,
+    /* Le total de la période, par groupe. Nul quand la ligne elle-même
+       est déjà le total. */
+    period_totals: flat.length ? totalsOf(flat) : null,
+    previous_rows: compare ? previousRows : null,
+    previous_totals: compare ? totalsOf(previousFlat) : null,
+    compare,
+    /* Les deux bornes basses, pour que l'écran aligne les courbes sur un
+       décalage de date plutôt que sur un rang. Un jour sans trafic
+       n'ayant aucune ligne, l'alignement par rang dériverait d'un jour
+       à chaque trou, et superposerait deux dates sans rapport. */
+    since,
+    previous_since: compare ? prevSince : null,
     measure,
-    measure_b: measureB,
+    measure_b: formula ? measureB : null,
     grain,
     breakdown: breakdown || null,
     formula,

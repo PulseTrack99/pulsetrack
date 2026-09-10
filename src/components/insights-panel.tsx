@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { LineChart, Loader2, Plus, X, AlertTriangle, Pin, Check } from "lucide-react";
+import { LineChart, Loader2, Plus, X, AlertTriangle, Pin, Check, GitCompare } from "lucide-react";
 import { useSites } from "@/components/site-context";
 import { useT } from "@/components/locale-context";
 import { SERIES, Lines, Ranking } from "@/components/insight-chart";
@@ -87,6 +87,13 @@ function SiteInsights({ siteId }: { siteId: string }) {
   const [periodTotals, setPeriodTotals] = useState<
     { group_key: string; value: number | null }[] | null
   >(null);
+  const [compare, setCompare] = useState(false);
+  const [prevRows, setPrevRows] = useState<Row[]>([]);
+  const [prevTotals, setPrevTotals] = useState<
+    { group_key: string; value: number | null }[] | null
+  >(null);
+  const [since, setSince] = useState<string | null>(null);
+  const [prevSince, setPrevSince] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
 
@@ -128,10 +135,11 @@ function SiteInsights({ siteId }: { siteId: string }) {
         p.set("event_name_b", eventNameB);
       }
     }
+    if (compare) p.set("compare", "1");
     return p;
   }, [
     siteId, period, measure, onEvents, eventName, breakdown, grain, filters,
-    formula, measureB, eventNameB,
+    formula, measureB, eventNameB, compare,
   ]);
 
   useEffect(() => {
@@ -144,6 +152,10 @@ function SiteInsights({ siteId }: { siteId: string }) {
         if (cancelled) return;
         setRows(data.rows ?? []);
         setPeriodTotals(data.period_totals ?? null);
+        setPrevRows(data.previous_rows ?? []);
+        setPrevTotals(data.previous_totals ?? null);
+        setSince(data.since ?? null);
+        setPrevSince(data.previous_since ?? null);
         setPending(Boolean(data.migration_pending));
       } finally {
         if (!cancelled) setLoading(false);
@@ -198,6 +210,50 @@ function SiteInsights({ siteId }: { siteId: string }) {
       totals: tot,
     };
   }, [rows, formula]);
+
+  /* La période précédente, alignée sur le décalage de date et non sur
+     le rang du seau.
+
+     Aligner par rang paraît suffisant jusqu'à ce qu'un jour sans trafic
+     manque d'un côté : il n'a aucune ligne, donc tous les seaux
+     suivants glissent d'un cran et la courbe compare deux dates sans
+     rapport. Mesuré ici : cinq seaux courants pour huit précédents sur
+     la même durée de sept jours.
+
+     Chaque seau courant va donc chercher, dans la fenêtre précédente,
+     celui qui occupe la même position temporelle — et une absence reste
+     une absence, valant zéro comme partout ailleurs sur ce graphe. */
+  const compareSeries = useMemo(() => {
+    if (!compare || !since || !prevSince) return undefined;
+    const shift = new Date(since).getTime() - new Date(prevSince).getTime();
+
+    const byGroup = new Map<string, Map<number, number>>();
+    for (const r of prevRows) {
+      const m = byGroup.get(r.group_key) ?? new Map<number, number>();
+      m.set(new Date(r.bucket).getTime(), Number(r.value));
+      byGroup.set(r.group_key, m);
+    }
+
+    return totals.map((g) => ({
+      key: g.key,
+      points: buckets.map((b) => {
+        const want = new Date(b).getTime() - shift;
+        const m = byGroup.get(g.key);
+        if (!m) return 0;
+        // Tolérance d'une heure : les bornes de fenêtre ne tombent pas
+        // sur minuit, et un changement d'heure décalerait une journée.
+        for (const [t, v] of m) if (Math.abs(t - want) < 3_600_000) return v;
+        return 0;
+      }),
+    }));
+  }, [compare, prevRows, totals, buckets, since, prevSince]);
+
+  /** L'écart entre les deux périodes, sur les totaux de période. */
+  const deltaOf = (groupKey: string, current: number): number | null => {
+    const p = prevTotals?.find((x) => x.group_key === groupKey);
+    if (!p || p.value === null || p.value === 0) return null;
+    return Math.round(((current - p.value) / p.value) * 100);
+  };
 
   const onEventsB = measureB === "events" || measureB === "event_visitors";
 
@@ -376,6 +432,19 @@ function SiteInsights({ siteId }: { siteId: string }) {
           ariaLabel={t.filters.period}
         />
         <SegmentedFilter value={grain} options={grainOptions} onChange={setGrain} />
+        {/* Comparer à la fenêtre de même longueur qui précède. */}
+        <button
+          onClick={() => setCompare((v) => !v)}
+          aria-pressed={compare}
+          className={`flex items-center gap-1.5 rounded-sm border px-2.5 py-1.5 text-[12.5px] transition-colors ${
+            compare
+              ? "border-primary bg-primary-pale font-medium text-primary"
+              : "border-border text-muted hover:text-foreground"
+          }`}
+        >
+          <GitCompare className="h-3.5 w-3.5" />
+          {t.screens.insights.compare}
+        </button>
         <div className="flex-1" />
         <PinToBoard
           siteId={siteId}
@@ -417,6 +486,7 @@ function SiteInsights({ siteId }: { siteId: string }) {
             series={series.map((x) => ({ ...x, key: groupLabel(x.key) }))}
             grain={grain}
             intl={intl}
+            compare={compareSeries?.map((x) => ({ ...x, key: groupLabel(x.key) }))}
           />
         ) : (
           <Ranking
@@ -445,13 +515,38 @@ function SiteInsights({ siteId }: { siteId: string }) {
                   </td>
                   <td className="px-3 py-2 text-right font-medium tabular-nums">
                     {(() => {
-                      // Sous formule, le total de la période prime sur la
-                      // somme des seaux — voir periodTotals.
+                      // Sous formule ou comparaison, le total de la
+                      // période prime sur la somme des seaux.
                       const p = periodTotals?.find((x) => x.group_key === g.key);
                       if (p) return p.value === null ? "—" : fmtValue(p.value);
                       return fmtValue(g.total);
                     })()}
                   </td>
+                  {compare && (
+                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
+                      {(() => {
+                        const prev = prevTotals?.find((x) => x.group_key === g.key);
+                        const d = deltaOf(g.key, g.total);
+                        return (
+                          <>
+                            <span className="text-muted-light">
+                              {prev && prev.value !== null ? fmtValue(prev.value) : "—"}
+                            </span>
+                            {d !== null && (
+                              <span
+                                className={`ml-2 font-medium ${
+                                  d > 0 ? "text-emerald-600" : d < 0 ? "text-coral" : "text-muted"
+                                }`}
+                              >
+                                {d > 0 ? "+" : ""}
+                                {d} %
+                              </span>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

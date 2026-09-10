@@ -403,6 +403,8 @@ export interface AppStrings {
       fSum: string;
       perUnit: string;
       ratioDisplay: string;
+      compare: string;
+      previousPeriod: string;
       allEvents: string;
       splitBy: string;
       noSplit: string;
@@ -1265,6 +1267,8 @@ const fr: AppStrings = {
       fSum: "Somme",
       perUnit: "par unité",
       ratioDisplay: "Affichage du ratio",
+      compare: "Comparer",
+      previousPeriod: "Période précédente",
       allEvents: "Tous les événements",
       splitBy: "Ventiler par",
       noSplit: "Pas de ventilation",
@@ -2266,6 +2270,8 @@ const en: AppStrings = {
       fSum: "Sum",
       perUnit: "per unit",
       ratioDisplay: "Ratio display",
+      compare: "Compare",
+      previousPeriod: "Previous period",
       allEvents: "All events",
       splitBy: "Split by",
       noSplit: "No split",
