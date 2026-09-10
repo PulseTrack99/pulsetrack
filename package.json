@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "check:plans": "node scripts/check-plans.mjs",
-    "prebuild": "node scripts/check-plans.mjs && node scripts/build-tracker.mjs",
+    "check:claims": "node scripts/check-claims.mjs",
+    "prebuild": "node scripts/check-plans.mjs && node scripts/build-tracker.mjs && node scripts/check-claims.mjs",
     "build:tracker": "node scripts/build-tracker.mjs"
   },
   "dependencies": {
