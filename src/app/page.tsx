@@ -5,6 +5,7 @@ import { dictionaries } from "@/i18n/dictionaries";
 import { SiteNav } from "@/components/marketing/site-nav";
 import { ProductShowcase } from "@/components/marketing/product-showcase";
 import { AiConnect } from "@/components/marketing/ai-connect";
+import { McpFaq } from "@/components/marketing/mcp-faq";
 import { Assistant } from "@/components/marketing/assistant";
 import { getAssistantFaq } from "@/content/assistant-faq";
 import { Reveal } from "@/components/marketing/reveal";
@@ -115,6 +116,9 @@ export default async function Home() {
           cta={t.aiConnect.cta}
           ctaHref="/signup"
         />
+
+        {/* Les questions qu'on se pose avant de brancher son assistant. */}
+        <McpFaq title={t.mcpFaq.title} items={t.mcpFaq.items} />
 
         {/* ── Features, revealed on scroll ── */}
         <FeatureBlock

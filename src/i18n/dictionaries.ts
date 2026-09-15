@@ -87,6 +87,11 @@ export interface Dictionary {
     cta: string;
   };
 
+  mcpFaq: {
+    title: string;
+    items: { q: string; a: string }[];
+  };
+
   benefits: {
     title: string;
     cta: string;
@@ -468,6 +473,40 @@ const en: Dictionary = {
     body:
       "An MCP server that lets Claude, ChatGPT, Gemini and friends query your PulseTrack data directly — pull last week's revenue by source without leaving your editor or your chat.",
     cta: "Connect it now",
+  },
+
+  mcpFaq: {
+    title: "PulseTrack MCP, frequently asked",
+    items: [
+      {
+        q: "Which AI tools can connect to PulseTrack?",
+        a: "Any MCP-compatible assistant. The step-by-step guide in Settings currently covers Claude (claude.ai, the desktop app and Claude Code), ChatGPT, Codex, Cursor, VS Code, Gemini CLI, Gemini, Notion, Microsoft Copilot Studio and Mistral's Le Chat. Some vendors keep custom connectors to their paid plans, and Google currently limits them in the Gemini app to the United States.",
+      },
+      {
+        q: "Is there any technical setup?",
+        a: "Not in most cases. You paste one address into your assistant, sign in to PulseTrack and pick the site. Cursor and VS Code install in one click, command-line tools with a single command. Settings → API access walks you through each tool.",
+      },
+      {
+        q: "What can I ask it?",
+        a: "Everything your dashboard shows: visitors, pages and sources, revenue by source, funnels, insights with filters and formulas, retention, flows, dashboards, experiments and their results, feature flags, accounts, recorded sessions and real time. The assistant gets the same figures as your screens, computed by the same code.",
+      },
+      {
+        q: "Can the AI change anything in my account?",
+        a: "No. Access is read-only: the assistant cannot create, edit or delete anything in PulseTrack.",
+      },
+      {
+        q: "Is my data safe?",
+        a: "The assistant only reaches the site you picked, never sees your password, and you can cut its access at any time from Settings. No e-mail address or personal identifier is sent to it — answers are aggregates. What it receives is then handled by the assistant's vendor (Anthropic, OpenAI, Google…) under their own terms.",
+      },
+      {
+        q: "Which plan do I need?",
+        a: "The MCP server comes with API access, on the Growth and Business plans. It shares the API's limit of 60 requests per minute.",
+      },
+      {
+        q: "How is it different from the PulseTrack agent?",
+        a: "The PulseTrack agent answers inside your dashboard. The MCP server brings your figures into the assistant you already use, where it can combine them with your other connected tools — your CRM, your documents, your code.",
+      },
+    ],
   },
 
   benefits: {
@@ -1002,6 +1041,40 @@ const fr: Dictionary = {
     body:
       "Un serveur MCP qui permet à Claude, ChatGPT, Gemini et les autres d'interroger directement vos données PulseTrack — sortez le revenu par source de la semaine sans quitter votre éditeur ou votre chat.",
     cta: "Connectez-le maintenant",
+  },
+
+  mcpFaq: {
+    title: "PulseTrack MCP, questions fréquentes",
+    items: [
+      {
+        q: "Quels assistants IA peuvent se connecter à PulseTrack ?",
+        a: "Tout assistant compatible MCP. Le guide pas à pas des Paramètres couvre aujourd'hui Claude (claude.ai, l'application et Claude Code), ChatGPT, Codex, Cursor, VS Code, Gemini CLI, Gemini, Notion, Microsoft Copilot Studio et Le Chat de Mistral. Certains éditeurs réservent les connecteurs personnalisés à leurs offres payantes, et Google les limite pour l'instant aux États-Unis dans l'application Gemini.",
+      },
+      {
+        q: "Faut-il une installation technique ?",
+        a: "Non, dans la plupart des cas. Vous collez une adresse dans votre assistant, vous vous connectez à PulseTrack et vous choisissez le site. Cursor et VS Code s'installent en un clic, les outils en ligne de commande en une seule commande. Paramètres → Accès API vous guide outil par outil.",
+      },
+      {
+        q: "Que peut-on lui demander ?",
+        a: "Tout ce que montre votre tableau de bord : visiteurs, pages et sources, revenus par source, funnels, insights avec filtres et formules, rétention, parcours, tableaux de bord, experiments et leurs résultats, feature flags, comptes, sessions enregistrées et temps réel. L'assistant reçoit les mêmes chiffres que vos écrans, calculés par le même code.",
+      },
+      {
+        q: "L'IA peut-elle modifier quelque chose dans mon compte ?",
+        a: "Non. L'accès est en lecture seule : l'assistant ne peut rien créer, modifier ni supprimer dans PulseTrack.",
+      },
+      {
+        q: "Mes données sont-elles protégées ?",
+        a: "L'assistant n'accède qu'au site que vous avez choisi, ne voit jamais votre mot de passe, et vous pouvez couper son accès à tout moment depuis les Paramètres. Aucune adresse e-mail ni identifiant personnel ne lui est transmis : les réponses sont des agrégats. Ce qu'il reçoit est ensuite traité par l'éditeur de l'assistant (Anthropic, OpenAI, Google…), selon ses propres conditions.",
+      },
+      {
+        q: "Quelle offre faut-il ?",
+        a: "Le serveur MCP est inclus avec l'accès API, dans les offres Growth et Business. Il partage la limite de l'API : 60 requêtes par minute.",
+      },
+      {
+        q: "Quelle différence avec l'agent PulseTrack ?",
+        a: "L'agent PulseTrack répond dans votre tableau de bord. Le serveur MCP apporte vos chiffres dans l'assistant que vous utilisez déjà, où il peut les croiser avec vos autres outils connectés — votre CRM, vos documents, votre code.",
+      },
+    ],
   },
 
   benefits: {

@@ -129,7 +129,13 @@ const baseHandler = createMcpHandler(
           };
         }
         const revenue = await getSiteRevenue(supabase, auth.siteId, period ?? "30d");
-        return { content: [{ type: "text", text: JSON.stringify(revenue, null, 2) }] };
+        // L'e-mail des clients reste dans le tableau de bord : un assistant
+        // n'en a pas besoin pour analyser le revenu, et il partirait chez
+        // l'éditeur de l'assistant. JSON.stringify omet la clé undefined.
+        return json({
+          ...revenue,
+          recent_transactions: revenue.recent_transactions?.map((t) => ({ ...t, email: undefined })),
+        });
       }
     );
 
