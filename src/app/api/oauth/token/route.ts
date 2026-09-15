@@ -6,6 +6,7 @@ import {
   generateAccessToken,
   generateRefreshToken,
   resolveClientMetadata,
+  touchRegisteredClient,
   ACCESS_TOKEN_TTL_MS,
   REFRESH_TOKEN_TTL_MS,
 } from "@/lib/oauth";
@@ -100,6 +101,7 @@ export async function POST(req: NextRequest) {
       console.error("oauth token issuance failed:", insertError);
       return err("server_error", undefined, 500);
     }
+    await touchRegisteredClient(row.client_id);
 
     return NextResponse.json({
       access_token: access.plaintext,

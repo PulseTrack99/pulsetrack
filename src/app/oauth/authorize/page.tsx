@@ -124,12 +124,20 @@ export default async function AuthorizePage({
   // Ce que l'utilisateur doit voir avant d'accepter : où partira le code.
   // Le nom affiché vient du document de l'application et peut mentir,
   // l'hôte de retour, lui, est celui qui recevra réellement l'accès.
-  const redirectHost = new URL(redirect_uri).host;
+  const redirectParsed = new URL(redirect_uri);
+  // Pour un schéma d'application (cursor://, vscode://), le schéma dit
+  // quelle application recevra le code : on le garde à l'affichage.
+  const redirectHost = /^https?:$/.test(redirectParsed.protocol)
+    ? redirectParsed.host
+    : `${redirectParsed.protocol}//${redirectParsed.host}`;
   const loopback = isLoopbackRedirect(redirect_uri);
   let clientHost = client_id;
   try {
     clientHost = new URL(client_id).host;
   } catch {}
+  // Un client enregistré dynamiquement choisit son nom lui-même : on le
+  // dit, et l'hôte de retour ci-dessous devient l'information fiable.
+  const unverified = !client.verified;
 
   async function authorize(formData: FormData) {
     "use server";
@@ -221,7 +229,13 @@ export default async function AuthorizePage({
               </>
             )}
             <br />
-            Application déclarée par <span className="font-mono">{clientHost}</span>
+            {unverified ? (
+              <>Nom déclaré par l&apos;application elle-même, non vérifié par PulseTrack.</>
+            ) : (
+              <>
+                Application déclarée par <span className="font-mono">{clientHost}</span>
+              </>
+            )}
           </span>
         </div>
 

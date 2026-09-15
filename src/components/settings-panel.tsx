@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { useT } from "@/components/locale-context";
+import { McpGuide } from "@/components/mcp-guide";
 import { useSearchParams } from "next/navigation";
 
 interface Site {
@@ -878,7 +879,6 @@ function ApiKeysSection({
   const [revoking, setRevoking] = useState<string | null>(null);
   const [reveal, setReveal] = useState<{ siteId: string; key: string; prefix: string } | null>(null);
   const [copied, setCopied] = useState(false);
-  const [mcpUrlCopied, setMcpUrlCopied] = useState(false);
   const [personalUrlCopied, setPersonalUrlCopied] = useState(false);
   const mcpUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://pulsetrack.eu"}/api/mcp`;
 
@@ -978,32 +978,7 @@ function ApiKeysSection({
             {t.settings.api.blurbBusiness2}
           </p>
 
-          <div className="rounded-lg border border-primary/20 bg-primary-pale/30 p-4">
-            <p className="text-sm font-semibold">{t.settings.api.mcpTitle}</p>
-            <p className="mt-1 text-xs text-muted">
-              {t.settings.api.mcpBlurb}{" "}
-              <span className="font-medium text-foreground">{t.settings.api.mcpNoPaste}</span>
-              {t.settings.api.mcpBlurbTail}
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-              <code className="flex-1 truncate rounded-md bg-background px-2.5 py-1.5 text-xs">
-                {mcpUrl}
-              </code>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(mcpUrl);
-                  setMcpUrlCopied(true);
-                  setTimeout(() => setMcpUrlCopied(false), 2000);
-                }}
-                className="flex items-center gap-1 rounded-md border border-border px-2 py-1.5 text-xs font-medium hover:bg-surface-hover"
-              >
-                {mcpUrlCopied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-              </button>
-            </div>
-            <p className="mt-3 text-[11px] text-muted-light">
-              {t.settings.api.mcpHeadless}
-            </p>
-          </div>
+          <McpGuide url={mcpUrl} apiKey={reveal?.key ?? null} />
 
           <ConnectedAppsSection />
 

@@ -15,6 +15,9 @@ export async function GET() {
     issuer: base,
     authorization_endpoint: `${base}/oauth/authorize`,
     token_endpoint: `${base}/api/oauth/token`,
+    // RFC 7591 — pour Gemini, Notion, VS Code, Cursor, Le Chat, qui ne
+    // lisent pas les fiches CIMD. Claude et ChatGPT gardent la voie CIMD.
+    registration_endpoint: `${base}/api/oauth/register`,
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code", "refresh_token"],
     code_challenge_methods_supported: ["S256"],

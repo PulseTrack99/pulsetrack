@@ -1,5 +1,5 @@
 import { randomBytes, createHash } from "crypto";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getUserPlan, planHas } from "@/lib/plan";
 
 /**
@@ -102,6 +102,22 @@ export async function resolveOAuthToken(
 export interface ClientMetadata {
   name: string;
   redirectUris: string[];
+  /** Vrai pour une fiche CIMD : le nom est adossé à un domaine qui la
+   *  publie. Faux pour un client enregistré dynamiquement : le nom est
+   *  ce que l'application a bien voulu déclarer. */
+  verified: boolean;
+}
+
+/** Préfixe des identifiants émis par /api/oauth/register. */
+export const REGISTERED_CLIENT_PREFIX = "ptd_";
+
+let serviceClient: SupabaseClient | null = null;
+function service(): SupabaseClient {
+  serviceClient ??= createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+  return serviceClient;
 }
 
 /**
@@ -117,6 +133,22 @@ export interface ClientMetadata {
  * server.
  */
 export async function resolveClientMetadata(clientId: string): Promise<ClientMetadata | null> {
+  // Un client enregistré dynamiquement (RFC 7591) : ses adresses de
+  // retour sont en base, pas derrière une URL.
+  if (clientId.startsWith(REGISTERED_CLIENT_PREFIX)) {
+    const { data } = await service()
+      .from("oauth_clients")
+      .select("client_name, redirect_uris")
+      .eq("client_id", clientId)
+      .maybeSingle();
+    if (!data) return null;
+    return {
+      name: data.client_name || "Application sans nom",
+      redirectUris: data.redirect_uris ?? [],
+      verified: false,
+    };
+  }
+
   let url: URL;
   try {
     url = new URL(clientId);
@@ -148,6 +180,7 @@ export async function resolveClientMetadata(clientId: string): Promise<ClientMet
     return {
       name: typeof doc.client_name === "string" && doc.client_name.trim() ? doc.client_name.trim() : clientId,
       redirectUris,
+      verified: true,
     };
   } catch {
     return null;
@@ -200,4 +233,49 @@ export function isLoopbackRedirect(uri: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** Schémas qu'aucun client légitime n'utilise comme adresse de retour,
+ *  et qui feraient exécuter ou lire quelque chose au navigateur. */
+const FORBIDDEN_SCHEMES = new Set([
+  "javascript:", "data:", "file:", "vbscript:", "blob:", "about:", "filesystem:",
+  "ftp:", "ws:", "wss:", "mailto:", "tel:", "sms:", "chrome:", "chrome-extension:",
+  "moz-extension:", "view-source:", "intent:",
+]);
+
+/**
+ * Une adresse de retour qu'on accepte d'enregistrer (RFC 7591 + RFC 8252).
+ *
+ * - https : oui, c'est le cas des applications web (Notion, Gemini, Le Chat).
+ * - http : seulement vers l'ordinateur de l'utilisateur (localhost,
+ *   127.0.0.1, [::1]) — Gemini CLI, VS Code. Jamais vers un hôte distant,
+ *   où le code circulerait en clair.
+ * - un schéma propre à une application (cursor://, vscode://) : oui,
+ *   c'est ainsi qu'un éditeur récupère le code, sauf les schémas de la
+ *   liste ci-dessus.
+ *
+ * Pas de fragment, pas d'identifiants dans l'URL, 2000 caractères au plus.
+ */
+export function checkRegisteredRedirectUri(uri: string): boolean {
+  if (uri.length > 2000) return false;
+  let u: URL;
+  try {
+    u = new URL(uri);
+  } catch {
+    return false;
+  }
+  if (u.hash || u.username || u.password) return false;
+  if (u.protocol === "https:") return Boolean(u.hostname);
+  if (u.protocol === "http:") return LOOPBACK_HOSTS.has(u.hostname);
+  if (FORBIDDEN_SCHEMES.has(u.protocol)) return false;
+  return /^[a-z][a-z0-9+.-]*:$/.test(u.protocol);
+}
+
+/** Note qu'un client enregistré a servi, pour que la purge l'épargne. */
+export async function touchRegisteredClient(clientId: string): Promise<void> {
+  if (!clientId.startsWith(REGISTERED_CLIENT_PREFIX)) return;
+  await service()
+    .from("oauth_clients")
+    .update({ last_used_at: new Date().toISOString() })
+    .eq("client_id", clientId);
 }

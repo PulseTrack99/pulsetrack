@@ -142,5 +142,14 @@ export async function GET(req: NextRequest) {
   // so anything over an hour old is just accumulated dead weight.
   await supabase.from("rate_limits").delete().lt("window_start", new Date(Date.now() - 3_600_000).toISOString());
 
+  // Clients OAuth enregistrés dynamiquement (supabase/oauth-clients.sql)
+  // et jamais allés jusqu'au jeton : l'enregistrement est ouvert à tous,
+  // ceux-là ne font qu'occuper la table.
+  await supabase
+    .from("oauth_clients")
+    .delete()
+    .is("last_used_at", null)
+    .lt("created_at", new Date(Date.now() - 7 * 86_400_000).toISOString());
+
   return NextResponse.json(summary);
 }
