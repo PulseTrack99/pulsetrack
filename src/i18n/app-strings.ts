@@ -278,6 +278,7 @@ export interface AppStrings {
       mcpNoPaste: string;
       mcpBlurbTail: string;
       mcpHeadless: string;
+      mcpHeaderLabel: string;
       connectedApps: string;
       newKey: string;
       copyNow: string;
@@ -1229,7 +1230,8 @@ const fr: AppStrings = {
       mcpBlurb: "Posez vos questions d'analytics en langage naturel directement depuis votre assistant IA. Dans Claude.ai ou ChatGPT, ajoutez un connecteur avec l'URL ci-dessous —",
       mcpNoPaste: "rien d'autre à coller",
       mcpBlurbTail: ", l'app vous redirige ici pour vous connecter et choisir un site, aucune clé n'est jamais affichée.",
-      mcpHeadless: "Client sans écran de connexion (Claude Code, script, curl) ? Générez une clé ci-dessous — la clé brute ou l'URL avec la clé intégrée fonctionnent aussi.",
+      mcpHeadless: "Outil en ligne de commande ou script (Gemini CLI, curl…) sans écran de connexion ? Générez une clé ci-dessous et envoyez-la dans l'en-tête Authorization, avec la même URL. Claude Code peut aussi utiliser la connexion ci-dessus.",
+      mcpHeaderLabel: "Pour un outil en ligne de commande — même URL que ci-dessus, avec cet en-tête :",
       connectedApps: "Applications connectées",
       newKey: "Nouvelle clé",
       copyNow: "Copiez cette clé maintenant — elle ne sera plus jamais affichée.",
@@ -2337,7 +2339,8 @@ const en: AppStrings = {
       mcpBlurb: "Ask your analytics questions in plain language straight from your AI assistant. In Claude.ai or ChatGPT, add a connector with the URL below —",
       mcpNoPaste: "nothing else to paste",
       mcpBlurbTail: ", the app redirects you here to sign in and pick a site, and no key is ever shown.",
-      mcpHeadless: "A client with no sign-in screen (Claude Code, a script, curl)? Generate a key below — the raw key or the URL with the key built in both work.",
+      mcpHeadless: "A command-line tool or script (Gemini CLI, curl…) with no sign-in screen? Generate a key below and send it in the Authorization header, with the same URL. Claude Code can also use the sign-in above.",
+      mcpHeaderLabel: "For a command-line tool — same URL as above, with this header:",
       connectedApps: "Connected apps",
       newKey: "New key",
       copyNow: "Copy this key now — it will never be shown again.",

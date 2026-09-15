@@ -153,3 +153,51 @@ export async function resolveClientMetadata(clientId: string): Promise<ClientMet
     return null;
   }
 }
+
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * L'adresse de retour demandée correspond-elle à l'une de celles que
+ * l'application a déclarées ?
+ *
+ * Correspondance exacte, avec une seule exception, celle de la RFC 8252
+ * (§7.3) : pour une adresse de bouclage en http, le port est ignoré. Un
+ * outil en ligne de commande (Claude Code, par exemple) déclare
+ * « http://localhost/callback » puis écoute sur un port choisi au
+ * lancement ; exiger le port exact le bloquerait à chaque fois. Le
+ * reste — schéma, hôte, chemin, paramètres — doit être identique.
+ */
+export function matchesRedirectUri(registered: string[], requested: string): boolean {
+  if (registered.includes(requested)) return true;
+  let req: URL;
+  try {
+    req = new URL(requested);
+  } catch {
+    return false;
+  }
+  if (req.protocol !== "http:" || !LOOPBACK_HOSTS.has(req.hostname)) return false;
+  if (req.username || req.password || req.hash) return false;
+  return registered.some((r) => {
+    try {
+      const reg = new URL(r);
+      return (
+        reg.protocol === "http:" &&
+        reg.hostname === req.hostname &&
+        reg.pathname === req.pathname &&
+        reg.search === req.search
+      );
+    } catch {
+      return false;
+    }
+  });
+}
+
+/** Vrai si l'adresse de retour reste sur l'ordinateur de l'utilisateur. */
+export function isLoopbackRedirect(uri: string): boolean {
+  try {
+    const u = new URL(uri);
+    return u.protocol === "http:" && LOOPBACK_HOSTS.has(u.hostname);
+  } catch {
+    return false;
+  }
+}

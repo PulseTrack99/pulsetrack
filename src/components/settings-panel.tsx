@@ -1061,16 +1061,15 @@ function ApiKeysSection({
                     </div>
 
                     <p className="mt-3 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                      Pour Claude.ai, ChatGPT et autres — une seule URL à coller, rien d&apos;autre à
-                      configurer :
+                      {t.settings.api.mcpHeaderLabel}
                     </p>
                     <div className="mt-1.5 flex items-center gap-2">
                       <code className="flex-1 truncate rounded-md bg-white px-2.5 py-1.5 text-xs dark:bg-black/20">
-                        {mcpUrl}?key={reveal.key}
+                        Authorization: Bearer {reveal.key}
                       </code>
                       <button
                         onClick={() => {
-                          navigator.clipboard.writeText(`${mcpUrl}?key=${reveal.key}`);
+                          navigator.clipboard.writeText(`Authorization: Bearer ${reveal.key}`);
                           setPersonalUrlCopied(true);
                           setTimeout(() => setPersonalUrlCopied(false), 2000);
                         }}

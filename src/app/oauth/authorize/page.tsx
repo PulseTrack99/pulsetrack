@@ -2,8 +2,14 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { resolveAccountOwner } from "@/lib/team";
-import { resolveClientMetadata, generateAuthCode, AUTH_CODE_TTL_MS } from "@/lib/oauth";
-import { Sparkles, ShieldCheck } from "lucide-react";
+import {
+  resolveClientMetadata,
+  generateAuthCode,
+  AUTH_CODE_TTL_MS,
+  matchesRedirectUri,
+  isLoopbackRedirect,
+} from "@/lib/oauth";
+import { Sparkles, ShieldCheck, CornerDownLeft } from "lucide-react";
 
 /**
  * The OAuth consent screen — "Se connecter avec PulseTrack". An MCP
@@ -81,7 +87,7 @@ export default async function AuthorizePage({
   }
 
   const client = await resolveClientMetadata(client_id);
-  if (!client || !client.redirectUris.includes(redirect_uri)) {
+  if (!client || !matchesRedirectUri(client.redirectUris, redirect_uri)) {
     return (
       <ErrorScreen
         title="Application non reconnue"
@@ -114,6 +120,16 @@ export default async function AuthorizePage({
       />
     );
   }
+
+  // Ce que l'utilisateur doit voir avant d'accepter : où partira le code.
+  // Le nom affiché vient du document de l'application et peut mentir,
+  // l'hôte de retour, lui, est celui qui recevra réellement l'accès.
+  const redirectHost = new URL(redirect_uri).host;
+  const loopback = isLoopbackRedirect(redirect_uri);
+  let clientHost = client_id;
+  try {
+    clientHost = new URL(client_id).host;
+  } catch {}
 
   async function authorize(formData: FormData) {
     "use server";
@@ -187,6 +203,25 @@ export default async function AuthorizePage({
           <span>
             Accès en lecture seule à un site de votre choix — pas de mot de passe ni de clé
             partagés, révocable à tout moment depuis Paramètres.
+          </span>
+        </div>
+
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-border bg-background p-3 text-xs text-muted">
+          <CornerDownLeft className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <span>
+            {loopback ? (
+              <>
+                L&apos;accès sera renvoyé à une application <strong>sur cet ordinateur</strong> (
+                <span className="font-mono">{redirectHost}</span>). N&apos;acceptez que si vous venez
+                de lancer cette connexion vous-même.
+              </>
+            ) : (
+              <>
+                L&apos;accès sera renvoyé à <span className="font-mono font-medium text-foreground">{redirectHost}</span>
+              </>
+            )}
+            <br />
+            Application déclarée par <span className="font-mono">{clientHost}</span>
           </span>
         </div>
 

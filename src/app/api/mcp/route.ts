@@ -7,6 +7,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getSiteStats } from "@/lib/stats";
 import { getSiteRevenue } from "@/lib/revenue";
 import { planHas } from "@/lib/plan";
+import { MCP_METADATA_PATH } from "@/lib/mcp-metadata";
 
 /**
  * PulseTrack MCP server — the landing page's "AU PROGRAMME" promise
@@ -50,7 +51,7 @@ const baseHandler = createMcpHandler(
       {
         title: "Get site stats",
         description:
-          "Overview analytics for the authenticated site: unique visitors, pageviews, bounce rate, top pages, traffic sources, countries and devices.",
+          "Overview analytics for the authenticated site: visitors, pageviews, bounce rate, top pages, traffic sources, countries and devices. Privacy note: visitors are anonymised with an identifier that rotates every day, so a person returning on several days is counted once per day — a 30-day visitor figure is a sum of daily visitors, not a count of distinct people.",
         inputSchema: z.object({ period: periodSchema }),
       },
       async ({ period }, ctx) => {
@@ -119,7 +120,8 @@ const baseHandler = createMcpHandler(
         const { data: funnels } = await supabase
           .from("funnels")
           .select("id, name, funnel_steps(step_order, name)")
-          .eq("site_id", auth.siteId);
+          .eq("site_id", auth.siteId)
+          .is("archived_at", null);
         const list = (funnels ?? []).map((f) => ({
           id: f.id,
           name: f.name,
@@ -152,7 +154,8 @@ const baseHandler = createMcpHandler(
         const query = supabase
           .from("funnels")
           .select("id, name, funnel_steps(step_order, name, match_type, match_value)")
-          .eq("site_id", auth.siteId);
+          .eq("site_id", auth.siteId)
+          .is("archived_at", null);
         const { data: found } = isUuid
           ? await query.eq("id", funnel).maybeSingle()
           : await query.eq("name", funnel).maybeSingle();
@@ -265,12 +268,11 @@ const baseHandler = createMcpHandler(
 const handler = withMcpAuth(
   baseHandler,
   async (req, bearerToken) => {
-    // Most MCP clients (Claude.ai's "Add custom connector", ChatGPT, ...)
-    // just want a single URL to paste — no header field, no config file.
-    // A "?key=" query param lets the settings page hand out one
-    // ready-to-paste personalized URL instead of asking a non-technical
-    // user to edit JSON. The header still works for clients that do
-    // support one (mcp-remote, Claude Code's .mcp.json, curl, ...).
+    // Claude.ai, ChatGPT and friends sign in through OAuth and send a
+    // "pta_" Bearer token; CLIs and scripts send an API key in the same
+    // header. "?key=" is no longer handed out (the MCP spec forbids
+    // tokens in the query string, and URLs end up in logs) but is still
+    // read so URLs pasted before the change keep working.
     const plaintext = bearerToken?.trim() || new URL(req.url).searchParams.get("key")?.trim();
     if (!plaintext) return undefined;
 
@@ -308,7 +310,7 @@ const handler = withMcpAuth(
       extra: extra as unknown as Record<string, unknown>,
     };
   },
-  { required: true, resourceMetadataPath: "/.well-known/oauth-protected-resource" }
+  { required: true, resourceMetadataPath: MCP_METADATA_PATH }
 );
 
 export { handler as GET, handler as POST };
