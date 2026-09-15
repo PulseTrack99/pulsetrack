@@ -428,6 +428,29 @@ export interface AppStrings {
       fields: Record<string, string>;
     };
     destinations: {
+      expTitle: string;
+      expBody: string;
+      expPending: string;
+      expLocked: string;
+      expAdd: string;
+      expHttpsOnly: string;
+      expBlockedUrl: string;
+      expInvalidUrl: string;
+      expFailed: string;
+      expNone: string;
+      expEnabled: string;
+      expDisabled: string;
+      expTest: string;
+      expTestOk: string;
+      expTestFailed: string;
+      expRunNow: string;
+      expDelete: string;
+      expLastRun: string;
+      expNever: string;
+      expSent: string;
+      expSecret: string;
+      expReveal: string;
+      expDelivery: string;
       configure: string;
       active: string;
       inactive: string;
@@ -1380,6 +1403,29 @@ const fr: AppStrings = {
       },
     },
     destinations: {
+      expTitle: "Exports planifiés",
+      expBody: "Vos événements bruts envoyés chaque jour vers une URL à vous, pour les croiser avec votre CRM, votre facturation ou un entrepôt de données. Chaque envoi est signé : vous vérifiez que c'est bien nous.",
+      expPending: "Les exports attendent leur migration : lancez supabase/exports.sql dans l'éditeur SQL.",
+      expLocked: "Sortir vos données brutes demande l'offre Growth, comme l'API.",
+      expAdd: "Ajouter",
+      expHttpsOnly: "Seules les URL en HTTPS sont acceptées : vos événements ne voyagent pas en clair.",
+      expBlockedUrl: "Cette adresse pointe vers un réseau privé ou local, et notre serveur refuse de la contacter.",
+      expInvalidUrl: "URL invalide ou nom introuvable.",
+      expFailed: "L'opération a échoué. Réessayez.",
+      expNone: "Aucune destination pour ce site.",
+      expEnabled: "Active",
+      expDisabled: "En pause",
+      expTest: "Tester",
+      expTestOk: "Envoi de test reçu",
+      expTestFailed: "Envoi de test refusé :",
+      expRunNow: "Envoyer maintenant",
+      expDelete: "Supprimer",
+      expLastRun: "Dernier envoi",
+      expNever: "Jamais envoyé — le premier passage part cette nuit, ou maintenant avec ▶.",
+      expSent: "événements envoyés",
+      expSecret: "Clé de signature :",
+      expReveal: "Afficher la clé",
+      expDelivery: "Chaque requête porte X-PulseTrack-Signature = sha256(HMAC(clé, horodatage + \".\" + corps)) et X-PulseTrack-Timestamp. La livraison est « au moins une fois » : un lot refusé est renvoyé au passage suivant, dédoublonnez donc sur l'identifiant d'événement. L'export commence à la création de la destination, sans reprendre l'historique.",
       configure: "Configurer",
       active: "Actif",
       inactive: "Inactif",
@@ -2465,6 +2511,29 @@ const en: AppStrings = {
       },
     },
     destinations: {
+      expTitle: "Scheduled exports",
+      expBody: "Your raw events sent every day to a URL of yours, to join them with your CRM, billing or a data warehouse. Every delivery is signed, so you can check it really comes from us.",
+      expPending: "Exports are waiting on their migration: run supabase/exports.sql in the SQL editor.",
+      expLocked: "Sending raw data out needs the Growth plan, like the API.",
+      expAdd: "Add",
+      expHttpsOnly: "Only HTTPS URLs are accepted: your events do not travel unencrypted.",
+      expBlockedUrl: "That address points to a private or local network, and our server refuses to contact it.",
+      expInvalidUrl: "Invalid URL, or the name does not resolve.",
+      expFailed: "That failed. Try again.",
+      expNone: "No destination for this site.",
+      expEnabled: "Active",
+      expDisabled: "Paused",
+      expTest: "Test",
+      expTestOk: "Test delivery received",
+      expTestFailed: "Test delivery refused:",
+      expRunNow: "Send now",
+      expDelete: "Delete",
+      expLastRun: "Last delivery",
+      expNever: "Never sent — the first run goes out tonight, or now with ▶.",
+      expSent: "events sent",
+      expSecret: "Signing key:",
+      expReveal: "Show key",
+      expDelivery: "Every request carries X-PulseTrack-Signature = sha256(HMAC(key, timestamp + \".\" + body)) and X-PulseTrack-Timestamp. Delivery is at-least-once: a refused batch is resent on the next run, so deduplicate on the event id. Exporting starts when the destination is created, without replaying history.",
       configure: "Configure",
       active: "Active",
       inactive: "Inactive",

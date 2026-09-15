@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useT } from "@/components/locale-context";
 import { relativeTime } from "@/lib/relative-time";
+import { ExportsSection } from "@/components/exports-section";
 
 /**
  * Destinations — the outbound side, in one place.
@@ -95,6 +96,9 @@ export function DestinationsPanel() {
           )}
         </p>
       </div>
+
+      {/* Le seul canal sortant qui se règle ici : il n'existe nulle part ailleurs. */}
+      <ExportsSection />
 
       <div className="grid gap-3 md:grid-cols-2">
         <Card
