@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isMissingSchema } from "@/lib/schema-guard";
-import { compare, type Arm, type Variant } from "@/lib/experiments";
+import { resultsFor, type Variant } from "@/lib/experiments";
 
 /**
  * Les expériences : lire avec leurs résultats, créer, démarrer, arrêter.
@@ -65,35 +65,7 @@ export async function GET(req: NextRequest) {
 
   const rows = (data ?? []) as Row[];
 
-  /* Le résultat se compte depuis le démarrage, pas depuis la période
-     choisie. Un test lancé il y a six semaines et lu sur trente jours
-     perdrait ses deux premières semaines d'exposition, et l'écart
-     changerait selon le filtre — le pire chiffre possible : un qui
-     bouge sans que rien n'ait bougé. */
-  const results = await Promise.all(
-    rows.map(async (r) => {
-      if (r.status === "draft") return null;
-      const since =
-        r.started_at ?? new Date(Date.now() - days * 86_400_000).toISOString();
-      const { data: arms } = await supabase.rpc("experiment_results", {
-        p_site: siteId,
-        p_key: r.key,
-        p_metric: r.metric_event,
-        p_since: since,
-      });
-      // Les versions sans une seule exposition sont absentes du
-      // résultat ; elles doivent quand même figurer, à zéro.
-      const byVariant = new Map(
-        ((arms ?? []) as Arm[]).map((a) => [a.variant, a])
-      );
-      const ordered: Arm[] = (r.variants ?? []).map((v) => ({
-        variant: v.key,
-        subjects: Number(byVariant.get(v.key)?.subjects ?? 0),
-        conversions: Number(byVariant.get(v.key)?.conversions ?? 0),
-      }));
-      return compare(ordered);
-    })
-  );
+  const results = await Promise.all(rows.map((r) => resultsFor(supabase, siteId, r, days)));
 
   return NextResponse.json({
     migration_pending: false,

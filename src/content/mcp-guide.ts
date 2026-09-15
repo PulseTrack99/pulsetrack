@@ -101,6 +101,23 @@ export function mcpGuide(locale: Locale, url: string, apiKey: string | null): Mc
           snippets: [{ label: "Commande", code: `claude mcp add --transport http pulsetrack ${url}` }],
         },
         {
+          id: "codex",
+          name: "Codex",
+          steps: [
+            "Application Codex ou extension pour éditeur : Paramètres → MCP servers → Add server, choisissez Streamable HTTP et collez l'adresse.",
+            "Cliquez sur Authenticate, connectez-vous à PulseTrack et autorisez, puis redémarrez Codex.",
+            "En ligne de commande : lancez les deux commandes ci-dessous — la seconde ouvre le navigateur pour la connexion.",
+          ],
+          snippets: [
+            { label: "Codex CLI", code: `codex mcp add pulsetrack --url ${url}\ncodex mcp login pulsetrack` },
+            {
+              label: "Autre possibilité, avec une clé — dans ~/.codex/config.toml, puis la variable dans votre terminal :",
+              code: `[mcp_servers.pulsetrack]\nurl = "${url}"\nbearer_token_env_var = "PULSETRACK_API_KEY"\n\nexport PULSETRACK_API_KEY="${key}"`,
+              usesKey: true,
+            },
+          ],
+        },
+        {
           id: "cursor",
           name: "Cursor",
           install: { label: "Ajouter à Cursor", href: cursorLink(url) },
@@ -177,6 +194,24 @@ export function mcpGuide(locale: Locale, url: string, apiKey: string | null): Mc
           note: "Réservé aux offres Notion Business et Enterprise.",
         },
         {
+          id: "copilot",
+          name: "Copilot",
+          steps: [
+            "Dans Microsoft Copilot Studio, ouvrez votre agent → Outils (Tools) → Ajouter un outil (Add a tool) → Nouvel outil (New tool) → Model Context Protocol.",
+            "Nom : PulseTrack. Description : « Statistiques d'audience, insights, funnels, parcours et revenus du site ». URL du serveur : collez l'adresse.",
+            "Authentification : OAuth 2.0, type Découverte dynamique (Dynamic discovery), puis Créer et Suivant.",
+            "Créez une nouvelle connexion, connectez-vous à PulseTrack et autorisez, puis Ajouter à l'agent (Add to agent).",
+          ],
+          snippets: [
+            {
+              label: "Autre possibilité : authentification Clé API (API key), type En-tête (Header), nom X-API-Key, et la clé comme valeur :",
+              code: `X-API-Key: ${key}`,
+              usesKey: true,
+            },
+          ],
+          note: "Nécessite Microsoft Copilot Studio, avec une licence qui l'inclut.",
+        },
+        {
           id: "le-chat",
           name: "Le Chat",
           steps: [
@@ -226,6 +261,23 @@ export function mcpGuide(locale: Locale, url: string, apiKey: string | null): Mc
           "Open claude, type /mcp, pick pulsetrack then Authenticate: your browser opens the PulseTrack sign-in screen.",
         ],
         snippets: [{ label: "Command", code: `claude mcp add --transport http pulsetrack ${url}` }],
+      },
+      {
+        id: "codex",
+        name: "Codex",
+        steps: [
+          "Codex app or editor extension: Settings → MCP servers → Add server, choose Streamable HTTP and paste the address.",
+          "Click Authenticate, sign in to PulseTrack and allow, then restart Codex.",
+          "From the command line: run the two commands below — the second opens your browser to sign in.",
+        ],
+        snippets: [
+          { label: "Codex CLI", code: `codex mcp add pulsetrack --url ${url}\ncodex mcp login pulsetrack` },
+          {
+            label: "Alternatively, with a key — in ~/.codex/config.toml, then the variable in your terminal:",
+            code: `[mcp_servers.pulsetrack]\nurl = "${url}"\nbearer_token_env_var = "PULSETRACK_API_KEY"\n\nexport PULSETRACK_API_KEY="${key}"`,
+            usesKey: true,
+          },
+        ],
       },
       {
         id: "cursor",
@@ -290,6 +342,24 @@ export function mcpGuide(locale: Locale, url: string, apiKey: string | null): Mc
           { label: "Alternatively, header authentication:", code: `Authorization: Bearer ${key}`, usesKey: true },
         ],
         note: "Notion Business and Enterprise plans only.",
+      },
+      {
+        id: "copilot",
+        name: "Copilot",
+        steps: [
+          "In Microsoft Copilot Studio, open your agent → Tools → Add a tool → New tool → Model Context Protocol.",
+          "Name: PulseTrack. Description: \"Site traffic, insights, funnels, flows and revenue analytics\". Server URL: paste the address.",
+          "Authentication: OAuth 2.0, type Dynamic discovery, then Create and Next.",
+          "Create a new connection, sign in to PulseTrack and allow, then Add to agent.",
+        ],
+        snippets: [
+          {
+            label: "Alternatively: API key authentication, type Header, name X-API-Key, and the key as its value:",
+            code: `X-API-Key: ${key}`,
+            usesKey: true,
+          },
+        ],
+        note: "Requires Microsoft Copilot Studio, with a licence that includes it.",
       },
       {
         id: "le-chat",

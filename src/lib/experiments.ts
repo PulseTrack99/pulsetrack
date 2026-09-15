@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { bucketOf } from "@/lib/flags";
 
 /**
@@ -139,4 +140,47 @@ export function compare(arms: Arm[]): Comparison[] {
 
     return base;
   });
+}
+
+/* ── Les résultats d'une expérience ─────────────────────────────── */
+
+/**
+ * Les résultats d'une expérience, par version, verdict compris.
+ * Partagé par l'écran (src/app/api/experiments) et le serveur MCP.
+ *
+ * Le résultat se compte depuis le démarrage, pas depuis la période
+ * choisie. Un test lancé il y a six semaines et lu sur trente jours
+ * perdrait ses deux premières semaines d'exposition, et l'écart
+ * changerait selon le filtre — le pire chiffre possible : un qui
+ * bouge sans que rien n'ait bougé.
+ */
+export async function resultsFor(
+  supabase: SupabaseClient,
+  siteId: string,
+  exp: {
+    key: string;
+    metric_event: string;
+    status: string;
+    started_at: string | null;
+    variants: Variant[];
+  },
+  days: number
+): Promise<ReturnType<typeof compare> | null> {
+  if (exp.status === "draft") return null;
+  const since = exp.started_at ?? new Date(Date.now() - days * 86_400_000).toISOString();
+  const { data: arms } = await supabase.rpc("experiment_results", {
+    p_site: siteId,
+    p_key: exp.key,
+    p_metric: exp.metric_event,
+    p_since: since,
+  });
+  // Les versions sans une seule exposition sont absentes du résultat ;
+  // elles doivent quand même figurer, à zéro.
+  const byVariant = new Map(((arms ?? []) as Arm[]).map((a) => [a.variant, a]));
+  const ordered: Arm[] = (exp.variants ?? []).map((v) => ({
+    variant: v.key,
+    subjects: Number(byVariant.get(v.key)?.subjects ?? 0),
+    conversions: Number(byVariant.get(v.key)?.conversions ?? 0),
+  }));
+  return compare(ordered);
 }

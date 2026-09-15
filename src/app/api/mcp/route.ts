@@ -8,6 +8,9 @@ import { getSiteStats } from "@/lib/stats";
 import { getSiteRevenue } from "@/lib/revenue";
 import { planHas } from "@/lib/plan";
 import { MCP_METADATA_PATH } from "@/lib/mcp-metadata";
+import { runInsights, MEASURES, GRAINS, FORMULAS, PERIODS as INSIGHT_PERIODS } from "@/lib/insights";
+import { collapseTail, type Row as FlowRow } from "@/lib/flow";
+import { resultsFor, type Variant } from "@/lib/experiments";
 
 /**
  * PulseTrack MCP server — the landing page's "AU PROGRAMME" promise
@@ -43,6 +46,31 @@ const periodSchema = z
   .enum(["7d", "30d", "90d"])
   .optional()
   .describe("Time window: 7d, 30d (default), or 90d.");
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://pulsetrack.eu";
+
+type ToolExtra = { http?: { authInfo?: { extra?: Record<string, unknown> } } };
+
+function authOf(ctx: ToolExtra): AuthExtra | undefined {
+  return ctx.http?.authInfo?.extra as AuthExtra | undefined;
+}
+
+function json(value: unknown) {
+  return { content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] };
+}
+
+function failure(message: string) {
+  return { isError: true, content: [{ type: "text" as const, text: message }] };
+}
+
+const UNAUTHORIZED = failure("Unauthorized");
+
+function sinceDays(days: number): string {
+  return new Date(Date.now() - days * 86_400_000).toISOString();
+}
+
+/** Un nom exact ou un identifiant — les assistants disposent des deux. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const baseHandler = createMcpHandler(
   (server) => {
@@ -261,8 +289,281 @@ const baseHandler = createMcpHandler(
         };
       }
     );
+    /* ── Découvrir les données ─────────────────────────────────────── */
+
+    server.registerTool(
+      "list_events",
+      {
+        title: "List events and properties",
+        description:
+          "What the authenticated site actually tracks: custom event names with their volume, and the custom property keys those events carry. Call this before query_insights to use exact event names (event_name) and property keys (breakdown or filter field \"prop:<key>\").",
+        inputSchema: z.object({
+          period: z.enum(["7d", "30d", "90d"]).optional().describe("Time window: 7d, 30d (default), or 90d."),
+        }),
+      },
+      async ({ period }, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        const since = sinceDays(period === "7d" ? 7 : period === "90d" ? 90 : 30);
+        const [names, keys] = await Promise.all([
+          supabase.rpc("insights_values", { p_site: auth.siteId, p_since: since, p_field: "event_name", p_limit: 50 }),
+          supabase.rpc("insights_property_keys", { p_site: auth.siteId, p_since: since, p_limit: 40 }),
+        ]);
+        if (names.error || keys.error) return failure(`Query failed: ${(names.error ?? keys.error)!.message}`);
+        return json({
+          period: period ?? "30d",
+          events: ((names.data ?? []) as { value: string; hits: number }[]).map((r) => ({ name: r.value, count: Number(r.hits) })),
+          property_keys: ((keys.data ?? []) as { key: string; hits: number }[]).map((r) => ({ key: r.key, count: Number(r.hits) })),
+        });
+      }
+    );
+
+    /* ── Insights ──────────────────────────────────────────────────── */
+
+    server.registerTool(
+      "query_insights",
+      {
+        title: "Query insights",
+        description:
+          "Flexible analytics query, the same engine as the Insights screen. Pick a measure (pageviews, sessions, visitors, events = count of one custom event, event_visitors = visitors who fired it), optionally over time (grain) or split by a field (breakdown), filtered, compared with the previous period of the same length, or combined with a second measure (formula: ratio returns a percentage, difference, sum). Without grain, rows are a ranking over the whole period. Breakdown/filter fields: path, source, country, device, browser, language, utm_medium, utm_campaign, event_name, referrer, or prop:<key> for a custom property (see list_events). Visitors are counted per day (daily-rotating anonymous id): use period_totals, not a sum of rows, for a period figure.",
+        inputSchema: z.object({
+          measure: z.enum(MEASURES).optional().describe("Default pageviews."),
+          event_name: z.string().max(120).optional().describe("Required for events / event_visitors."),
+          grain: z.enum(GRAINS).optional().describe("day, week or month. Omit for a single ranking over the period."),
+          breakdown: z.string().max(70).optional().describe("Field to split by, e.g. source, country, prop:plan."),
+          filters: z
+            .array(z.object({ field: z.string().max(70), value: z.string().max(300) }))
+            .max(8)
+            .optional()
+            .describe("Exact-match filters, all combined with AND."),
+          period: z.enum(Object.keys(INSIGHT_PERIODS) as [string, ...string[]]).optional().describe("24h, 7d, 30d (default), 90d, 180d or 365d."),
+          compare: z.boolean().optional().describe("Also return the previous period of the same length."),
+          formula: z.enum(FORMULAS).optional().describe("Combine measure (A) with measure_b (B): ratio = A/B in %, difference = A-B, sum = A+B."),
+          measure_b: z.enum(MEASURES).optional(),
+          event_name_b: z.string().max(120).optional(),
+        }),
+      },
+      async (args, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        const params = new URLSearchParams();
+        const set = (k: string, v: string | undefined) => {
+          if (v) params.set(k, v);
+        };
+        set("measure", args.measure);
+        set("event_name", args.event_name);
+        set("grain", args.grain);
+        set("breakdown", args.breakdown);
+        set("period", args.period);
+        set("formula", args.formula);
+        set("measure_b", args.measure_b);
+        set("event_name_b", args.event_name_b);
+        if (args.filters?.length) params.set("filters", JSON.stringify(args.filters));
+        if (args.compare) params.set("compare", "1");
+
+        const outcome = await runInsights(supabase, auth.siteId, params);
+        if (outcome.status !== 200) return failure(String(outcome.body.error ?? "Query failed"));
+        return json(outcome.body);
+      }
+    );
+
+    /* ── Parcours ─────────────────────────────────────── */
+
+    server.registerTool(
+      "get_flows",
+      {
+        title: "Get user flows",
+        description:
+          "How sessions move from page to page, step by step (the Flows screen). Each row: at step N, sessions that went from from_path to to_path; to_path null means the session ended there. Beyond the 7 busiest pages per step, the rest are grouped as \"Autres\". Optionally start from a given page.",
+        inputSchema: z.object({
+          start_path: z.string().max(300).optional().describe("Only follow sessions starting on this path, e.g. /pricing."),
+          depth: z.number().int().min(1).max(6).optional().describe("Steps to follow, 1 to 6. Default 4."),
+          period: z.enum(["24h", "7d", "30d", "90d"]).optional().describe("Default 30d."),
+        }),
+      },
+      async ({ start_path, depth, period }, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        const days = { "24h": 1, "7d": 7, "30d": 30, "90d": 90 }[period ?? "30d"] ?? 30;
+        const { data, error } = await supabase.rpc("flow_analysis", {
+          p_site: auth.siteId,
+          p_since: sinceDays(days),
+          p_start_path: start_path || null,
+          p_depth: depth ?? 4,
+        });
+        if (error) return failure(`Query failed: ${error.message}`);
+        return json({ period: period ?? "30d", start_path: start_path ?? null, rows: collapseTail((data ?? []) as FlowRow[]) });
+      }
+    );
+
+    /* ── Tableaux de bord ──────────────────────────────────────────── */
+
+    server.registerTool(
+      "list_boards",
+      {
+        title: "List dashboards",
+        description: "The saved dashboards (boards) of the authenticated site, with how many tiles each holds.",
+        inputSchema: z.object({}),
+      },
+      async (_args, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        const { data, error } = await supabase
+          .from("boards")
+          .select("id, name, description, updated_at, board_blocks(id)")
+          .eq("site_id", auth.siteId)
+          .order("created_at", { ascending: false });
+        if (error) return failure(`Query failed: ${error.message}`);
+        return json(
+          (data ?? []).map((b) => ({
+            id: b.id,
+            name: b.name,
+            description: b.description,
+            updated_at: b.updated_at,
+            tiles: (b.board_blocks as { id: string }[] | null)?.length ?? 0,
+            url: `${SITE_URL}/dashboard/boards/${b.id}`,
+          }))
+        );
+      }
+    );
+
+    server.registerTool(
+      "get_board",
+      {
+        title: "Get dashboard",
+        description:
+          "One dashboard and its tiles in reading order. Each tile's config holds the saved query (measure, breakdown, grain, filters, formula…): pass those fields to query_insights to get the tile's current numbers.",
+        inputSchema: z.object({
+          board: z.string().max(200).describe("Dashboard name (exact match) or id, see list_boards."),
+        }),
+      },
+      async ({ board }, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        const query = supabase
+          .from("boards")
+          .select("id, name, description, board_blocks(id, position, kind, width, config)")
+          .eq("site_id", auth.siteId);
+        const { data, error } = UUID.test(board)
+          ? await query.eq("id", board).maybeSingle()
+          : await query.eq("name", board).limit(1).maybeSingle();
+        if (error) return failure(`Query failed: ${error.message}`);
+        if (!data) return failure(`No dashboard named or with id "${board}" on this site. Use list_boards.`);
+        const blocks = ((data.board_blocks ?? []) as { id: string; position: number; kind: string; width: string; config: unknown }[])
+          .sort((a, b) => a.position - b.position)
+          .map(({ id, kind, width, config }) => ({ id, kind, width, config }));
+        return json({ id: data.id, name: data.name, description: data.description, tiles: blocks, url: `${SITE_URL}/dashboard/boards/${data.id}` });
+      }
+    );
+
+    /* ── Experiments et feature flags ──────────────────────────────── */
+
+    server.registerTool(
+      "list_experiments",
+      {
+        title: "List experiments with results",
+        description:
+          "A/B experiments of the authenticated site with their results per variant: subjects, conversions, conversion rate, lift against the first (control) variant, p-value, whether the difference is statistically significant (95%), and how many subjects per variant would be needed to decide. Results count from the experiment's start, not from a chosen window. Draft experiments have no results.",
+        inputSchema: z.object({}),
+      },
+      async (_args, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        const { data, error } = await supabase
+          .from("experiments")
+          .select("id, key, name, description, variants, metric_event, status, started_at, stopped_at, created_at")
+          .eq("site_id", auth.siteId)
+          .order("created_at", { ascending: false });
+        if (error) return failure(`Query failed: ${error.message}`);
+        const rows = (data ?? []) as {
+          id: string; key: string; name: string; description: string | null; variants: Variant[];
+          metric_event: string; status: string; started_at: string | null; stopped_at: string | null; created_at: string;
+        }[];
+        const results = await Promise.all(rows.map((r) => resultsFor(supabase, auth.siteId, r, 30)));
+        return json(rows.map((r, i) => ({ ...r, results: results[i] })));
+      }
+    );
+
+    server.registerTool(
+      "list_feature_flags",
+      {
+        title: "List feature flags",
+        description: "Feature flags of the authenticated site: key, name, whether it is on, and its rollout percentage. Archived flags are left out unless asked for.",
+        inputSchema: z.object({
+          include_archived: z.boolean().optional(),
+        }),
+      },
+      async ({ include_archived }, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        let query = supabase
+          .from("feature_flags")
+          .select("key, name, description, enabled, rollout, archived_at, created_at")
+          .eq("site_id", auth.siteId)
+          .order("created_at", { ascending: false });
+        if (!include_archived) query = query.is("archived_at", null);
+        const { data, error } = await query;
+        if (error) return failure(`Query failed: ${error.message}`);
+        return json(data ?? []);
+      }
+    );
+
+    /* ── Comptes et sessions ───────────────────────────────────────── */
+
+    server.registerTool(
+      "list_session_replays",
+      {
+        title: "List session replays",
+        description:
+          "Recorded sessions of the authenticated site, newest first: landing path, device, browser, country, duration, number of recorded events, and whether the visitor rage-clicked. Watching a replay happens in the PulseTrack dashboard (url). Requires a plan with session replay.",
+        inputSchema: z.object({
+          period: z.enum(["7d", "30d", "90d"]).optional().describe("Default 30d."),
+          path: z.string().max(300).optional().describe("Only sessions that started on this path."),
+          device: z.enum(["desktop", "mobile", "tablet"]).optional(),
+          rage_only: z.boolean().optional().describe("Only sessions with rage clicks."),
+          limit: z.number().int().min(1).max(20).optional().describe("Default 10."),
+        }),
+      },
+      async ({ period, path, device, rage_only, limit }, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        if (!planHas(auth.plan, "session_replay")) {
+          return failure("This site's plan does not include session replay.");
+        }
+        const days = { "7d": 7, "30d": 30, "90d": 90 }[period ?? "30d"] ?? 30;
+        const { data, error } = await supabase.rpc("list_session_replays", {
+          p_site: auth.siteId,
+          p_since: sinceDays(days),
+          p_device: device ?? null,
+          p_rage_only: rage_only ?? false,
+          p_limit: limit ?? 10,
+          p_offset: 0,
+          p_path: path || null,
+          p_session_ids: null,
+        });
+        if (error) return failure(`Query failed: ${error.message}`);
+        const rows = (data ?? []) as {
+          path: string | null; device: string | null; browser: string | null; country: string | null;
+          started_at: string; duration_ms: number; event_count: number; has_rage: boolean; total_count: number;
+        }[];
+        return json({
+          total: rows[0]?.total_count ? Number(rows[0].total_count) : 0,
+          url: `${SITE_URL}/dashboard/replays?site=${auth.siteId}${path ? `&path=${encodeURIComponent(path)}` : ""}`,
+          replays: rows.map((r) => ({
+            started_at: r.started_at,
+            path: r.path,
+            device: r.device,
+            browser: r.browser,
+            country: r.country,
+            duration_seconds: Math.round(Number(r.duration_ms) / 1000),
+            events: Number(r.event_count),
+            rage_clicks: r.has_rage,
+          })),
+        });
+      }
+    );
   },
-  { serverInfo: { name: "pulsetrack", version: "1.0.0" } }
+  { serverInfo: { name: "pulsetrack", version: "1.1.0" } }
 );
 
 const handler = withMcpAuth(
@@ -273,7 +574,12 @@ const handler = withMcpAuth(
     // header. "?key=" is no longer handed out (the MCP spec forbids
     // tokens in the query string, and URLs end up in logs) but is still
     // read so URLs pasted before the change keep working.
-    const plaintext = bearerToken?.trim() || new URL(req.url).searchParams.get("key")?.trim();
+    // X-API-Key : l'authentification « clé API » de Copilot Studio envoie
+    // la clé brute dans un en-tête nommé, sans le préfixe Bearer.
+    const plaintext =
+      bearerToken?.trim() ||
+      req.headers.get("x-api-key")?.trim() ||
+      new URL(req.url).searchParams.get("key")?.trim();
     if (!plaintext) return undefined;
 
     // "pta_..." — issued by the OAuth flow (src/app/oauth/authorize,
