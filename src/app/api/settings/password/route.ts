@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { passwordIssue, isWeakPasswordError } from "@/lib/password-policy";
 
 // PUT — Change password
 export async function PUT(req: Request) {
@@ -15,15 +16,29 @@ export async function PUT(req: Request) {
 
     const { password } = await req.json();
 
-    if (!password || password.length < 8) {
+    const issue = typeof password === "string" ? passwordIssue(password) : "length";
+    if (issue) {
       return NextResponse.json(
-        { error: "Le mot de passe doit contenir au moins 8 caractères" },
+        {
+          error:
+            issue === "length"
+              ? "Le mot de passe doit contenir au moins 10 caractères"
+              : "Le mot de passe doit contenir au moins une minuscule, une majuscule et un chiffre",
+        },
         { status: 400 }
       );
     }
 
     const { error } = await supabase.auth.updateUser({ password });
 
+    if (isWeakPasswordError(error)) {
+      // Refusé par Supabase malgré la vérification ci-dessus : la règle
+      // du tableau de bord a changé sans ce fichier.
+      return NextResponse.json(
+        { error: "Ce mot de passe est trop faible, choisissez-en un autre" },
+        { status: 400 }
+      );
+    }
     if (error) {
       console.error("Password update error:", error);
       return NextResponse.json(

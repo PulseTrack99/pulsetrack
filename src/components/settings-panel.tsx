@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { MIN_PASSWORD_LENGTH, passwordIssue } from "@/lib/password-policy";
 import {
   User,
   Lock,
@@ -192,10 +193,11 @@ function PasswordSection() {
       return;
     }
 
-    if (password.length < 8) {
+    const issue = passwordIssue(password);
+    if (issue) {
       setMessage({
         type: "error",
-        text: t.settings.password.tooShort,
+        text: issue === "length" ? t.settings.password.tooShort : t.settings.password.weak,
       });
       return;
     }
@@ -255,7 +257,7 @@ function PasswordSection() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            minLength={8}
+            minLength={MIN_PASSWORD_LENGTH}
             placeholder={t.settings.password.minChars}
             className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
@@ -269,7 +271,7 @@ function PasswordSection() {
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             required
-            minLength={8}
+            minLength={MIN_PASSWORD_LENGTH}
             placeholder={t.settings.password.retype}
             className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
           />

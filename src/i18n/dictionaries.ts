@@ -178,7 +178,7 @@ const enAuth: AuthLabels = {
   signup: {
     title: "Create an account",
     subtitle: "Free forever up to 5,000 events a month",
-    passwordPlaceholder: "At least 6 characters",
+    passwordPlaceholder: "10+ characters, upper and lower case, a digit",
     submit: "Create my account",
     haveAccount: "Already have an account?",
     login: "Sign in",
@@ -204,6 +204,7 @@ const enAuth: AuthLabels = {
     submit: "Save and sign in",
     mismatch: "The two passwords do not match.",
     tooShort: "The password must be at least {n} characters.",
+    weak: "The password needs at least one lowercase letter, one uppercase letter and one digit.",
     expiredTitle: "Link expired or already used",
     expiredBody:
       "A reset link works once, lasts an hour, and only in the browser that asked for it. Ask for another.",
@@ -701,7 +702,7 @@ const frAuth: AuthLabels = {
   signup: {
     title: "Créer un compte",
     subtitle: "Gratuit pour toujours jusqu'à 5 000 événements/mois",
-    passwordPlaceholder: "Minimum 6 caractères",
+    passwordPlaceholder: "10 caractères min., majuscule, minuscule, chiffre",
     submit: "Créer mon compte",
     haveAccount: "Déjà un compte ?",
     login: "Se connecter",
@@ -727,6 +728,7 @@ const frAuth: AuthLabels = {
     submit: "Enregistrer et se connecter",
     mismatch: "Les deux mots de passe ne correspondent pas.",
     tooShort: "Le mot de passe doit faire au moins {n} caractères.",
+    weak: "Le mot de passe doit contenir au moins une minuscule, une majuscule et un chiffre.",
     expiredTitle: "Lien expiré ou déjà utilisé",
     expiredBody:
       "Un lien de réinitialisation ne sert qu'une fois, dure une heure, et ne fonctionne que dans le navigateur qui l'a demandé. Redemandez-en un.",

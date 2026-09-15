@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { MIN_PASSWORD_LENGTH, passwordIssue, isWeakPasswordError } from "@/lib/password-policy";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -65,13 +66,14 @@ export interface AuthLabels {
     mismatch: string;
     /** {n} is the minimum length. */
     tooShort: string;
+    weak: string;
     expiredTitle: string;
     expiredBody: string;
     askNew: string;
   };
 }
 
-const MIN_LENGTH = 8;
+const MIN_LENGTH = MIN_PASSWORD_LENGTH;
 
 /** Only a same-origin relative path is accepted — a bare "/..." with no
  *  leading "//" (that second form is a protocol-relative URL and would
@@ -159,7 +161,7 @@ export function LoginForm({ t }: { t: AuthLabels }) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      setError(error.message);
+      setError(isWeakPasswordError(error) ? t.reset.weak : error.message);
       setLoading(false);
     } else {
       window.location.href = next;
@@ -237,6 +239,11 @@ export function SignupForm({ t }: { t: AuthLabels }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const issue = passwordIssue(password);
+    if (issue) {
+      setError(issue === "length" ? t.reset.tooShort.replace("{n}", String(MIN_LENGTH)) : t.reset.weak);
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -296,7 +303,7 @@ export function SignupForm({ t }: { t: AuthLabels }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            minLength={6}
+            minLength={MIN_LENGTH}
             placeholder={t.signup.passwordPlaceholder}
             className={FIELD}
           />
@@ -421,8 +428,9 @@ export function ResetPasswordForm({ t }: { t: AuthLabels }) {
       setError(t.reset.mismatch);
       return;
     }
-    if (password.length < MIN_LENGTH) {
-      setError(t.reset.tooShort.replace("{n}", String(MIN_LENGTH)));
+    const issue = passwordIssue(password);
+    if (issue) {
+      setError(issue === "length" ? t.reset.tooShort.replace("{n}", String(MIN_LENGTH)) : t.reset.weak);
       return;
     }
 
@@ -433,7 +441,7 @@ export function ResetPasswordForm({ t }: { t: AuthLabels }) {
     const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
-      setError(error.message);
+      setError(isWeakPasswordError(error) ? t.reset.weak : error.message);
       setLoading(false);
       return;
     }

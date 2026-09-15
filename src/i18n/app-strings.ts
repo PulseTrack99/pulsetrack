@@ -229,6 +229,7 @@ export interface AppStrings {
       submit: string;
       mismatch: string;
       tooShort: string;
+      weak: string;
       changed: string;
       networkError: string;
     };
@@ -1177,11 +1178,12 @@ const fr: AppStrings = {
       title: "Changer le mot de passe",
       newPassword: "Nouveau mot de passe",
       confirm: "Confirmer le mot de passe",
-      minChars: "Minimum 8 caractères",
+      minChars: "10 caractères min., majuscule, minuscule, chiffre",
       retype: "Retapez le mot de passe",
       submit: "Modifier le mot de passe",
       mismatch: "Les mots de passe ne correspondent pas",
-      tooShort: "Le mot de passe doit contenir au moins 8 caractères",
+      tooShort: "Le mot de passe doit contenir au moins 10 caractères",
+      weak: "Le mot de passe doit contenir au moins une minuscule, une majuscule et un chiffre",
       changed: "Mot de passe modifié avec succès",
       networkError: "Erreur réseau",
     },
@@ -2286,11 +2288,12 @@ const en: AppStrings = {
       title: "Change password",
       newPassword: "New password",
       confirm: "Confirm password",
-      minChars: "At least 8 characters",
+      minChars: "10+ characters, upper and lower case, a digit",
       retype: "Retype the password",
       submit: "Change password",
       mismatch: "The passwords don't match",
-      tooShort: "The password must be at least 8 characters",
+      tooShort: "The password must be at least 10 characters",
+      weak: "The password needs at least one lowercase letter, one uppercase letter and one digit",
       changed: "Password changed",
       networkError: "Network error",
     },
