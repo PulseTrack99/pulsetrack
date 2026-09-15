@@ -367,7 +367,47 @@ const baseHandler = createMcpHandler(
       }
     );
 
-    /* ── Parcours ─────────────────────────────────────── */
+    /* ── Rétention et parcours ─────────────────────────────────────── */
+
+    server.registerTool(
+      "get_retention",
+      {
+        title: "Get cohort retention",
+        description:
+          "Cohort retention over identified people (those the site names with identify()): for each cohort (the period of a person's first activity), how many were active again N periods later. rate is the share of the cohort still active at that period. Anonymous visitors cannot be followed across days by design, so they are not part of retention.",
+        inputSchema: z.object({
+          grain: z.enum(GRAINS).optional().describe("Cohort size: day, week (default) or month."),
+          period: z.enum(["30d", "90d", "180d", "365d"]).optional().describe("How far back cohorts start. Default 180d."),
+        }),
+      },
+      async ({ grain, period }, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        const days = { "30d": 30, "90d": 90, "180d": 180, "365d": 365 }[period ?? "180d"] ?? 180;
+        const { data, error } = await supabase.rpc("retention_cohorts", {
+          p_site: auth.siteId,
+          p_since: sinceDays(days),
+          p_grain: grain ?? "week",
+        });
+        if (error) return failure(`Query failed: ${error.message}`);
+        const rows = (data ?? []) as { cohort: string; period_index: number; people: number }[];
+        const size = new Map<string, number>();
+        for (const r of rows) if (Number(r.period_index) === 0) size.set(r.cohort, Number(r.people));
+        return json({
+          grain: grain ?? "week",
+          period: period ?? "180d",
+          rows: rows.map((r) => {
+            const base = size.get(r.cohort) ?? 0;
+            return {
+              cohort: r.cohort,
+              period_index: Number(r.period_index),
+              people: Number(r.people),
+              rate: base > 0 ? Math.round((Number(r.people) / base) * 1000) / 10 : null,
+            };
+          }),
+        });
+      }
+    );
 
     server.registerTool(
       "get_flows",
@@ -509,6 +549,26 @@ const baseHandler = createMcpHandler(
     );
 
     /* ── Comptes et sessions ───────────────────────────────────────── */
+
+    server.registerTool(
+      "list_groups",
+      {
+        title: "List accounts (groups)",
+        description:
+          "Accounts (companies, teams…) the site declares with group(): people, sessions, events, pageviews, first and last activity, and revenue in cents. Aggregates only — no personal data such as e-mail addresses is returned.",
+        inputSchema: z.object({
+          period: z.enum(["7d", "30d", "90d", "180d", "365d"]).optional().describe("Default 30d."),
+        }),
+      },
+      async ({ period }, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        const days = { "7d": 7, "30d": 30, "90d": 90, "180d": 180, "365d": 365 }[period ?? "30d"] ?? 30;
+        const { data, error } = await supabase.rpc("site_groups", { p_site: auth.siteId, p_since: sinceDays(days) });
+        if (error) return failure(`Query failed: ${error.message}`);
+        return json({ period: period ?? "30d", groups: data ?? [] });
+      }
+    );
 
     server.registerTool(
       "list_session_replays",
