@@ -49,6 +49,21 @@ const periodSchema = z
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://pulsetrack.eu";
 
+/**
+ * Les indications que les assistants lisent avant d'appeler un outil.
+ * Claude laisse passer un outil en lecture seule sans confirmation et en
+ * demande une pour tout outil destructif ; les annuaires de Claude et de
+ * ChatGPT refusent un serveur dont un outil n'en porte pas. Tous les
+ * outils actuels lisent sans rien changer, sur le seul site du jeton —
+ * d'où openWorldHint à false.
+ */
+const READ_ONLY = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
+
 type ToolExtra = { http?: { authInfo?: { extra?: Record<string, unknown> } } };
 
 function authOf(ctx: ToolExtra): AuthExtra | undefined {
@@ -78,6 +93,7 @@ const baseHandler = createMcpHandler(
       "get_stats",
       {
         title: "Get site stats",
+        annotations: { title: "Get site stats", ...READ_ONLY },
         description:
           "Overview analytics for the authenticated site: visitors, pageviews, bounce rate, top pages, traffic sources, countries and devices. Privacy note: visitors are anonymised with an identifier that rotates every day, so a person returning on several days is counted once per day — a 30-day visitor figure is a sum of daily visitors, not a count of distinct people.",
         inputSchema: z.object({ period: periodSchema }),
@@ -108,6 +124,7 @@ const baseHandler = createMcpHandler(
       "get_revenue",
       {
         title: "Get revenue attribution",
+        annotations: { title: "Get revenue attribution", ...READ_ONLY },
         description:
           "Revenue tied back to traffic sources via the site's connected Stripe account: totals, revenue by source, revenue by landing page, and recent transactions. Requires the Growth plan or above.",
         inputSchema: z.object({ period: periodSchema }),
@@ -143,6 +160,7 @@ const baseHandler = createMcpHandler(
       "list_funnels",
       {
         title: "List funnels",
+        annotations: { title: "List funnels", ...READ_ONLY },
         description: "Lists the conversion funnels configured on the authenticated site, with their step names in order.",
         inputSchema: z.object({}),
       },
@@ -171,6 +189,7 @@ const baseHandler = createMcpHandler(
       "get_funnel",
       {
         title: "Get funnel drop-off",
+        annotations: { title: "Get funnel drop-off", ...READ_ONLY },
         description:
           "Drop-off results for one funnel on the authenticated site — visitors, conversion rate and drop-off rate at each step. Identify the funnel by its exact name (see list_funnels) or its id.",
         inputSchema: z.object({
@@ -266,6 +285,7 @@ const baseHandler = createMcpHandler(
       "get_realtime",
       {
         title: "Get real-time visitors",
+        annotations: { title: "Get real-time visitors", ...READ_ONLY },
         description: "Visitors currently active on the authenticated site (last 5 minutes) and which pages they're on.",
         inputSchema: z.object({}),
       },
@@ -301,6 +321,7 @@ const baseHandler = createMcpHandler(
       "list_events",
       {
         title: "List events and properties",
+        annotations: { title: "List events and properties", ...READ_ONLY },
         description:
           "What the authenticated site actually tracks: custom event names with their volume, and the custom property keys those events carry. Call this before query_insights to use exact event names (event_name) and property keys (breakdown or filter field \"prop:<key>\").",
         inputSchema: z.object({
@@ -330,6 +351,7 @@ const baseHandler = createMcpHandler(
       "query_insights",
       {
         title: "Query insights",
+        annotations: { title: "Query insights", ...READ_ONLY },
         description:
           "Flexible analytics query, the same engine as the Insights screen. Pick a measure (pageviews, sessions, visitors, events = count of one custom event, event_visitors = visitors who fired it), optionally over time (grain) or split by a field (breakdown), filtered, compared with the previous period of the same length, or combined with a second measure (formula: ratio returns a percentage, difference, sum). Without grain, rows are a ranking over the whole period. Breakdown/filter fields: path, source, country, device, browser, language, utm_medium, utm_campaign, event_name, referrer, or prop:<key> for a custom property (see list_events). Visitors are counted per day (daily-rotating anonymous id): use period_totals, not a sum of rows, for a period figure.",
         inputSchema: z.object({
@@ -379,6 +401,7 @@ const baseHandler = createMcpHandler(
       "get_retention",
       {
         title: "Get cohort retention",
+        annotations: { title: "Get cohort retention", ...READ_ONLY },
         description:
           "Cohort retention over identified people (those the site names with identify()): for each cohort (the period of a person's first activity), how many were active again N periods later. rate is the share of the cohort still active at that period. Anonymous visitors cannot be followed across days by design, so they are not part of retention.",
         inputSchema: z.object({
@@ -419,6 +442,7 @@ const baseHandler = createMcpHandler(
       "get_flows",
       {
         title: "Get user flows",
+        annotations: { title: "Get user flows", ...READ_ONLY },
         description:
           "How sessions move from page to page, step by step (the Flows screen). Each row: at step N, sessions that went from from_path to to_path; to_path null means the session ended there. Beyond the 7 busiest pages per step, the rest are grouped as \"Autres\". Optionally start from a given page.",
         inputSchema: z.object({
@@ -448,6 +472,7 @@ const baseHandler = createMcpHandler(
       "list_boards",
       {
         title: "List dashboards",
+        annotations: { title: "List dashboards", ...READ_ONLY },
         description: "The saved dashboards (boards) of the authenticated site, with how many tiles each holds.",
         inputSchema: z.object({}),
       },
@@ -477,6 +502,7 @@ const baseHandler = createMcpHandler(
       "get_board",
       {
         title: "Get dashboard",
+        annotations: { title: "Get dashboard", ...READ_ONLY },
         description:
           "One dashboard and its tiles in reading order. Each tile's config holds the saved query (measure, breakdown, grain, filters, formula…): pass those fields to query_insights to get the tile's current numbers.",
         inputSchema: z.object({
@@ -508,6 +534,7 @@ const baseHandler = createMcpHandler(
       "list_experiments",
       {
         title: "List experiments with results",
+        annotations: { title: "List experiments with results", ...READ_ONLY },
         description:
           "A/B experiments of the authenticated site with their results per variant: subjects, conversions, conversion rate, lift against the first (control) variant, p-value, whether the difference is statistically significant (95%), and how many subjects per variant would be needed to decide. Results count from the experiment's start, not from a chosen window. Draft experiments have no results.",
         inputSchema: z.object({}),
@@ -534,6 +561,7 @@ const baseHandler = createMcpHandler(
       "list_feature_flags",
       {
         title: "List feature flags",
+        annotations: { title: "List feature flags", ...READ_ONLY },
         description: "Feature flags of the authenticated site: key, name, whether it is on, and its rollout percentage. Archived flags are left out unless asked for.",
         inputSchema: z.object({
           include_archived: z.boolean().optional(),
@@ -560,6 +588,7 @@ const baseHandler = createMcpHandler(
       "list_groups",
       {
         title: "List accounts (groups)",
+        annotations: { title: "List accounts (groups)", ...READ_ONLY },
         description:
           "Accounts (companies, teams…) the site declares with group(): people, sessions, events, pageviews, first and last activity, and revenue in cents. Aggregates only — no personal data such as e-mail addresses is returned.",
         inputSchema: z.object({
@@ -580,6 +609,7 @@ const baseHandler = createMcpHandler(
       "list_session_replays",
       {
         title: "List session replays",
+        annotations: { title: "List session replays", ...READ_ONLY },
         description:
           "Recorded sessions of the authenticated site, newest first: landing path, device, browser, country, duration, number of recorded events, and whether the visitor rage-clicked. Watching a replay happens in the PulseTrack dashboard (url). Requires a plan with session replay.",
         inputSchema: z.object({

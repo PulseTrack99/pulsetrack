@@ -118,7 +118,11 @@ export default async function Home() {
         />
 
         {/* Les questions qu'on se pose avant de brancher son assistant. */}
-        <McpFaq title={t.mcpFaq.title} items={t.mcpFaq.items} />
+        <McpFaq
+          title={t.mcpFaq.title}
+          items={t.mcpFaq.items}
+          docsLabel={locale === "fr" ? "Documentation complète du serveur MCP" : "Full MCP server documentation"}
+        />
 
         {/* ── Features, revealed on scroll ── */}
         <FeatureBlock
