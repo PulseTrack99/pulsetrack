@@ -10,7 +10,8 @@
     "check:plans": "node scripts/check-plans.mjs",
     "check:claims": "node scripts/check-claims.mjs",
     "check:mcp-docs": "node scripts/check-mcp-docs.mjs",
-    "prebuild": "node scripts/check-plans.mjs && node scripts/build-tracker.mjs && node scripts/check-claims.mjs && node scripts/check-mcp-docs.mjs",
+    "check:links": "node scripts/check-site-links.mjs",
+    "prebuild": "node scripts/check-plans.mjs && node scripts/build-tracker.mjs && node scripts/check-claims.mjs && node scripts/check-mcp-docs.mjs && node scripts/check-site-links.mjs",
     "build:tracker": "node scripts/build-tracker.mjs"
   },
   "dependencies": {

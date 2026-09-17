@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 import { FEATURE_SLUGS } from "@/content/features";
+import { COMPARE_SLUGS } from "@/content/compare";
+import { USE_CASE_SLUGS } from "@/content/use-cases";
 import { localePath } from "@/i18n/paths";
 
 const SITE_URL =
@@ -37,6 +39,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     ...bilingual("/", "weekly", 1, now),
     ...FEATURE_SLUGS.flatMap((slug) => bilingual(`/features/${slug}`, "monthly", 0.8, now)),
+    ...COMPARE_SLUGS.flatMap((slug) => bilingual(`/compare/${slug}`, "monthly", 0.8, now)),
+    ...USE_CASE_SLUGS.flatMap((slug) => bilingual(`/use-cases/${slug}`, "monthly", 0.8, now)),
     ...bilingual("/docs/mcp", "monthly", 0.7, now),
     {
       url: `${SITE_URL}/signup`,

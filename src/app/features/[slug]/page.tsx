@@ -269,7 +269,6 @@ export default async function FeaturePageRoute({
 
       <Footer
         tagline={t.footer.tagline}
-        columns={t.footer.columns}
         legal={t.footer.legal}
         locale={locale}
       />

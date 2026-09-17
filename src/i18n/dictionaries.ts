@@ -128,7 +128,6 @@ export interface Dictionary {
 
   footer: {
     tagline: string;
-    columns: { title: string; links: { label: string; href: string }[] }[];
     legal: string;
   };
 
@@ -240,49 +239,10 @@ const en: Dictionary = {
   },
 
   nav: {
-    product: "Product",
     pricing: "Pricing",
     docs: "How it works",
     login: "Log in",
     cta: "Start free",
-    productMenu: [
-      {
-        href: "/features/revenue",
-        title: "Revenue attribution",
-        blurb: "Tie every euro back to its source",
-        icon: "revenue",
-      },
-      {
-        href: "/features/heatmaps",
-        title: "Heatmaps",
-        blurb: "See where attention actually goes",
-        icon: "heatmaps",
-      },
-      {
-        href: "/features/funnels",
-        title: "Funnels",
-        blurb: "Find the step that loses people",
-        icon: "funnels",
-      },
-      {
-        href: "/features/realtime",
-        title: "Real-time",
-        blurb: "Who is on your site right now",
-        icon: "realtime",
-      },
-      {
-        href: "/features/analytics",
-        title: "Core analytics",
-        blurb: "Traffic, sources, pages, devices",
-        icon: "analytics",
-      },
-      {
-        href: "/features/dashboards",
-        title: "Public dashboards",
-        blurb: "Share numbers without seats",
-        icon: "dashboards",
-      },
-    ],
   },
 
   hero: {
@@ -653,34 +613,6 @@ const en: Dictionary = {
   footer: {
     tagline:
       "Privacy-first web analytics that connects your traffic to your revenue.",
-    columns: [
-      {
-        title: "Product",
-        links: [
-          { label: "Revenue attribution", href: "/features/revenue" },
-          { label: "Heatmaps", href: "/features/heatmaps" },
-          { label: "Funnels", href: "/features/funnels" },
-          { label: "Real-time", href: "/features/realtime" },
-          { label: "Pricing", href: "/#pricing" },
-        ],
-      },
-      {
-        title: "Compare",
-        links: [
-          { label: "vs Google Analytics", href: "/features/privacy" },
-          { label: "Core analytics", href: "/features/analytics" },
-          { label: "Public dashboards", href: "/features/dashboards" },
-        ],
-      },
-      {
-        title: "Company",
-        links: [
-          { label: "Privacy", href: "/#" },
-          { label: "Terms", href: "/#" },
-          { label: "Contact", href: "/#" },
-        ],
-      },
-    ],
     legal: "© 2026 PulseTrack. Made in Europe.",
   },
 
@@ -798,49 +730,10 @@ const fr: Dictionary = {
   },
 
   nav: {
-    product: "Produit",
     pricing: "Tarifs",
     docs: "Comment ça marche",
     login: "Connexion",
     cta: "Essai gratuit",
-    productMenu: [
-      {
-        href: "/features/revenue",
-        title: "Attribution du revenu",
-        blurb: "Reliez chaque euro à sa source",
-        icon: "revenue",
-      },
-      {
-        href: "/features/heatmaps",
-        title: "Heatmaps",
-        blurb: "Voyez où va vraiment l'attention",
-        icon: "heatmaps",
-      },
-      {
-        href: "/features/funnels",
-        title: "Funnels",
-        blurb: "Trouvez l'étape qui vous fait perdre",
-        icon: "funnels",
-      },
-      {
-        href: "/features/realtime",
-        title: "Temps réel",
-        blurb: "Qui est sur votre site maintenant",
-        icon: "realtime",
-      },
-      {
-        href: "/features/analytics",
-        title: "Analytics",
-        blurb: "Trafic, sources, pages, appareils",
-        icon: "analytics",
-      },
-      {
-        href: "/features/dashboards",
-        title: "Dashboards publics",
-        blurb: "Partagez sans créer de comptes",
-        icon: "dashboards",
-      },
-    ],
   },
 
   hero: {
@@ -1224,34 +1117,6 @@ const fr: Dictionary = {
   footer: {
     tagline:
       "L'analytics respectueux de la vie privée qui relie votre trafic à votre revenu.",
-    columns: [
-      {
-        title: "Produit",
-        links: [
-          { label: "Attribution du revenu", href: "/features/revenue" },
-          { label: "Heatmaps", href: "/features/heatmaps" },
-          { label: "Funnels", href: "/features/funnels" },
-          { label: "Temps réel", href: "/features/realtime" },
-          { label: "Tarifs", href: "/#pricing" },
-        ],
-      },
-      {
-        title: "Comparer",
-        links: [
-          { label: "vs Google Analytics", href: "/features/privacy" },
-          { label: "Analytics", href: "/features/analytics" },
-          { label: "Dashboards publics", href: "/features/dashboards" },
-        ],
-      },
-      {
-        title: "Entreprise",
-        links: [
-          { label: "Confidentialité", href: "/#" },
-          { label: "CGU", href: "/#" },
-          { label: "Contact", href: "/#" },
-        ],
-      },
-    ],
     legal: "© 2026 PulseTrack. Fait en Europe.",
   },
 

@@ -179,7 +179,7 @@ gemini mcp add --transport http pulsetrack ${MCP_URL}`}</Code>
         />
       </main>
 
-      <Footer tagline={t.footer.tagline} columns={t.footer.columns} legal={t.footer.legal}
+      <Footer tagline={t.footer.tagline} legal={t.footer.legal}
         locale={locale} />
 
       <Assistant t={t.assistant} faq={getAssistantFaq(locale)} locale={locale} />

@@ -15,6 +15,7 @@ import { LogoMark } from "@/components/brand/logo";
 import { INTEGRATIONS } from "@/components/brand/integration-logos";
 import type { Locale } from "@/i18n/dictionaries";
 import { localePath } from "@/i18n/paths";
+import { footerColumns } from "@/content/site-map";
 
 /* ══════════════════════════════════════════════════════════════
    Trust strip — every claim here is verifiable today
@@ -404,25 +405,24 @@ export function FinalCta({
 
 export function Footer({
   tagline,
-  columns,
   legal,
   locale = "en",
 }: {
   tagline: string;
-  columns: { title: string; links: { label: string; href: string }[] }[];
   legal: string;
   locale?: Locale;
 }) {
-  // Un lien sans destination (« /# ») ne s'affiche pas : mieux vaut une
-  // colonne de moins qu'un lien qui ramène en haut de page.
-  const visible = columns
+  // Colonnes tirées de src/content/site-map.ts, dont chaque lien est
+  // vérifié au build. Le filtre reste en filet de sécurité : mieux vaut
+  // une colonne de moins qu'un lien qui ramène en haut de page.
+  const visible = footerColumns(locale)
     .map((col) => ({ ...col, links: col.links.filter((l) => l.href !== "/#" && l.href !== "#") }))
     .filter((col) => col.links.length > 0);
 
   return (
     <footer className="border-t border-border bg-surface">
       <div className="mx-auto max-w-6xl px-6 py-14">
-        <div className="grid gap-10 md:grid-cols-[1.4fr_repeat(3,1fr)]">
+        <div className="grid gap-10 sm:grid-cols-2 md:grid-cols-[1.4fr_repeat(4,1fr)]">
           <div>
             <LogoMark size={30} />
             <p className="mt-4 max-w-[15rem] text-[13px] leading-relaxed text-muted">

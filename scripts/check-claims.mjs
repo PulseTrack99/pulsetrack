@@ -28,6 +28,7 @@ const FILES = [
   "src/i18n/dictionaries.ts",
   "src/content/features.ts",
   "src/components/marketing/feature-blocks.tsx",
+  "src/content/compare.ts",
 ];
 
 const problems = [];

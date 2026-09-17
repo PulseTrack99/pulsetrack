@@ -1,52 +1,78 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Menu,
   X,
   Globe,
+  ChevronDown,
   BarChart3,
   MousePointerClick,
   Filter,
   DollarSign,
   Radio,
   Share2,
+  Sparkles,
+  ShieldCheck,
+  Scale,
+  Building2,
+  BookOpen,
+  Code2,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import type { Locale } from "@/i18n/dictionaries";
 import { isLocalizedPath, localePath, stripLocale } from "@/i18n/paths";
+import {
+  COMPARE,
+  NAV_LABELS,
+  PLATFORM,
+  RESOURCES,
+  SOLUTIONS,
+  type NavIcon,
+  type NavLink,
+} from "@/content/site-map";
 
 export interface NavLabels {
-  product: string;
   pricing: string;
   docs: string;
   login: string;
   cta: string;
-  productMenu: { href: string; title: string; blurb: string; icon: string }[];
 }
 
-const ICONS: Record<string, typeof BarChart3> = {
+const ICONS: Record<NavIcon, typeof BarChart3> = {
   analytics: BarChart3,
-  heatmaps: MousePointerClick,
-  funnels: Filter,
-  revenue: DollarSign,
   realtime: Radio,
+  funnels: Filter,
   dashboards: Share2,
+  heatmaps: MousePointerClick,
+  revenue: DollarSign,
+  ai: Sparkles,
+  privacy: ShieldCheck,
+  compare: Scale,
+  saas: Building2,
+  docs: BookOpen,
+  install: Code2,
 };
 
-export function SiteNav({
-  t,
-  locale,
-}: {
-  t: NavLabels;
-  locale: Locale;
-}) {
+type MenuKey = "platform" | "solutions" | "resources";
+
+/**
+ * Le menu du site public, construit sur le modèle de Mixpanel :
+ * Plateforme, Solutions, Ressources, Tarifs.
+ *
+ * Les liens viennent de src/content/site-map.ts, vérifiés au build ; un
+ * menu sans lien ne s'affiche pas. Au clavier : Entrée ouvre, Échap
+ * ferme ; un clic en dehors ferme aussi.
+ */
+export function SiteNav({ t, locale }: { t: NavLabels; locale: Locale }) {
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
-  const [menu, setMenu] = useState(false);
+  const [menu, setMenu] = useState<MenuKey | null>(null);
+  const [section, setSection] = useState<MenuKey | null>("platform");
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -62,6 +88,22 @@ export function SiteNav({
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!menu) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenu(null);
+    };
+    const onPointer = (e: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) setMenu(null);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onPointer);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onPointer);
+    };
+  }, [menu]);
+
   function switchLocale() {
     const next = locale === "fr" ? "en" : "fr";
     document.cookie = `locale=${next};path=/;max-age=${60 * 60 * 24 * 365};samesite=lax`;
@@ -75,10 +117,40 @@ export function SiteNav({
     router.refresh();
   }
 
+  const platformGroups = PLATFORM.filter((g) => g.links.length > 0);
+  const menus: { key: MenuKey; label: string }[] = [
+    ...(platformGroups.length > 0 ? [{ key: "platform" as const, label: NAV_LABELS.platform[locale] }] : []),
+    ...(SOLUTIONS.length > 0 ? [{ key: "solutions" as const, label: NAV_LABELS.solutions[locale] }] : []),
+    ...(RESOURCES.length > 0 ? [{ key: "resources" as const, label: NAV_LABELS.resources[locale] }] : []),
+  ];
+
+  const linkItem = (l: NavLink, onNavigate: () => void) => {
+    const Icon = ICONS[l.icon];
+    return (
+      <Link
+        key={l.href}
+        href={localePath(locale, l.href)}
+        onClick={onNavigate}
+        className="flex gap-2.5 rounded-sm p-2.5 transition-colors hover:bg-surface-sunken"
+      >
+        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-primary-pale">
+          <Icon className="h-3.5 w-3.5 text-primary" />
+        </span>
+        <span>
+          <span className="block text-[13px] font-medium">{l.title[locale]}</span>
+          <span className="mt-0.5 block text-[11.5px] leading-snug text-muted-light">{l.blurb[locale]}</span>
+        </span>
+      </Link>
+    );
+  };
+
+  const close = () => setMenu(null);
+
   return (
     <header
+      ref={navRef}
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-200 ${
-        scrolled
+        scrolled || menu
           ? "border-b border-border bg-background/85 backdrop-blur-xl"
           : "border-b border-transparent"
       }`}
@@ -90,59 +162,83 @@ export function SiteNav({
 
         {/* Desktop links */}
         <div className="hidden items-center gap-1 md:flex">
-          <div
-            className="relative"
-            onMouseEnter={() => setMenu(true)}
-            onMouseLeave={() => setMenu(false)}
-          >
-            <button className="rounded-sm px-3 py-2 text-[14px] text-muted transition-colors hover:text-foreground">
-              {t.product}
-            </button>
+          {menus.map((m) => (
+            <div
+              key={m.key}
+              className="relative"
+              onMouseEnter={() => setMenu(m.key)}
+              onMouseLeave={() => setMenu((cur) => (cur === m.key ? null : cur))}
+            >
+              <button
+                type="button"
+                aria-expanded={menu === m.key}
+                aria-haspopup="true"
+                onClick={() => setMenu((cur) => (cur === m.key ? null : m.key))}
+                className={`flex items-center gap-1 rounded-sm px-3 py-2 text-[14px] transition-colors hover:text-foreground ${
+                  menu === m.key ? "text-foreground" : "text-muted"
+                }`}
+              >
+                {m.label}
+                <ChevronDown
+                  className={`h-3.5 w-3.5 transition-transform ${menu === m.key ? "rotate-180" : ""}`}
+                  aria-hidden
+                />
+              </button>
 
-            {menu && (
-              <div className="absolute left-1/2 top-full w-[520px] -translate-x-1/2 pt-2">
+              {menu === m.key && (
                 <div
-                  className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-surface p-2"
-                  style={{ boxShadow: "var(--shadow-lg)" }}
+                  className={`absolute left-1/2 top-full -translate-x-1/2 pt-2 ${
+                    m.key === "platform" ? "w-[760px]" : "w-[340px]"
+                  }`}
                 >
-                  {t.productMenu.map((item) => {
-                    const Icon = ICONS[item.icon] ?? BarChart3;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={localePath(locale, item.href)}
-                        className="flex gap-2.5 rounded-sm p-2.5 transition-colors hover:bg-surface-sunken"
-                      >
-                        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-primary-pale">
-                          <Icon className="h-3.5 w-3.5 text-primary" />
-                        </span>
-                        <span>
-                          <span className="block text-[13px] font-medium">
-                            {item.title}
-                          </span>
-                          <span className="mt-0.5 block text-[11.5px] leading-snug text-muted-light">
-                            {item.blurb}
-                          </span>
-                        </span>
-                      </Link>
-                    );
-                  })}
+                  <div
+                    className="rounded-lg border border-border bg-surface p-3"
+                    style={{ boxShadow: "var(--shadow-lg)" }}
+                  >
+                    {m.key === "platform" ? (
+                      <>
+                        <div className="grid grid-cols-3 gap-3">
+                          {platformGroups.map((g) => (
+                            <div key={g.title.en}>
+                              <p className="px-2.5 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-muted-light">
+                                {g.title[locale]}
+                              </p>
+                              {g.links.map((l) => linkItem(l, close))}
+                            </div>
+                          ))}
+                        </div>
+                        {COMPARE.length > 0 && (
+                          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border px-2.5 pt-3 text-[12.5px]">
+                            <span className="text-muted-light">{NAV_LABELS.compare[locale]}</span>
+                            {COMPARE.map((c) => (
+                              <Link
+                                key={c.href}
+                                href={localePath(locale, c.href)}
+                                onClick={close}
+                                className="text-muted transition-colors hover:text-foreground"
+                              >
+                                {c.title[locale]} →
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="space-y-0.5">
+                        {(m.key === "solutions" ? SOLUTIONS : RESOURCES).map((l) => linkItem(l, close))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          ))}
 
           <Link
             href={localePath(locale, "/#pricing")}
             className="rounded-sm px-3 py-2 text-[14px] text-muted transition-colors hover:text-foreground"
           >
             {t.pricing}
-          </Link>
-          <Link
-            href={localePath(locale, "/#how")}
-            className="rounded-sm px-3 py-2 text-[14px] text-muted transition-colors hover:text-foreground"
-          >
-            {t.docs}
           </Link>
         </div>
 
@@ -184,27 +280,53 @@ export function SiteNav({
 
       {/* Mobile sheet */}
       {open && (
-        <div className="border-t border-border bg-background px-6 py-5 md:hidden">
-          <div className="space-y-1">
-            {t.productMenu.map((item) => (
-              <Link
-                key={item.href}
-                href={localePath(locale, item.href)}
-                onClick={() => setOpen(false)}
-                className="block rounded-sm px-2 py-2.5 text-[15px] transition-colors hover:bg-surface-sunken"
-              >
-                {item.title}
-              </Link>
-            ))}
-            <Link
-              href={localePath(locale, "/#pricing")}
-              onClick={() => setOpen(false)}
-              className="block rounded-sm px-2 py-2.5 text-[15px]"
-            >
-              {t.pricing}
-            </Link>
-          </div>
-          <div className="mt-5 flex flex-col gap-2 border-t border-border pt-5">
+        <div className="max-h-[calc(100vh-68px)] overflow-y-auto border-t border-border bg-background px-6 py-4 md:hidden">
+          {menus.map((m) => {
+            const links =
+              m.key === "platform"
+                ? [...platformGroups.flatMap((g) => g.links), ...COMPARE]
+                : m.key === "solutions"
+                  ? SOLUTIONS
+                  : RESOURCES;
+            return (
+              <div key={m.key} className="border-b border-border">
+                <button
+                  type="button"
+                  onClick={() => setSection((s) => (s === m.key ? null : m.key))}
+                  aria-expanded={section === m.key}
+                  className="flex w-full items-center justify-between px-2 py-3 text-[15px] font-medium"
+                >
+                  {m.label}
+                  <ChevronDown
+                    className={`h-4 w-4 text-muted transition-transform ${section === m.key ? "rotate-180" : ""}`}
+                    aria-hidden
+                  />
+                </button>
+                {section === m.key && (
+                  <div className="pb-2">
+                    {links.map((l) => (
+                      <Link
+                        key={`${m.key}-${l.href}`}
+                        href={localePath(locale, l.href)}
+                        onClick={() => setOpen(false)}
+                        className="block rounded-sm px-2 py-2 text-[14px] text-muted transition-colors hover:bg-surface-sunken hover:text-foreground"
+                      >
+                        {l.title[locale]}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          <Link
+            href={localePath(locale, "/#pricing")}
+            onClick={() => setOpen(false)}
+            className="block border-b border-border px-2 py-3 text-[15px] font-medium"
+          >
+            {t.pricing}
+          </Link>
+          <div className="mt-5 flex flex-col gap-2">
             <Link href="/login" className="btn btn-secondary w-full">
               {t.login}
             </Link>
