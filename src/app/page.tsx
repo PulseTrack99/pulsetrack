@@ -8,6 +8,7 @@ import { SiteNav } from "@/components/marketing/site-nav";
 import { ProductShowcase } from "@/components/marketing/product-showcase";
 import { AiConnect } from "@/components/marketing/ai-connect";
 import { ProblemSolution } from "@/components/marketing/problem-solution";
+import { ProductTour } from "@/components/marketing/product-tour";
 import { ProductRow } from "@/components/marketing/product-row";
 import { McpFaq } from "@/components/marketing/mcp-faq";
 import { Assistant } from "@/components/marketing/assistant";
@@ -94,7 +95,7 @@ export default async function Home() {
                     →
                   </span>
                 </Link>
-                <Link href="/public/demo" className="btn btn-ghost px-7 py-3.5">
+                <Link href="#tour" className="btn btn-ghost px-7 py-3.5">
                   {t.hero.demo}
                 </Link>
               </div>
@@ -118,6 +119,8 @@ export default async function Home() {
             </div>
           </div>
         </section>
+
+        <ProductTour locale={locale} labels={t.showcase} scriptOrigin={scriptOrigin} />
 
         <ProductRow eyebrow={t.productRow.eyebrow} title={t.productRow.title} locale={locale} />
 

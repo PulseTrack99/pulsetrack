@@ -144,6 +144,12 @@ export const RESOURCES: NavLink[] = [
     blurb: { en: "Connect your AI assistant", fr: "Connectez votre assistant IA" },
   },
   {
+    href: "/#tour",
+    icon: "docs",
+    title: { en: "Two-minute tour", fr: "Démo en deux minutes" },
+    blurb: { en: "The whole product, animated", fr: "Tout le produit, en animation" },
+  },
+  {
     href: "/#how",
     icon: "install",
     title: { en: "Install in one line", fr: "Installer en une ligne" },

@@ -120,7 +120,7 @@ function Metric({
 const TRAFFIC = [180, 210, 195, 260, 240, 320, 300, 380, 355, 430, 470, 520];
 const TRAFFIC_B = [120, 140, 135, 170, 160, 205, 195, 240, 225, 265, 290, 310];
 
-function AnalyticsPanel({ t }: { t: Labels }) {
+export function AnalyticsPanel({ t }: { t: Labels }) {
   const a = smoothPath(TRAFFIC, 560, 170, 12);
   const b = smoothPath(TRAFFIC_B, 560, 170, 12);
   const last = a.pts[a.pts.length - 1];
@@ -228,7 +228,7 @@ const HEAT = [
   { x: 44, y: 80, r: 50, i: 0.66 },
 ];
 
-function HeatmapPanel({ t }: { t: Labels }) {
+export function HeatmapPanel({ t }: { t: Labels }) {
   return (
     <>
       <PanelHeader
@@ -328,7 +328,7 @@ function HeatmapPanel({ t }: { t: Labels }) {
    Panel — Funnels
    ══════════════════════════════════════════════════════════════ */
 
-function FunnelsPanel({ t }: { t: Labels }) {
+export function FunnelsPanel({ t }: { t: Labels }) {
   const steps = [
     { label: t.step1, v: 12480, pct: 100 },
     { label: t.step2, v: 7104, pct: 57 },
@@ -397,7 +397,7 @@ function FunnelsPanel({ t }: { t: Labels }) {
    Panel — Revenue
    ══════════════════════════════════════════════════════════════ */
 
-function RevenuePanelMock({ t }: { t: Labels }) {
+export function RevenuePanelMock({ t }: { t: Labels }) {
   const rows = [
     { src: "Google", amt: "€4,280", pct: 42, c: "var(--emerald)" },
     { src: "Product Hunt", amt: "€2,150", pct: 21, c: "var(--primary)" },
@@ -490,7 +490,7 @@ const CITIES = [
   { x: 45, y: 55, n: 14 },
 ];
 
-function LivePanel({ t }: { t: Labels }) {
+export function LivePanel({ t }: { t: Labels }) {
   const [n, setN] = useState(847);
 
   useEffect(() => {
@@ -584,7 +584,7 @@ function LivePanel({ t }: { t: Labels }) {
    AI side rail
    ══════════════════════════════════════════════════════════════ */
 
-function AiRail({ prompt, answer, follow }: { prompt: string; answer: string; follow: string }) {
+export function AiRail({ prompt, answer, follow }: { prompt: string; answer: string; follow: string }) {
   return (
     <div className="flex h-full flex-col border-r border-border bg-surface-sunken/60">
       <div className="flex items-center gap-1.5 border-b border-border px-3.5 py-2.5">

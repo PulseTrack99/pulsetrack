@@ -29,6 +29,7 @@ const FILES = [
   "src/content/features.ts",
   "src/components/marketing/feature-blocks.tsx",
   "src/content/compare.ts",
+  "src/content/tour.ts",
 ];
 
 const problems = [];
