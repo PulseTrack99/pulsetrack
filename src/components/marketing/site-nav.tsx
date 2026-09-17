@@ -204,9 +204,18 @@ export function SiteNav({ t, locale }: { t: NavLabels; locale: Locale }) {
 
               {menu === m.key && (
                 <div
-                  className={`absolute left-1/2 top-full -translate-x-1/2 pt-2 ${
-                    m.key === "platform" ? "w-[900px]" : "w-[340px]"
-                  }`}
+                  className={
+                    /* Le panneau « Platform » est large : centré sur son
+                       bouton, il sortirait de l'écran par la gauche en
+                       dessous de 1 150 px. Il est donc centré sur la
+                       fenêtre, sous l'en-tête fixe de 68 px, et son pt-4
+                       fait le pont avec le bouton pour que le survol ne se
+                       rompe pas en chemin. Les autres panneaux sont
+                       étroits : ils restent ancrés à leur bouton. */
+                    m.key === "platform"
+                      ? "fixed left-1/2 top-[52px] max-h-[calc(100vh-52px)] w-[min(900px,calc(100vw-2rem))] -translate-x-1/2 overflow-y-auto pt-4"
+                      : "absolute left-1/2 top-full w-[340px] -translate-x-1/2 pt-2"
+                  }
                 >
                   <div
                     className="rounded-lg border border-border bg-surface p-3"
@@ -214,7 +223,7 @@ export function SiteNav({ t, locale }: { t: NavLabels; locale: Locale }) {
                   >
                     {m.key === "platform" ? (
                       <>
-                        <div className="grid grid-cols-4 gap-3">
+                        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                           {platformGroups.map((g) => (
                             <div key={g.title.en}>
                               <p className="px-2.5 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-muted-light">

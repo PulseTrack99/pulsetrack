@@ -125,12 +125,74 @@ if (multiples.size === 0) {
   }
 }
 
+/* ── Les comparatifs, et le poids des scripts d'en face ────────── */
+
+/**
+ * Chaque page de comparaison cite le poids du script du concurrent.
+ * Ce chiffre-là, on ne peut pas le mesurer au build : il est chez eux,
+ * derrière un réseau qui n'a pas à décider si notre build passe. Il est
+ * donc relevé à la main, daté dans la page, et déclaré ici.
+ *
+ * Ce que le contrôle apporte quand même : dans ces fichiers, aucun autre
+ * poids ne peut apparaître. Le nôtre doit être celui qu'on vient de
+ * mesurer, celui d'en face doit être celui déclaré ici, et « N× plus
+ * léger » doit tomber juste. Une copie qui dérive — la nôtre qui vieillit,
+ * la leur qu'on arrondit un peu trop — échoue au build au lieu de
+ * survivre dans une page que personne ne relit.
+ *
+ * Ces fichiers ne peuvent pas rejoindre FILES plus haut : les contrôles
+ * y exigent un seul poids et un seul multiple dans toute la copie, ce
+ * qu'une page de comparaison viole par construction.
+ */
+const RIVALS = [
+  { file: "src/content/compare-plausible.ts", name: "Plausible", sizes: [1.3] },
+  { file: "src/content/compare-posthog.ts", name: "PostHog", sizes: [95] },
+  { file: "src/content/compare-mixpanel.ts", name: "Mixpanel", sizes: [33] },
+  { file: "src/content/compare-hotjar.ts", name: "Hotjar", sizes: [62, 56] },
+  { file: "src/content/compare-matomo.ts", name: "Matomo", sizes: [44] },
+];
+
+const ours = measuredKb === null ? null : Math.round(measuredKb * 10) / 10;
+
+for (const rival of RIVALS) {
+  const src = read(rival.file);
+  if (src === "") continue;
+
+  const allowed = new Set(ours === null ? rival.sizes : [ours, ...rival.sizes]);
+  const seen = new Set();
+  for (const m of src.matchAll(SIZE)) seen.add(Number(`${m[1] ?? m[3]}.${m[2] ?? m[4]}`));
+  for (const m of src.matchAll(GA4)) seen.add(Number(m[1]));
+
+  for (const size of seen) {
+    if (!allowed.has(size)) {
+      fail(
+        `${rival.file} annonce ${size} Ko, qui n'est ni notre poids mesuré ` +
+          `(${ours} Ko) ni un poids déclaré pour ${rival.name} (${rival.sizes.join(", ")} Ko).`
+      );
+    }
+  }
+
+  if (ours !== null) {
+    const expected = Math.round(rival.sizes[0] / ours);
+    for (const m of src.matchAll(TIMES)) {
+      const stated = Number(m[1]);
+      if (stated !== expected) {
+        fail(
+          `${rival.file} annonce « ${stated}× plus léger », mais ` +
+            `${rival.sizes[0]} ÷ ${ours} fait ${expected}.`
+        );
+      }
+    }
+  }
+}
+
 if (problems.length > 0) {
   console.error("\n  Le poids annoncé ne correspond plus au script :\n");
   for (const p of problems) console.error(`   · ${p}`);
   console.error(
     "\n  Le script fait foi. Alignez la copie dans src/i18n/dictionaries.ts," +
-      "\n  src/content/features.ts et src/components/marketing/feature-blocks.tsx.\n"
+      "\n  src/content/features.ts, src/components/marketing/feature-blocks.tsx" +
+      "\n  et les comparatifs src/content/compare-*.ts.\n"
   );
   process.exit(1);
 }

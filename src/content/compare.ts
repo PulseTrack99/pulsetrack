@@ -1,4 +1,9 @@
 import type { Locale } from "@/i18n/dictionaries";
+import { hotjarEn, hotjarFr } from "./compare-hotjar";
+import { matomoEn, matomoFr } from "./compare-matomo";
+import { mixpanelEn, mixpanelFr } from "./compare-mixpanel";
+import { plausibleEn, plausibleFr } from "./compare-plausible";
+import { posthogEn, posthogFr } from "./compare-posthog";
 
 /**
  * Les comparatifs (src/app/compare/[slug]).
@@ -15,7 +20,14 @@ import type { Locale } from "@/i18n/dictionaries";
  *    avec le reste de la copie (scripts/check-claims.mjs).
  */
 
-export const COMPARE_SLUGS = ["google-analytics"] as const;
+export const COMPARE_SLUGS = [
+  "google-analytics",
+  "plausible",
+  "posthog",
+  "mixpanel",
+  "hotjar",
+  "matomo",
+] as const;
 export type CompareSlug = (typeof COMPARE_SLUGS)[number];
 
 /** yes / partial / no décrivent la présence ; info, un fait sans verdict. */
@@ -54,7 +66,7 @@ const GA_SOURCES = [
   { label: "gtag.js, measured by PulseTrack (compressed transfer size)", url: "https://www.googletagmanager.com/gtag/js" },
 ];
 
-const en: Record<CompareSlug, ComparePage> = {
+const enCore = {
   "google-analytics": {
     competitor: "Google Analytics 4",
     metaTitle: "PulseTrack vs Google Analytics 4 — an honest comparison",
@@ -193,9 +205,9 @@ const en: Record<CompareSlug, ComparePage> = {
     sources: GA_SOURCES,
     checkedOn: "2026-09-17",
   },
-};
+} satisfies Record<string, ComparePage>;
 
-const fr: Record<CompareSlug, ComparePage> = {
+const frCore = {
   "google-analytics": {
     competitor: "Google Analytics 4",
     metaTitle: "PulseTrack ou Google Analytics 4 — le comparatif honnête",
@@ -334,6 +346,23 @@ const fr: Record<CompareSlug, ComparePage> = {
     sources: GA_SOURCES,
     checkedOn: "2026-09-17",
   },
+} satisfies Record<string, ComparePage>;
+
+const en: Record<CompareSlug, ComparePage> = {
+  ...enCore,
+  ...plausibleEn,
+  ...posthogEn,
+  ...mixpanelEn,
+  ...hotjarEn,
+  ...matomoEn,
+};
+const fr: Record<CompareSlug, ComparePage> = {
+  ...frCore,
+  ...plausibleFr,
+  ...posthogFr,
+  ...mixpanelFr,
+  ...hotjarFr,
+  ...matomoFr,
 };
 
 export function getComparison(locale: Locale, slug: CompareSlug): ComparePage {

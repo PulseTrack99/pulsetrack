@@ -212,6 +212,36 @@ export const COMPARE: NavLink[] = [
     title: { en: "vs Google Analytics 4", fr: "vs Google Analytics 4" },
     blurb: { en: "Cookies, revenue, AI: an honest comparison", fr: "Cookies, revenu, IA : le comparatif honnête" },
   },
+  {
+    href: "/compare/plausible",
+    icon: "compare",
+    title: { en: "vs Plausible", fr: "vs Plausible" },
+    blurb: { en: "Same privacy stance, wider scope", fr: "Même position sur la vie privée, plus large" },
+  },
+  {
+    href: "/compare/posthog",
+    icon: "compare",
+    title: { en: "vs PostHog", fr: "vs PostHog" },
+    blurb: { en: "A bigger platform, a heavier script", fr: "Plateforme plus large, script plus lourd" },
+  },
+  {
+    href: "/compare/mixpanel",
+    icon: "compare",
+    title: { en: "vs Mixpanel", fr: "vs Mixpanel" },
+    blurb: { en: "Product analytics, without the cookie", fr: "Analytics produit, sans le cookie" },
+  },
+  {
+    href: "/compare/hotjar",
+    icon: "compare",
+    title: { en: "vs Hotjar", fr: "vs Hotjar" },
+    blurb: { en: "Behaviour and traffic in one tool", fr: "Comportement et trafic dans un seul outil" },
+  },
+  {
+    href: "/compare/matomo",
+    icon: "compare",
+    title: { en: "vs Matomo", fr: "vs Matomo" },
+    blurb: { en: "Open source, or no cookie at all", fr: "Open source, ou aucun cookie du tout" },
+  },
 ];
 
 export const RESOURCES: NavLink[] = [
