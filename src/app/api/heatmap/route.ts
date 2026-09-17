@@ -23,6 +23,8 @@ const supabase = createClient(
 
 const CORS = { "Access-Control-Allow-Origin": "*" };
 
+import { checkOrigin, recordRejection } from "@/lib/origin-guard";
+
 const MAX_BATCH = 60;
 const VALID_TYPES = new Set(["click", "rage", "scroll"]);
 
@@ -70,12 +72,18 @@ export async function POST(req: NextRequest) {
 
     const { data: site } = await supabase
       .from("sites")
-      .select("id")
+      .select("id, domain")
       .eq("id", site_id)
       .maybeSingle();
 
     if (!site) {
       return NextResponse.json({ error: "Invalid site_id" }, { status: 404, headers: CORS });
+    }
+
+    const origin = checkOrigin(site.domain, req.headers);
+    if (!origin.ok) {
+      await recordRejection(supabase, site_id, origin.origin);
+      return NextResponse.json({ error: "origin_not_allowed" }, { status: 403, headers: CORS });
     }
 
     // Heatmaps are a paid capability. Accepting the request and dropping

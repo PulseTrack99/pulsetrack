@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
-import { scanRows } from "@/lib/scan";
 
 /**
  * Visitors, grouped from the event stream.
@@ -15,10 +14,10 @@ import { scanRows } from "@/lib/scan";
  *
  * Two consequences shape this route:
  *
- *  - grouping happens over a bounded scan, in this process. Postgres
- *    would GROUP BY, but PostgREST cannot and this deployment cannot
- *    add a function right now. The cap is reported back so the screen
- *    can admit when it is showing a slice rather than everything.
+ *  - grouping happens in Postgres (site_visitors), not over a bounded
+ *    scan in this process: the route's cost no longer grows with the
+ *    site's traffic, and the screen only admits a limit when there are
+ *    more visitors than it lists.
  *  - emails come from session_identities, which has RLS enabled and no
  *    policy — no signed-in user can read it, only the service role. So
  *    ownership is checked first, through the caller's own client, and
@@ -27,24 +26,8 @@ import { scanRows } from "@/lib/scan";
 
 const PERIODS: Record<string, number> = { "24h": 1, "7d": 7, "30d": 30, "90d": 90 };
 
-/** Events read per request before grouping. */
-const SCAN = 3000;
 /** Visitors returned, most recently seen first. */
 const MAX_VISITORS = 200;
-
-interface Grouped {
-  visitor_id: string;
-  sessions: Set<string>;
-  pageviews: number;
-  events: number;
-  first_at: string;
-  last_at: string;
-  device: string | null;
-  browser: string | null;
-  country: string | null;
-  source: string | null;
-  paths: Set<string>;
-}
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -69,66 +52,32 @@ export async function GET(req: NextRequest) {
   const days = PERIODS[searchParams.get("period") ?? "24h"] ?? 1;
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
 
-  const { rows: events, truncated, error } = await scanRows<{
+  // Regroupé en base (supabase/ingest-origin-and-visitors.sql) : la
+  // route ne lit plus d'événements, seulement les visiteurs affichés.
+  // SECURITY INVOKER, donc la RLS de events s'applique comme avant.
+  const { data, error } = await supabase.rpc("site_visitors", {
+    p_site: siteId,
+    p_since: since,
+    p_limit: MAX_VISITORS,
+  });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const visitors = ((data ?? []) as {
     visitor_id: string;
-    session_id: string | null;
-    type: string;
-    path: string | null;
+    sessions: number;
+    pageviews: number;
+    events: number;
+    pages: number;
+    first_at: string;
+    last_at: string;
     device: string | null;
     browser: string | null;
     country: string | null;
     source: string | null;
-    created_at: string;
-  }>(
-    (from, to) =>
-      supabase
-        .from("events")
-        .select("visitor_id, session_id, type, path, device, browser, country, source, created_at")
-        .eq("site_id", siteId)
-        .gte("created_at", since)
-        .not("visitor_id", "is", null)
-        .order("created_at", { ascending: false })
-        .range(from, to),
-    SCAN
-  );
-
-  if (error) return NextResponse.json({ error }, { status: 500 });
-  const byVisitor = new Map<string, Grouped>();
-
-  // Rows arrive newest first, so the first one seen for a visitor is
-  // their last event and the last one seen is their first.
-  for (const e of events) {
-    const id = e.visitor_id as string;
-    let g = byVisitor.get(id);
-    if (!g) {
-      g = {
-        visitor_id: id,
-        sessions: new Set(),
-        pageviews: 0,
-        events: 0,
-        first_at: e.created_at,
-        last_at: e.created_at,
-        device: e.device,
-        browser: e.browser,
-        country: e.country,
-        source: e.source,
-        paths: new Set(),
-      };
-      byVisitor.set(id, g);
-    }
-    if (e.session_id) g.sessions.add(e.session_id);
-    if (e.type === "pageview") g.pageviews++;
-    if (e.type === "event") g.events++;
-    if (e.path) g.paths.add(e.path);
-    g.first_at = e.created_at;
-    // The oldest row wins for source: a visit's origin is where it
-    // started, not where the person happened to be last seen.
-    if (e.source) g.source = e.source;
-  }
-
-  const visitors = [...byVisitor.values()]
-    .sort((a, b) => (a.last_at < b.last_at ? 1 : -1))
-    .slice(0, MAX_VISITORS);
+    session_ids: string[] | null;
+    total_visitors: number;
+  }[]).map((v) => ({ ...v, sessions: new Set(v.session_ids ?? []) }));
+  const totalVisitors = Number(visitors[0]?.total_visitors ?? 0);
 
   /* Emails, for the visitors on this page only. session_identities is
      keyed by session, so one visitor can carry several — a person who
@@ -152,10 +101,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     visitors: visitors.map((v) => ({
       visitor_id: v.visitor_id,
-      sessions: v.sessions.size,
-      pageviews: v.pageviews,
-      events: v.events,
-      pages: v.paths.size,
+      sessions: Number(v.sessions.size),
+      pageviews: Number(v.pageviews),
+      events: Number(v.events),
+      pages: Number(v.pages),
       first_at: v.first_at,
       last_at: v.last_at,
       device: v.device,
@@ -164,11 +113,9 @@ export async function GET(req: NextRequest) {
       source: v.source,
       email: [...v.sessions].map((s) => emailBySession.get(s)).find(Boolean) ?? null,
     })),
-    scanned: events.length,
-    // Straight from the scan, which knows whether the rows ran out
-    // before the cap did. Comparing events.length to SCAN here was the
-    // bug: one response is capped at 1000 whatever SCAN says, so a busy
-    // period looked complete.
-    truncated,
+    total: totalVisitors,
+    // Plus de tranche d'événements : seule la liste est bornée, et
+    // l'écran le dit quand il y a plus de visiteurs qu'il n'en montre.
+    truncated: totalVisitors > visitors.length,
   });
 }

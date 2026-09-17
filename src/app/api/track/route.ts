@@ -8,6 +8,7 @@ import {
 } from "@/lib/visitor";
 import { getSiteOwner, getUserPlan, recordEvent } from "@/lib/plan";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { checkOrigin, recordRejection } from "@/lib/origin-guard";
 
 // Use service-level client for ingestion (no auth needed — events come from visitors)
 const supabase = createClient(
@@ -177,6 +178,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Invalid site_id" },
         { status: 404, headers: { "Access-Control-Allow-Origin": "*" } }
+      );
+    }
+
+    // Avant le quota : un envoi étranger ne doit pas consommer celui du site.
+    const origin = checkOrigin(site.domain, req.headers);
+    if (!origin.ok) {
+      await recordRejection(supabase, site_id, origin.origin);
+      return NextResponse.json(
+        { error: "origin_not_allowed" },
+        { status: 403, headers: { "Access-Control-Allow-Origin": "*" } }
       );
     }
 

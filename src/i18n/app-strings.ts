@@ -840,6 +840,7 @@ export interface AppStrings {
       whoBody: string;
     };
     sitesPage: {
+      rejected: string;
       intro: string; addSite: string; emptyTitle: string; emptyBody: string;
       addFirst: string; shown: string; show: string; checking: string;
       dataReceived: string; lastVisit: string; events: string; over30d: string;
@@ -1905,6 +1906,7 @@ const fr: AppStrings = {
         "De vous, comme l'identité. Rien n'est déduit d'un domaine d'e-mail : deux clients peuvent partager gmail.com, et une déduction fausse produirait des regroupements que personne ne pourrait corriger.",
     },
     sitesPage: {
+      rejected: "Envois refusés ces 7 derniers jours depuis {origins} : ce n'est pas le domaine déclaré, {domain}. Si c'est bien votre site, corrigez son domaine.",
       intro: "Les sites que PulseTrack suit pour vous, et l'état de leur script.",
       addSite: "Ajouter un site",
       emptyTitle: "Aucun site pour l'instant",
@@ -3015,6 +3017,7 @@ const en: AppStrings = {
         "From you, like identity. Nothing is inferred from an email domain: two customers can share gmail.com, and a wrong inference would produce groupings nobody could correct.",
     },
     sitesPage: {
+      rejected: "Sends refused over the last 7 days from {origins}: that is not the declared domain, {domain}. If it really is your site, fix its domain.",
       intro: "The sites PulseTrack tracks for you, and the state of their script.",
       addSite: "Add a site",
       emptyTitle: "No site yet",

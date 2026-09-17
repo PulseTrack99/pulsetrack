@@ -20,6 +20,8 @@ const supabase = createClient(
 
 const CORS = { "Access-Control-Allow-Origin": "*" };
 
+import { checkOrigin, recordRejection } from "@/lib/origin-guard";
+
 /** How long a capture stays good before a fresh one is worth its weight. */
 const FRESH_FOR_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -113,12 +115,18 @@ export async function POST(req: NextRequest) {
 
     const { data: site } = await supabase
       .from("sites")
-      .select("id")
+      .select("id, domain")
       .eq("id", site_id)
       .maybeSingle();
 
     if (!site) {
       return NextResponse.json({ error: "Invalid site_id" }, { status: 404, headers: CORS });
+    }
+
+    const origin = checkOrigin(site.domain, req.headers);
+    if (!origin.ok) {
+      await recordRejection(supabase, site_id, origin.origin);
+      return NextResponse.json({ error: "origin_not_allowed" }, { status: 403, headers: CORS });
     }
 
     const plan = await getPlanForSite(supabase, site_id);

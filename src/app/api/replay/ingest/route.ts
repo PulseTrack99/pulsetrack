@@ -33,6 +33,8 @@ const supabase = createClient(
 
 const CORS = { "Access-Control-Allow-Origin": "*" };
 
+import { checkOrigin, recordRejection } from "@/lib/origin-guard";
+
 // A checkoutEveryNms full snapshot on a heavy page can run to a few
 // hundred KB; this leaves headroom without accepting an unbounded body.
 const MAX_BYTES = 3_000_000;
@@ -104,6 +106,13 @@ export async function POST(req: NextRequest) {
     const ownerId = await getSiteOwner(supabase, site_id);
     if (!ownerId) {
       return NextResponse.json({ error: "Invalid site_id" }, { status: 404, headers: CORS });
+    }
+
+    const { data: siteRow } = await supabase.from("sites").select("domain").eq("id", site_id).maybeSingle();
+    const origin = checkOrigin(siteRow?.domain, req.headers);
+    if (!origin.ok) {
+      await recordRejection(supabase, site_id, origin.origin);
+      return NextResponse.json({ error: "origin_not_allowed" }, { status: 403, headers: CORS });
     }
 
     const plan = await getUserPlan(supabase, ownerId);

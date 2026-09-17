@@ -12,6 +12,7 @@ interface Status {
   id: string;
   last_event_at: string | null;
   events_30d: number;
+  rejected?: { origin: string; hits: number; last_seen: string }[];
 }
 
 /**
@@ -122,6 +123,16 @@ ${t.screens.sitesPage.deleteConfirm}`
                     )}
                   </p>
                   <p className="truncate text-[12px] text-muted-light">{site.domain}</p>
+                  {status?.rejected && status.rejected.length > 0 && (
+                    <p className="mt-1 text-[11.5px] leading-snug text-amber-600">
+                      {t.screens.sitesPage.rejected
+                        .replace(
+                          "{origins}",
+                          status.rejected.map((r) => `${r.origin} (${r.hits.toLocaleString(intl)})`).join(", ")
+                        )
+                        .replace("{domain}", site.domain)}
+                    </p>
+                  )}
                 </div>
 
                 {/* Install status — the reason this page exists. */}

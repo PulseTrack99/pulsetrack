@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 
     const statuses = await Promise.all(
       sites.map(async (site) => {
-        const [lastRes, countRes] = await Promise.all([
+        const [lastRes, countRes, rejectedRes] = await Promise.all([
           supabase
             .from("events")
             .select("created_at")
@@ -50,12 +50,31 @@ export async function GET(req: NextRequest) {
             .select("id", { count: "exact", head: true })
             .eq("site_id", site.id)
             .gte("created_at", since),
+          // Envois refusés pour origine étrangère (src/lib/origin-guard.ts),
+          // sur sept jours : c'est le signe d'un domaine mal saisi.
+          supabase
+            .from("ingest_rejections")
+            .select("origin, hits, last_seen")
+            .eq("site_id", site.id)
+            .gte("day", new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10)),
         ]);
+
+        const byOrigin = new Map<string, { origin: string; hits: number; last_seen: string }>();
+        for (const r of (rejectedRes.data ?? []) as { origin: string; hits: number; last_seen: string }[]) {
+          const cur = byOrigin.get(r.origin);
+          if (cur) {
+            cur.hits += r.hits;
+            if (r.last_seen > cur.last_seen) cur.last_seen = r.last_seen;
+          } else {
+            byOrigin.set(r.origin, { ...r });
+          }
+        }
 
         return {
           id: site.id,
           last_event_at: lastRes.data?.created_at ?? null,
           events_30d: countRes.count ?? 0,
+          rejected: [...byOrigin.values()].sort((a, b) => b.hits - a.hits).slice(0, 5),
         };
       })
     );

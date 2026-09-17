@@ -142,6 +142,13 @@ export async function GET(req: NextRequest) {
   // so anything over an hour old is just accumulated dead weight.
   await supabase.from("rate_limits").delete().lt("window_start", new Date(Date.now() - 3_600_000).toISOString());
 
+  // Refus d'origine (supabase/ingest-origin-and-visitors.sql) : utiles
+  // pour repérer un domaine mal saisi, inutiles au-delà d'un mois.
+  await supabase
+    .from("ingest_rejections")
+    .delete()
+    .lt("day", new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10));
+
   // Clients OAuth enregistrés dynamiquement (supabase/oauth-clients.sql)
   // et jamais allés jusqu'au jeton : l'enregistrement est ouvert à tous,
   // ceux-là ne font qu'occuper la table.
