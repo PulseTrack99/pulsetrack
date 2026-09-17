@@ -58,6 +58,8 @@ export interface ResolvedOAuthToken {
   tokenId: string;
   site: { id: string; user_id: string; name: string; domain: string };
   plan: Awaited<ReturnType<typeof getUserPlan>>;
+  /** « Lecture et modification » choisi sur l'écran de consentement. */
+  canWrite: boolean;
 }
 
 /**
@@ -73,7 +75,7 @@ export async function resolveOAuthToken(
 ): Promise<ResolvedOAuthToken | null> {
   const { data: token } = await supabase
     .from("oauth_tokens")
-    .select("id, site_id, access_expires_at, revoked_at")
+    .select("id, site_id, scope, access_expires_at, revoked_at")
     .eq("access_token_hash", hashToken(plaintext))
     .maybeSingle();
   if (!token) return null;
@@ -96,7 +98,12 @@ export async function resolveOAuthToken(
     .eq("id", token.id)
     .then(() => {});
 
-  return { tokenId: token.id, site, plan };
+  return {
+    tokenId: token.id,
+    site,
+    plan,
+    canWrite: String(token.scope ?? "").split(/\s+/).includes("write"),
+  };
 }
 
 export interface ClientMetadata {

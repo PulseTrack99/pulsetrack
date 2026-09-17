@@ -492,7 +492,7 @@ const en: Dictionary = {
       },
       {
         q: "Can the AI change anything in my account?",
-        a: "No. Access is read-only: the assistant cannot create, edit or delete anything in PulseTrack.",
+        a: "Only if you allow it. A connection is read-only by default. If you choose \"Read and modify\" when connecting, the assistant can create dashboards, annotations, funnels, flags and A/B tests, switch a flag on or off, and start or stop a test — assistants such as Claude ask you to confirm each change. Nothing can be deleted through the AI.",
       },
       {
         q: "Is my data safe?",
@@ -1060,7 +1060,7 @@ const fr: Dictionary = {
       },
       {
         q: "L'IA peut-elle modifier quelque chose dans mon compte ?",
-        a: "Non. L'accès est en lecture seule : l'assistant ne peut rien créer, modifier ni supprimer dans PulseTrack.",
+        a: "Seulement si vous l'autorisez. Une connexion est en lecture seule par défaut. Si vous choisissez « Lecture et modification » en vous connectant, l'assistant peut créer des tableaux de bord, annotations, funnels, flags et A/B tests, allumer ou éteindre un flag, démarrer ou arrêter un A/B test — les assistants comme Claude vous demandent de confirmer chaque changement. Rien ne peut être supprimé via l'IA.",
       },
       {
         q: "Mes données sont-elles protégées ?",

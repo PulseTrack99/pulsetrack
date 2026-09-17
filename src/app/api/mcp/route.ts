@@ -40,6 +40,10 @@ interface AuthExtra {
   siteName: string;
   siteDomain: string;
   plan: ResolvedApiKey["plan"];
+  /** « Lecture et modification » (OAuth) ou clé créée avec la modification. */
+  canWrite: boolean;
+  /** Propriétaire du site, auteur des annotations créées par l'assistant. */
+  ownerId: string;
 }
 
 const periodSchema = z
@@ -61,6 +65,19 @@ const READ_ONLY = {
   readOnlyHint: true,
   destructiveHint: false,
   idempotentHint: true,
+  openWorldHint: false,
+} as const;
+
+/**
+ * Les outils qui créent ou changent quelque chose. destructiveHint fait
+ * demander une confirmation à Claude avant chaque appel. Aucun outil ne
+ * supprime : archiver un flag ou arrêter un A/B test est réversible
+ * depuis le tableau de bord.
+ */
+const WRITE = {
+  readOnlyHint: false,
+  destructiveHint: true,
+  idempotentHint: false,
   openWorldHint: false,
 } as const;
 
@@ -86,6 +103,22 @@ function sinceDays(days: number): string {
 
 /** Un nom exact ou un identifiant — les assistants disposent des deux. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Même forme que les écrans Flags et Experiments : ce que le client
+ *  écrit dans son code, sans espace ni accent. */
+const KEY_SHAPE = /^[a-z0-9][a-z0-9_-]{0,58}[a-z0-9]$/;
+
+const READ_ONLY_CONNECTION = failure(
+  'This connection is read-only, so nothing was changed. To allow changes, reconnect PulseTrack and choose "Read and modify" on the consent screen, or use an API key created with "Allow changes through MCP".'
+);
+
+async function findBoard(siteId: string, board: string) {
+  const query = supabase.from("boards").select("id, name").eq("site_id", siteId);
+  const { data } = UUID.test(board)
+    ? await query.eq("id", board).maybeSingle()
+    : await query.eq("name", board).limit(1).maybeSingle();
+  return data as { id: string; name: string } | null;
+}
 
 const baseHandler = createMcpHandler(
   (server) => {
@@ -658,8 +691,378 @@ const baseHandler = createMcpHandler(
         });
       }
     );
+    /* ── Modification, sur autorisation ───────────────────────────── */
+
+    server.registerTool(
+      "create_board",
+      {
+        title: "Create dashboard",
+        annotations: { title: "Create dashboard", ...WRITE },
+        description:
+          "Creates an empty dashboard on the authenticated site; add tiles to it with add_board_tile. Only works on a connection allowed to make changes.",
+        inputSchema: z.object({
+          name: z.string().trim().min(1).max(120),
+          description: z.string().max(300).optional(),
+        }),
+      },
+      async ({ name, description }, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        if (!auth.canWrite) return READ_ONLY_CONNECTION;
+        const { data, error } = await supabase
+          .from("boards")
+          .insert({ site_id: auth.siteId, name, description: description?.trim() || null })
+          .select("id, name")
+          .single();
+        if (error) return failure(`Could not create the dashboard: ${error.message}`);
+        return json({ created: true, id: data.id, name: data.name, url: `${SITE_URL}/dashboard/boards/${data.id}` });
+      }
+    );
+
+    server.registerTool(
+      "update_board",
+      {
+        title: "Update dashboard",
+        annotations: { title: "Update dashboard", ...WRITE },
+        description: "Renames a dashboard of the authenticated site or changes its description. Only works on a connection allowed to make changes.",
+        inputSchema: z.object({
+          board: z.string().max(200).describe("Dashboard name (exact match) or id, see list_boards."),
+          name: z.string().trim().min(1).max(120).optional(),
+          description: z.string().max(300).optional().describe("An empty string removes the description."),
+        }),
+      },
+      async ({ board, name, description }, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        if (!auth.canWrite) return READ_ONLY_CONNECTION;
+        if (name === undefined && description === undefined) {
+          return failure("Nothing to change: give a new name, a new description, or both.");
+        }
+        const found = await findBoard(auth.siteId, board);
+        if (!found) return failure(`No dashboard named or with id "${board}" on this site. Use list_boards.`);
+        const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+        if (name !== undefined) patch.name = name;
+        if (description !== undefined) patch.description = description.trim() || null;
+        const { data, error } = await supabase
+          .from("boards")
+          .update(patch)
+          .eq("id", found.id)
+          .eq("site_id", auth.siteId)
+          .select("id, name, description")
+          .single();
+        if (error) return failure(`Could not update the dashboard: ${error.message}`);
+        return json({ updated: true, ...data, url: `${SITE_URL}/dashboard/boards/${data.id}` });
+      }
+    );
+
+    server.registerTool(
+      "add_board_tile",
+      {
+        title: "Add dashboard tile",
+        annotations: { title: "Add dashboard tile", ...WRITE },
+        description:
+          "Appends a tile to a dashboard of the authenticated site: an insight (a saved query, same fields as query_insights, recomputed each time the dashboard is opened), a heading or a text. An insight query is run once to check it before the tile is saved. Only works on a connection allowed to make changes.",
+        inputSchema: z.object({
+          board: z.string().max(200).describe("Dashboard name (exact match) or id, see list_boards."),
+          kind: z.enum(["insight", "heading", "text"]),
+          title: z.string().max(120).optional().describe("Insight tiles: the tile's title."),
+          text: z.string().max(2000).optional().describe("Heading and text tiles: their content."),
+          width: z.enum(["full", "half"]).optional(),
+          measure: z.enum(MEASURES).optional(),
+          event_name: z.string().max(120).optional(),
+          grain: z.enum(GRAINS).optional(),
+          breakdown: z.string().max(70).optional(),
+          filters: z.array(z.object({ field: z.string().max(70), value: z.string().max(300) })).max(8).optional(),
+          formula: z.enum(FORMULAS).optional(),
+          measure_b: z.enum(MEASURES).optional(),
+          event_name_b: z.string().max(120).optional(),
+        }),
+      },
+      async (args, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        if (!auth.canWrite) return READ_ONLY_CONNECTION;
+        const found = await findBoard(auth.siteId, args.board);
+        if (!found) return failure(`No dashboard named or with id "${args.board}" on this site. Use list_boards.`);
+
+        let config: Record<string, unknown>;
+        let width = args.width ?? "full";
+        if (args.kind === "insight") {
+          const query: Record<string, unknown> = { measure: args.measure ?? "pageviews" };
+          for (const key of ["event_name", "grain", "breakdown", "formula", "measure_b", "event_name_b"] as const) {
+            if (args[key]) query[key] = args[key];
+          }
+          if (args.filters?.length) query.filters = args.filters;
+
+          // La tuile garde la question, jamais la réponse ; on vérifie
+          // seulement que la question en a une avant de l'enregistrer.
+          const params = new URLSearchParams({ period: "30d" });
+          for (const [k, v] of Object.entries(query)) params.set(k, k === "filters" ? JSON.stringify(v) : String(v));
+          const check = await runInsights(supabase, auth.siteId, params);
+          if (check.status !== 200) return failure(`Invalid insight query, tile not added: ${String(check.body.error ?? "query failed")}`);
+
+          config = { ...query, title: args.title?.trim() || String(query.measure) };
+          if (!args.width) width = args.breakdown ? "full" : "half";
+        } else {
+          if (!args.text?.trim()) return failure(`A ${args.kind} tile needs a text.`);
+          config = { text: args.text.trim() };
+        }
+
+        const { data: last } = await supabase
+          .from("board_blocks")
+          .select("position")
+          .eq("board_id", found.id)
+          .order("position", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const { data, error } = await supabase
+          .from("board_blocks")
+          .insert({ board_id: found.id, kind: args.kind, width, position: (last?.position ?? 0) + 10, config })
+          .select("id, kind, width, config")
+          .single();
+        if (error) return failure(`Could not add the tile: ${error.message}`);
+        return json({ created: true, board: found.name, tile: data, url: `${SITE_URL}/dashboard/boards/${found.id}` });
+      }
+    );
+
+    server.registerTool(
+      "create_annotation",
+      {
+        title: "Create annotation",
+        annotations: { title: "Create annotation", ...WRITE },
+        description: "Marks a date on the authenticated site's charts with a short label, such as a release, a campaign or a price change. Only works on a connection allowed to make changes.",
+        inputSchema: z.object({
+          date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("YYYY-MM-DD."),
+          label: z.string().trim().min(1).max(140),
+        }),
+      },
+      async ({ date, label }, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        if (!auth.canWrite) return READ_ONLY_CONNECTION;
+        if (Number.isNaN(Date.parse(`${date}T00:00:00Z`))) return failure(`"${date}" is not a valid date.`);
+        const { data, error } = await supabase
+          .from("annotations")
+          .insert({ site_id: auth.siteId, date, label, created_by: auth.ownerId })
+          .select("id, date, label")
+          .single();
+        if (error) return failure(`Could not create the annotation: ${error.message}`);
+        return json({ created: true, ...data });
+      }
+    );
+
+    server.registerTool(
+      "create_funnel",
+      {
+        title: "Create funnel",
+        annotations: { title: "Create funnel", ...WRITE },
+        description:
+          "Creates a conversion funnel of 2 to 10 steps on the authenticated site. Each step matches an exact path (path), a path containing a value (path_contains) or a custom event (event). The plan's funnel limit applies. Only works on a connection allowed to make changes.",
+        inputSchema: z.object({
+          name: z.string().trim().min(1).max(120),
+          steps: z
+            .array(
+              z.object({
+                name: z.string().trim().min(1).max(120),
+                match_type: z.enum(["path", "path_contains", "event"]),
+                match_value: z.string().trim().min(1).max(300),
+              })
+            )
+            .min(2)
+            .max(10),
+        }),
+      },
+      async ({ name, steps }, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        if (!auth.canWrite) return READ_ONLY_CONNECTION;
+        const { data: funnel, error } = await supabase
+          .from("funnels")
+          .insert({ site_id: auth.siteId, name })
+          .select("id, name")
+          .single();
+        if (error) {
+          const limit = error.message.match(/funnel_limit_reached:(\d+)/);
+          if (limit) return failure(`This site's plan allows ${limit[1]} funnel(s); none was created.`);
+          return failure(`Could not create the funnel: ${error.message}`);
+        }
+        const { error: stepsError } = await supabase.from("funnel_steps").insert(
+          steps.map((s, i) => ({ funnel_id: funnel.id, step_order: i + 1, ...s }))
+        );
+        if (stepsError) {
+          await supabase.from("funnels").delete().eq("id", funnel.id).eq("site_id", auth.siteId);
+          return failure(`Could not create the funnel steps: ${stepsError.message}`);
+        }
+        return json({ created: true, id: funnel.id, name: funnel.name, steps: steps.map((s) => s.name), url: `${SITE_URL}/dashboard/funnels` });
+      }
+    );
+
+    server.registerTool(
+      "create_feature_flag",
+      {
+        title: "Create feature flag",
+        annotations: { title: "Create feature flag", ...WRITE },
+        description:
+          "Creates a feature flag on the authenticated site. A new flag is always off; switch it on with update_feature_flag. The key is what the site's code checks and cannot be changed later. Only works on a connection allowed to make changes.",
+        inputSchema: z.object({
+          key: z.string().describe("Lowercase letters, digits, - and _, 2 to 60 characters, e.g. new-checkout."),
+          name: z.string().trim().min(1).max(120),
+          description: z.string().max(500).optional(),
+        }),
+      },
+      async ({ key, name, description }, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        if (!auth.canWrite) return READ_ONLY_CONNECTION;
+        const normalized = key.trim().toLowerCase();
+        if (!KEY_SHAPE.test(normalized)) return failure(`"${key}" is not a valid flag key: use lowercase letters, digits, - and _, 2 to 60 characters.`);
+        const { data, error } = await supabase
+          .from("feature_flags")
+          .insert({ site_id: auth.siteId, key: normalized, name, description: description?.trim() || null, enabled: false, rollout: 100 })
+          .select("key, name, description, enabled, rollout")
+          .single();
+        if (error) {
+          if (error.code === "23505") return failure(`A flag with the key "${normalized}" already exists on this site.`);
+          return failure(`Could not create the flag: ${error.message}`);
+        }
+        return json({ created: true, flag: data });
+      }
+    );
+
+    server.registerTool(
+      "update_feature_flag",
+      {
+        title: "Update feature flag",
+        annotations: { title: "Update feature flag", ...WRITE },
+        description:
+          "Changes a feature flag of the authenticated site: switch it on or off, set its rollout percentage, rename it, change its description, or archive/unarchive it. Switching a flag or its rollout takes effect for the site's visitors right away. Only works on a connection allowed to make changes.",
+        inputSchema: z.object({
+          key: z.string().max(60).describe("The flag's key, see list_feature_flags."),
+          enabled: z.boolean().optional(),
+          rollout: z.number().int().min(0).max(100).optional().describe("Share of visitors who get the flag when it is on, 0 to 100."),
+          name: z.string().trim().min(1).max(120).optional(),
+          description: z.string().max(500).optional(),
+          archived: z.boolean().optional(),
+        }),
+      },
+      async ({ key, enabled, rollout, name, description, archived }, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        if (!auth.canWrite) return READ_ONLY_CONNECTION;
+        const patch: Record<string, unknown> = {};
+        if (enabled !== undefined) patch.enabled = enabled;
+        if (rollout !== undefined) patch.rollout = rollout;
+        if (name !== undefined) patch.name = name;
+        if (description !== undefined) patch.description = description.trim() || null;
+        if (archived !== undefined) patch.archived_at = archived ? new Date().toISOString() : null;
+        if (Object.keys(patch).length === 0) return failure("Nothing to change: give at least one of enabled, rollout, name, description, archived.");
+        patch.updated_at = new Date().toISOString();
+
+        const { data, error } = await supabase
+          .from("feature_flags")
+          .update(patch)
+          .eq("site_id", auth.siteId)
+          .eq("key", key.trim().toLowerCase())
+          .select("key, name, description, enabled, rollout, archived_at")
+          .maybeSingle();
+        if (error) return failure(`Could not update the flag: ${error.message}`);
+        if (!data) return failure(`No flag with the key "${key}" on this site. Use list_feature_flags.`);
+        return json({ updated: true, flag: data });
+      }
+    );
+
+    server.registerTool(
+      "create_experiment",
+      {
+        title: "Create A/B test",
+        annotations: { title: "Create A/B test", ...WRITE },
+        description:
+          "Creates an A/B test as a draft on the authenticated site: a key the site's code uses, 2 to 5 variants with weights (the first is the control), and the custom event counted as a conversion. Nobody is exposed until it is started with set_experiment_status. Only works on a connection allowed to make changes.",
+        inputSchema: z.object({
+          key: z.string().describe("Lowercase letters, digits, - and _, 2 to 60 characters."),
+          name: z.string().trim().min(1).max(120),
+          description: z.string().max(500).optional(),
+          metric_event: z.string().trim().min(1).max(120).describe("Custom event counted as a conversion, see list_events."),
+          variants: z
+            .array(z.object({ key: z.string().trim().min(1).max(40), weight: z.number().int().min(1).max(100) }))
+            .min(2)
+            .max(5),
+        }),
+      },
+      async ({ key, name, description, metric_event, variants }, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        if (!auth.canWrite) return READ_ONLY_CONNECTION;
+        const normalized = key.trim().toLowerCase();
+        if (!KEY_SHAPE.test(normalized)) return failure(`"${key}" is not a valid experiment key: use lowercase letters, digits, - and _, 2 to 60 characters.`);
+        if (new Set(variants.map((v) => v.key)).size !== variants.length) return failure("Variant keys must be different.");
+        const { data, error } = await supabase
+          .from("experiments")
+          .insert({
+            site_id: auth.siteId,
+            key: normalized,
+            name,
+            description: description?.trim() || null,
+            variants,
+            metric_event,
+            status: "draft",
+          })
+          .select("key, name, description, variants, metric_event, status")
+          .single();
+        if (error) {
+          if (error.code === "23505") return failure(`An experiment with the key "${normalized}" already exists on this site.`);
+          return failure(`Could not create the experiment: ${error.message}`);
+        }
+        return json({ created: true, experiment: data });
+      }
+    );
+
+    server.registerTool(
+      "set_experiment_status",
+      {
+        title: "Start or stop A/B test",
+        annotations: { title: "Start or stop A/B test", ...WRITE },
+        description:
+          "Starts (running) or stops (stopped) an A/B test of the authenticated site. Starting exposes the site's visitors to the variants right away and counts results from that moment. Only works on a connection allowed to make changes.",
+        inputSchema: z.object({
+          key: z.string().max(60).describe("The experiment's key, see list_experiments."),
+          status: z.enum(["running", "stopped"]),
+        }),
+      },
+      async ({ key, status }, ctx) => {
+        const auth = authOf(ctx);
+        if (!auth) return UNAUTHORIZED;
+        if (!auth.canWrite) return READ_ONLY_CONNECTION;
+        const normalized = key.trim().toLowerCase();
+        const { data: current } = await supabase
+          .from("experiments")
+          .select("status")
+          .eq("site_id", auth.siteId)
+          .eq("key", normalized)
+          .maybeSingle();
+        if (!current) return failure(`No experiment with the key "${key}" on this site. Use list_experiments.`);
+        if (current.status === status) return failure(`The experiment is already ${status}; nothing was changed.`);
+
+        const now = new Date().toISOString();
+        // Même règle que l'écran : un démarrage repose la date, pour ne
+        // pas mêler les expositions d'un ancien essai au nouveau.
+        const patch: Record<string, unknown> =
+          status === "running"
+            ? { status, started_at: now, stopped_at: null, updated_at: now }
+            : { status, stopped_at: now, updated_at: now };
+        const { data, error } = await supabase
+          .from("experiments")
+          .update(patch)
+          .eq("site_id", auth.siteId)
+          .eq("key", normalized)
+          .select("key, name, status, started_at, stopped_at")
+          .single();
+        if (error) return failure(`Could not change the experiment: ${error.message}`);
+        return json({ updated: true, experiment: data });
+      }
+    );
   },
-  { serverInfo: { name: "pulsetrack", version: "1.1.0" } }
+  { serverInfo: { name: "pulsetrack", version: "1.2.0" } }
 );
 
 const handler = withMcpAuth(
@@ -704,11 +1107,13 @@ const handler = withMcpAuth(
       siteName: resolved.site.name,
       siteDomain: resolved.site.domain,
       plan: resolved.plan,
+      canWrite: resolved.canWrite,
+      ownerId: resolved.site.user_id,
     };
     return {
       token: plaintext,
       clientId,
-      scopes: ["read"],
+      scopes: resolved.canWrite ? ["read", "write"] : ["read"],
       extra: extra as unknown as Record<string, unknown>,
     };
   },

@@ -858,6 +858,7 @@ interface ApiKeyRow {
   id: string;
   name: string | null;
   key_prefix: string;
+  can_write?: boolean;
   created_at: string;
   last_used_at: string | null;
   revoked_at: string | null;
@@ -875,6 +876,7 @@ function ApiKeysSection({
   const [loaded, setLoaded] = useState(false);
   const [creatingSite, setCreatingSite] = useState<string | null>(null);
   const [keyName, setKeyName] = useState("");
+  const [keyCanWrite, setKeyCanWrite] = useState(false);
   const [busy, setBusy] = useState(false);
   const [revoking, setRevoking] = useState<string | null>(null);
   const [reveal, setReveal] = useState<{ siteId: string; key: string; prefix: string } | null>(null);
@@ -908,20 +910,21 @@ function ApiKeysSection({
       const res = await fetch("/api/keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ site_id: siteId, name: keyName.trim() || null }),
+        body: JSON.stringify({ site_id: siteId, name: keyName.trim() || null, can_write: keyCanWrite }),
       });
       if (!res.ok) return;
       const data = await res.json();
       setKeysBySite((m) => ({
         ...m,
         [siteId]: [
-          { id: data.id, name: data.name, key_prefix: data.key_prefix, created_at: data.created_at, last_used_at: null, revoked_at: null },
+          { id: data.id, name: data.name, key_prefix: data.key_prefix, can_write: data.can_write === true, created_at: data.created_at, last_used_at: null, revoked_at: null },
           ...(m[siteId] ?? []),
         ],
       }));
       setReveal({ siteId, key: data.key, prefix: data.key_prefix });
       setCreatingSite(null);
       setKeyName("");
+      setKeyCanWrite(false);
     } finally {
       setBusy(false);
     }
@@ -1020,6 +1023,21 @@ function ApiKeysSection({
                   </div>
                 )}
 
+                {creatingSite === site.id && (
+                  <label className="mt-2 flex items-start gap-2 text-xs text-muted">
+                    <input
+                      type="checkbox"
+                      checked={keyCanWrite}
+                      onChange={(e) => setKeyCanWrite(e.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      <span className="font-medium text-foreground">{t.settings.api.keyCanWrite}</span> —{" "}
+                      {t.settings.api.keyCanWriteHint}
+                    </span>
+                  </label>
+                )}
+
                 {reveal?.siteId === site.id && (
                   <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-900/20">
                     <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
@@ -1077,6 +1095,11 @@ function ApiKeysSection({
                         <div className="min-w-0">
                           <span className="font-mono text-muted">{k.key_prefix}…</span>
                           {k.name && <span className="ml-2 text-muted">{k.name}</span>}
+                          {k.can_write && (
+                            <span className="ml-2 rounded-sm bg-amber-100 px-1 py-px text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                              {t.settings.api.badgeWrite}
+                            </span>
+                          )}
                           <span className="ml-2 text-muted-light">
                             {k.last_used_at
                               ? `${t.settings.api.usedOn} ${new Date(k.last_used_at).toLocaleDateString(intl)}`
@@ -1157,6 +1180,9 @@ function ConnectedAppsSection() {
               <div className="min-w-0">
                 <span className="font-medium">{c.client_name || "Application"}</span>
                 {site && <span className="ml-2 text-muted">{site.name}</span>}
+                <span className="ml-2 text-muted-light">
+                  {c.scope.split(/\s+/).includes("write") ? t.settings.api.scopeWrite : t.settings.api.scopeRead}
+                </span>
                 <span className="ml-2 text-muted-light">
                   {c.last_used_at
                     ? `${t.settings.api.usedOn} ${new Date(c.last_used_at).toLocaleDateString(intl)}`

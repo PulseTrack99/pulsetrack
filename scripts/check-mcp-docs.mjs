@@ -25,7 +25,8 @@ const problems = [];
 
 const blocks = route.split("server.registerTool(").slice(1);
 const registered = blocks.map((b) => b.match(/^\s*"([a-z_]+)"/)?.[1]).filter(Boolean);
-const documented = [...docs.matchAll(/\{\s*name:\s*"([a-z_]+)"/g)].map((m) => m[1]);
+const docEntries = [...docs.matchAll(/\{\s*name:\s*"([a-z_]+)"([^\n]*)/g)].map((m) => ({ name: m[1], write: /write:\s*true/.test(m[2]) }));
+const documented = docEntries.map((e) => e.name);
 
 for (const name of registered) {
   if (!documented.includes(name)) problems.push(`L'outil ${name} existe dans le serveur mais pas dans la documentation.`);
@@ -34,10 +35,21 @@ for (const name of documented) {
   if (!registered.includes(name)) problems.push(`La documentation décrit ${name}, qui n'existe pas dans le serveur.`);
 }
 
+let writes = 0;
 for (const [i, block] of blocks.entries()) {
+  const name = registered[i] ?? `#${i + 1}`;
   const config = block.slice(0, block.indexOf("async ("));
   if (!/annotations:/.test(config) || !/readOnlyHint|destructiveHint|READ_ONLY|WRITE/.test(config)) {
-    problems.push(`L'outil ${registered[i] ?? `#${i + 1}`} n'a pas d'annotations readOnlyHint / destructiveHint.`);
+    problems.push(`L'outil ${name} n'a pas d'annotations readOnlyHint / destructiveHint.`);
+    continue;
+  }
+  // Un outil qui modifie doit se présenter comme tel, au serveur comme
+  // dans la documentation : c'est ce qui déclenche la confirmation.
+  const isWrite = /\.\.\.WRITE\b|destructiveHint:\s*true/.test(config);
+  if (isWrite) writes++;
+  const doc = docEntries.find((e) => e.name === name);
+  if (doc && doc.write !== isWrite) {
+    problems.push(`L'outil ${name} est ${isWrite ? "une modification" : "en lecture"} dans le serveur mais ${doc.write ? "une modification" : "en lecture"} dans la documentation.`);
   }
 }
 
@@ -47,4 +59,4 @@ if (problems.length) {
   process.exit(1);
 }
 
-console.log(`✓ Documentation MCP cohérente — ${registered.length} outils, tous documentés et annotés.`);
+console.log(`✓ Documentation MCP cohérente — ${registered.length} outils (${registered.length - writes} lecture, ${writes} modification), tous documentés et annotés.`);

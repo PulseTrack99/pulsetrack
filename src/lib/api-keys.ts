@@ -33,6 +33,8 @@ export interface ResolvedApiKey {
   keyId: string;
   site: { id: string; user_id: string; name: string; domain: string };
   plan: Awaited<ReturnType<typeof getUserPlan>>;
+  /** Cochée à la création (supabase/api-keys-write.sql) ; fausse par défaut. */
+  canWrite: boolean;
 }
 
 /**
@@ -50,7 +52,7 @@ export async function resolveApiKey(
 
   const { data: key } = await supabase
     .from("api_keys")
-    .select("id, site_id")
+    .select("id, site_id, can_write")
     .eq("key_hash", hash)
     .is("revoked_at", null)
     .maybeSingle();
@@ -73,7 +75,7 @@ export async function resolveApiKey(
     .eq("id", key.id)
     .then(() => {});
 
-  return { keyId: key.id, site, plan };
+  return { keyId: key.id, site, plan, canWrite: key.can_write === true };
 }
 
 // Persistent (supabase/rate-limits.sql) — survives across serverless

@@ -280,6 +280,11 @@ export interface AppStrings {
       mcpBlurbTail: string;
       mcpHeadless: string;
       mcpHeaderLabel: string;
+      keyCanWrite: string;
+      keyCanWriteHint: string;
+      badgeWrite: string;
+      scopeRead: string;
+      scopeWrite: string;
       connectedApps: string;
       newKey: string;
       copyNow: string;
@@ -1234,6 +1239,11 @@ const fr: AppStrings = {
       mcpBlurbTail: ", l'app vous redirige ici pour vous connecter et choisir un site, aucune clé n'est jamais affichée.",
       mcpHeadless: "Outil en ligne de commande ou script (Gemini CLI, curl…) sans écran de connexion ? Générez une clé ci-dessous et envoyez-la dans l'en-tête Authorization, avec la même URL. Claude Code peut aussi utiliser la connexion ci-dessus.",
       mcpHeaderLabel: "Pour un outil en ligne de commande — même URL que ci-dessus, avec cet en-tête :",
+      keyCanWrite: "Autoriser la modification via MCP",
+      keyCanWriteHint: "les assistants IA pourront créer des tableaux de bord, annotations, funnels, flags et A/B tests, allumer ou éteindre un flag, démarrer ou arrêter un A/B test. Jamais de suppression.",
+      badgeWrite: "modification",
+      scopeRead: "lecture seule",
+      scopeWrite: "lecture et modification",
       connectedApps: "Applications connectées",
       newKey: "Nouvelle clé",
       copyNow: "Copiez cette clé maintenant — elle ne sera plus jamais affichée.",
@@ -2344,6 +2354,11 @@ const en: AppStrings = {
       mcpBlurbTail: ", the app redirects you here to sign in and pick a site, and no key is ever shown.",
       mcpHeadless: "A command-line tool or script (Gemini CLI, curl…) with no sign-in screen? Generate a key below and send it in the Authorization header, with the same URL. Claude Code can also use the sign-in above.",
       mcpHeaderLabel: "For a command-line tool — same URL as above, with this header:",
+      keyCanWrite: "Allow changes through MCP",
+      keyCanWriteHint: "AI assistants will be able to create dashboards, annotations, funnels, flags and A/B tests, switch a flag on or off, start or stop an A/B test. Never delete.",
+      badgeWrite: "changes",
+      scopeRead: "read-only",
+      scopeWrite: "read and modify",
       connectedApps: "Connected apps",
       newKey: "New key",
       copyNow: "Copy this key now — it will never be shown again.",

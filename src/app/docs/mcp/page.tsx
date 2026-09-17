@@ -19,7 +19,7 @@ import { Footer, FinalCta } from "@/components/marketing/sections";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://pulsetrack.eu";
 const MCP_URL = `${SITE_URL}/api/mcp`;
-const GROUPS: ToolGroup[] = ["overview", "analysis", "boards", "product", "accounts"];
+const GROUPS: ToolGroup[] = ["overview", "analysis", "boards", "product", "accounts", "write"];
 
 export async function generateMetadata(): Promise<Metadata> {
   const d = mcpDocs(await getLocale());
@@ -129,8 +129,14 @@ gemini mcp add --transport http pulsetrack ${MCP_URL}`}</Code>
                     <div key={tool.name} className="flex flex-col gap-1.5 px-4 py-3 sm:flex-row sm:items-start sm:gap-4">
                       <code className="shrink-0 text-[13px] font-medium text-foreground sm:w-48">{tool.name}</code>
                       <span className="flex-1 text-[14px]">{locale === "fr" ? tool.fr : tool.en}</span>
-                      <span className="w-fit shrink-0 rounded-sm bg-surface px-1.5 py-0.5 text-[11px] text-muted-light">
-                        {d.tools.readOnly}
+                      <span
+                        className={`w-fit shrink-0 rounded-sm px-1.5 py-0.5 text-[11px] ${
+                          tool.write
+                            ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                            : "bg-surface text-muted-light"
+                        }`}
+                      >
+                        {tool.write ? d.tools.write : d.tools.readOnly}
                       </span>
                     </div>
                   ))}

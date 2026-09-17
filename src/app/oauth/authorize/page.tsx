@@ -138,12 +138,18 @@ export default async function AuthorizePage({
   // Un client enregistré dynamiquement choisit son nom lui-même : on le
   // dit, et l'hôte de retour ci-dessous devient l'information fiable.
   const unverified = !client.verified;
+  // Une application peut demander la modification ; la case reste sur
+  // « Lecture seule » tant que la personne ne choisit pas autre chose.
+  const requestedWrite = (scope ?? "").split(/\s+/).includes("write");
 
   async function authorize(formData: FormData) {
     "use server";
 
     const siteId = formData.get("site_id") as string;
     const decision = formData.get("decision") as string;
+    // La permission vient du choix de la personne, jamais du paramètre
+    // scope envoyé par l'application.
+    const access = formData.get("access") === "write" ? "write" : "read";
 
     const redirectUrl = new URL(redirect_uri!);
     if (state) redirectUrl.searchParams.set("state", state);
@@ -182,7 +188,7 @@ export default async function AuthorizePage({
       client_id: client_id!,
       redirect_uri: redirect_uri!,
       code_challenge: code_challenge!,
-      scope: scope || "read",
+      scope: access === "write" ? "read write" : "read",
       expires_at: new Date(Date.now() + AUTH_CODE_TTL_MS).toISOString(),
     });
 
@@ -209,8 +215,8 @@ export default async function AuthorizePage({
         <div className="mt-4 flex items-start gap-2 rounded-lg border border-border bg-background p-3 text-xs text-muted">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
           <span>
-            Accès en lecture seule à un site de votre choix — pas de mot de passe ni de clé
-            partagés, révocable à tout moment depuis Paramètres.
+            Accès à un seul site de votre choix — pas de mot de passe ni de clé partagés,
+            révocable à tout moment depuis Paramètres.
           </span>
         </div>
 
@@ -257,6 +263,30 @@ export default async function AuthorizePage({
               ))}
             </select>
           </div>
+
+          <fieldset>
+            <legend className="block text-xs font-medium mb-1.5">Autorisations</legend>
+            {requestedWrite && (
+              <p className="mb-1.5 text-[11px] text-muted">
+                L&apos;application demande à pouvoir modifier. C&apos;est vous qui décidez.
+              </p>
+            )}
+            <label className="flex items-start gap-2 rounded-lg border border-border bg-background p-2.5 text-xs">
+              <input type="radio" name="access" value="read" defaultChecked className="mt-0.5" />
+              <span>
+                <span className="font-medium">Lecture seule</span> — consulter vos statistiques, sans rien
+                pouvoir changer.
+              </span>
+            </label>
+            <label className="mt-1.5 flex items-start gap-2 rounded-lg border border-border bg-background p-2.5 text-xs">
+              <input type="radio" name="access" value="write" className="mt-0.5" />
+              <span>
+                <span className="font-medium">Lecture et modification</span> — aussi créer des tableaux de
+                bord, annotations, funnels, flags et A/B tests, allumer ou éteindre un flag, démarrer ou
+                arrêter un A/B test. Jamais de suppression.
+              </span>
+            </label>
+          </fieldset>
 
           <div className="flex gap-2">
             <button

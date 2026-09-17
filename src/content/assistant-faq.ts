@@ -231,7 +231,7 @@ const appHelpFr: FaqEntry[] = [
   },
   {
     q: "Comment brancher Claude ou ChatGPT sur mes données ?",
-    a: "Paramètres → Accès API. Collez l'adresse du serveur MCP dans votre assistant, connectez-vous avec votre compte PulseTrack et choisissez le site : aucune clé n'est jamais visible. Le guide y détaille chaque outil — Claude, ChatGPT, Codex, Cursor, VS Code, Gemini, Notion, Copilot Studio, Le Chat — et l'accès reste en lecture seule.",
+    a: "Paramètres → Accès API. Collez l'adresse du serveur MCP dans votre assistant, connectez-vous avec votre compte PulseTrack et choisissez le site : aucune clé n'est jamais visible. Le guide y détaille chaque outil — Claude, ChatGPT, Codex, Cursor, VS Code, Gemini, Notion, Copilot Studio, Le Chat — et l'accès est en lecture seule, sauf si vous autorisez la modification.",
     keywords: ["claude", "chatgpt", "gemini", "mcp", "connecteur", "brancher", "assistant", "ia"],
   },
   {
@@ -314,7 +314,7 @@ const appHelpEn: FaqEntry[] = [
   },
   {
     q: "How do I connect Claude or ChatGPT to my data?",
-    a: "Settings → API access. Paste the MCP server address into your assistant, sign in with your PulseTrack account and pick the site: no key is ever shown. The guide there covers each tool — Claude, ChatGPT, Codex, Cursor, VS Code, Gemini, Notion, Copilot Studio, Le Chat — and access stays read-only.",
+    a: "Settings → API access. Paste the MCP server address into your assistant, sign in with your PulseTrack account and pick the site: no key is ever shown. The guide there covers each tool — Claude, ChatGPT, Codex, Cursor, VS Code, Gemini, Notion, Copilot Studio, Le Chat — and access is read-only unless you allow changes.",
     keywords: ["claude", "chatgpt", "gemini", "mcp", "connector", "connect", "assistant", "ai"],
   },
   {

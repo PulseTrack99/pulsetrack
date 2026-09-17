@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   // 404 instead of a silently empty list.
   const { data, error } = await supabase
     .from("api_keys")
-    .select("id, name, key_prefix, created_at, last_used_at, revoked_at")
+    .select("id, name, key_prefix, can_write, created_at, last_used_at, revoked_at")
     .eq("site_id", siteId)
     .order("created_at", { ascending: false });
 
@@ -63,8 +63,9 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("api_keys")
-    .insert({ site_id: siteId, name, key_prefix: prefix, key_hash: hash })
-    .select("id, name, key_prefix, created_at")
+    // La modification via MCP ne s'accorde qu'explicitement.
+    .insert({ site_id: siteId, name, key_prefix: prefix, key_hash: hash, can_write: body.can_write === true })
+    .select("id, name, key_prefix, can_write, created_at")
     .single();
 
   if (error) return NextResponse.json({ error: "Could not create key" }, { status: 500 });
