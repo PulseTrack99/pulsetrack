@@ -1,4 +1,6 @@
 import type { Locale } from "@/i18n/dictionaries";
+import { analysisEn, analysisFr } from "./features-analysis";
+import { productEn, productFr } from "./features-product";
 
 export const FEATURE_SLUGS = [
   "revenue",
@@ -8,12 +10,35 @@ export const FEATURE_SLUGS = [
   "analytics",
   "dashboards",
   "privacy",
+  "session-replay",
+  "insights",
+  "retention",
+  "flows",
+  "accounts",
+  "experiments",
+  "feature-flags",
+  "alerts",
+  "api-export",
 ] as const;
 
 export type FeatureSlug = (typeof FEATURE_SLUGS)[number];
 
 /** Which hero illustration the page renders. */
-export type ArtKind = "revenue" | "heatmap" | "funnel" | "privacy" | "showcase";
+export type ArtKind =
+  | "revenue"
+  | "heatmap"
+  | "funnel"
+  | "privacy"
+  | "showcase"
+  | "replay"
+  | "insights"
+  | "retention"
+  | "flows"
+  | "accounts"
+  | "experiments"
+  | "flags"
+  | "alerts"
+  | "api";
 
 export interface FeaturePage {
   art: ArtKind;
@@ -35,7 +60,7 @@ type Catalog = Record<FeatureSlug, FeaturePage>;
    ENGLISH
    ══════════════════════════════════════════════════════════════ */
 
-const en: Catalog = {
+const enCore = {
   revenue: {
     art: "revenue",
     eyebrow: "Revenue attribution",
@@ -448,13 +473,13 @@ const en: Catalog = {
     ],
     related: ["analytics", "heatmaps", "dashboards"],
   },
-};
+} satisfies Record<string, FeaturePage>;
 
 /* ══════════════════════════════════════════════════════════════
    FRANÇAIS
    ══════════════════════════════════════════════════════════════ */
 
-const fr: Catalog = {
+const frCore = {
   revenue: {
     art: "revenue",
     eyebrow: "Attribution du revenu",
@@ -867,7 +892,10 @@ const fr: Catalog = {
     ],
     related: ["analytics", "heatmaps", "dashboards"],
   },
-};
+} satisfies Record<string, FeaturePage>;
+
+const en: Catalog = { ...enCore, ...analysisEn, ...productEn };
+const fr: Catalog = { ...frCore, ...analysisFr, ...productFr };
 
 const catalogs: Record<Locale, Catalog> = { en, fr };
 

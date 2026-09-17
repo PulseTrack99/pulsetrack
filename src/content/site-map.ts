@@ -15,6 +15,15 @@ import type { Locale } from "@/i18n/dictionaries";
 type Text = Record<Locale, string>;
 
 export type NavIcon =
+  | "replay"
+  | "insights"
+  | "retention"
+  | "flows"
+  | "accounts"
+  | "experiments"
+  | "flags"
+  | "alerts"
+  | "api"
   | "analytics"
   | "realtime"
   | "funnels"
@@ -33,6 +42,8 @@ export interface NavLink {
   icon: NavIcon;
   title: Text;
   blurb: Text;
+  /** Mis en avant sur la page d'accueil : seize entrées y seraient illisibles. */
+  featured?: boolean;
 }
 
 export interface NavGroup {
@@ -56,6 +67,7 @@ export const PLATFORM: NavGroup[] = [
       {
         href: "/features/analytics",
         icon: "analytics",
+        featured: true,
         title: { en: "Web analytics", fr: "Analytics web" },
         blurb: { en: "Traffic, sources, pages, devices", fr: "Trafic, sources, pages, appareils" },
       },
@@ -66,42 +78,95 @@ export const PLATFORM: NavGroup[] = [
         blurb: { en: "Who is on your site right now", fr: "Qui est sur votre site maintenant" },
       },
       {
+        href: "/features/insights",
+        icon: "insights",
+        featured: true,
+        title: { en: "Insights", fr: "Insights" },
+        blurb: { en: "Any measure, any breakdown", fr: "Toute mesure, tout découpage" },
+      },
+      {
         href: "/features/funnels",
         icon: "funnels",
+        featured: true,
         title: { en: "Funnels", fr: "Funnels" },
         blurb: { en: "Find the step that loses people", fr: "Trouvez l'étape qui vous fait perdre" },
+      },
+      {
+        href: "/features/flows",
+        icon: "flows",
+        title: { en: "User flows", fr: "Parcours" },
+        blurb: { en: "The paths people really take", fr: "Les chemins réellement pris" },
+      },
+      {
+        href: "/features/retention",
+        icon: "retention",
+        title: { en: "Retention", fr: "Rétention" },
+        blurb: { en: "Do they come back?", fr: "Reviennent-ils ?" },
       },
     ],
   },
   {
-    title: { en: "Understand & earn", fr: "Comprendre et vendre" },
+    title: { en: "Understand", fr: "Comprendre" },
     links: [
-      {
-        href: "/features/revenue",
-        icon: "revenue",
-        title: { en: "Revenue attribution", fr: "Attribution du revenu" },
-        blurb: { en: "Tie every euro to its source", fr: "Reliez chaque euro à sa source" },
-      },
       {
         href: "/features/heatmaps",
         icon: "heatmaps",
+        featured: true,
         title: { en: "Heatmaps", fr: "Heatmaps" },
         blurb: { en: "See where attention actually goes", fr: "Voyez où va vraiment l'attention" },
       },
       {
-        href: "/features/dashboards",
-        icon: "dashboards",
-        title: { en: "Public dashboards", fr: "Dashboards publics" },
-        blurb: { en: "Share numbers without seats", fr: "Partagez sans créer de comptes" },
+        href: "/features/session-replay",
+        icon: "replay",
+        featured: true,
+        title: { en: "Session replay", fr: "Replay de sessions" },
+        blurb: { en: "Watch a real visit, inputs masked", fr: "Revoir une visite, saisies masquées" },
+      },
+      {
+        href: "/features/accounts",
+        icon: "accounts",
+        title: { en: "Account analytics", fr: "Analyse par compte" },
+        blurb: { en: "For B2B: companies, not browsers", fr: "En B2B : des entreprises, pas des navigateurs" },
       },
     ],
   },
   {
-    title: { en: "AI & trust", fr: "IA et confiance" },
+    title: { en: "Act", fr: "Agir" },
+    links: [
+      {
+        href: "/features/revenue",
+        icon: "revenue",
+        featured: true,
+        title: { en: "Revenue attribution", fr: "Attribution du revenu" },
+        blurb: { en: "Tie every euro to its source", fr: "Reliez chaque euro à sa source" },
+      },
+      {
+        href: "/features/experiments",
+        icon: "experiments",
+        title: { en: "A/B testing", fr: "Tests A/B" },
+        blurb: { en: "A verdict, not an opinion", fr: "Un verdict, pas un avis" },
+      },
+      {
+        href: "/features/feature-flags",
+        icon: "flags",
+        title: { en: "Feature flags", fr: "Feature flags" },
+        blurb: { en: "Ship to a share of your visitors", fr: "Ouvrir à une partie des visiteurs" },
+      },
+      {
+        href: "/features/alerts",
+        icon: "alerts",
+        title: { en: "Alerts", fr: "Alertes" },
+        blurb: { en: "E-mail, Slack, Discord", fr: "E-mail, Slack, Discord" },
+      },
+    ],
+  },
+  {
+    title: { en: "Connect", fr: "Connecter" },
     links: [
       {
         href: "/docs/mcp",
         icon: "ai",
+        featured: true,
         title: { en: "MCP server", fr: "Serveur MCP" },
         blurb: {
           en: "Ask your data from Claude, ChatGPT, Cursor…",
@@ -109,8 +174,21 @@ export const PLATFORM: NavGroup[] = [
         },
       },
       {
+        href: "/features/api-export",
+        icon: "api",
+        title: { en: "API and exports", fr: "API et exports" },
+        blurb: { en: "Your data, in your own tools", fr: "Vos données, dans vos outils" },
+      },
+      {
+        href: "/features/dashboards",
+        icon: "dashboards",
+        title: { en: "Public dashboards", fr: "Dashboards publics" },
+        blurb: { en: "Share numbers without seats", fr: "Partagez sans créer de comptes" },
+      },
+      {
         href: "/features/privacy",
         icon: "privacy",
+        featured: true,
         title: { en: "Cookie-free by design", fr: "Sans cookie par conception" },
         blurb: { en: "No banner, data hosted in the EU", fr: "Pas de bannière, données hébergées en Europe" },
       },

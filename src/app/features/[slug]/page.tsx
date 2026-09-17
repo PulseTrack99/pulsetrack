@@ -15,6 +15,17 @@ import { Reveal, RevealGroup } from "@/components/marketing/reveal";
 import { ProductShowcase } from "@/components/marketing/product-showcase";
 import { Footer, FinalCta } from "@/components/marketing/sections";
 import {
+  ArtAccounts,
+  ArtAlerts,
+  ArtApi,
+  ArtExperiments,
+  ArtFlags,
+  ArtFlows,
+  ArtInsights,
+  ArtRetention,
+  ArtReplay,
+} from "@/components/marketing/feature-art";
+import {
   IllustrationRevenue,
   IllustrationHeatmap,
   IllustrationFunnel,
@@ -72,6 +83,15 @@ export default async function FeaturePageRoute({
     funnel: <IllustrationFunnel l={t.featureFunnel.art} />,
     privacy: <IllustrationPrivacy l={t.featurePrivacy.art} />,
     showcase: <ProductShowcase t={t.showcase} />,
+    replay: <ArtReplay fr={locale === "fr"} />,
+    insights: <ArtInsights fr={locale === "fr"} />,
+    retention: <ArtRetention fr={locale === "fr"} />,
+    flows: <ArtFlows fr={locale === "fr"} />,
+    accounts: <ArtAccounts fr={locale === "fr"} />,
+    experiments: <ArtExperiments fr={locale === "fr"} />,
+    flags: <ArtFlags fr={locale === "fr"} />,
+    alerts: <ArtAlerts fr={locale === "fr"} />,
+    api: <ArtApi fr={locale === "fr"} />,
   }[f.art];
 
   const faqLd = {

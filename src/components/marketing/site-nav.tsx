@@ -20,6 +20,14 @@ import {
   Building2,
   BookOpen,
   Code2,
+  Play,
+  LineChart,
+  Repeat,
+  GitBranch,
+  FlaskConical,
+  ToggleRight,
+  Bell,
+  Braces,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import type { Locale } from "@/i18n/dictionaries";
@@ -43,6 +51,15 @@ export interface NavLabels {
 
 const ICONS: Record<NavIcon, typeof BarChart3> = {
   analytics: BarChart3,
+  replay: Play,
+  insights: LineChart,
+  retention: Repeat,
+  flows: GitBranch,
+  accounts: Building2,
+  experiments: FlaskConical,
+  flags: ToggleRight,
+  alerts: Bell,
+  api: Braces,
   realtime: Radio,
   funnels: Filter,
   dashboards: Share2,
@@ -188,7 +205,7 @@ export function SiteNav({ t, locale }: { t: NavLabels; locale: Locale }) {
               {menu === m.key && (
                 <div
                   className={`absolute left-1/2 top-full -translate-x-1/2 pt-2 ${
-                    m.key === "platform" ? "w-[760px]" : "w-[340px]"
+                    m.key === "platform" ? "w-[900px]" : "w-[340px]"
                   }`}
                 >
                   <div
@@ -197,7 +214,7 @@ export function SiteNav({ t, locale }: { t: NavLabels; locale: Locale }) {
                   >
                     {m.key === "platform" ? (
                       <>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-4 gap-3">
                           {platformGroups.map((g) => (
                             <div key={g.title.en}>
                               <p className="px-2.5 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-muted-light">
@@ -284,12 +301,15 @@ export function SiteNav({ t, locale }: { t: NavLabels; locale: Locale }) {
       {open && (
         <div className="max-h-[calc(100vh-68px)] overflow-y-auto border-t border-border bg-background px-6 py-4 md:hidden">
           {menus.map((m) => {
-            const links =
+            // Dix-sept liens à plat seraient illisibles sur un téléphone :
+            // on garde les groupes du menu de bureau.
+            const groups =
               m.key === "platform"
-                ? [...platformGroups.flatMap((g) => g.links), ...COMPARE]
-                : m.key === "solutions"
-                  ? SOLUTIONS
-                  : RESOURCES;
+                ? [
+                    ...platformGroups.map((g) => ({ title: g.title[locale], links: g.links })),
+                    { title: NAV_LABELS.compare[locale], links: COMPARE },
+                  ]
+                : [{ title: null, links: m.key === "solutions" ? SOLUTIONS : RESOURCES }];
             return (
               <div key={m.key} className="border-b border-border">
                 <button
@@ -306,15 +326,24 @@ export function SiteNav({ t, locale }: { t: NavLabels; locale: Locale }) {
                 </button>
                 {section === m.key && (
                   <div className="pb-2">
-                    {links.map((l) => (
-                      <Link
-                        key={`${m.key}-${l.href}`}
-                        href={localePath(locale, l.href)}
-                        onClick={() => setOpen(false)}
-                        className="block rounded-sm px-2 py-2 text-[14px] text-muted transition-colors hover:bg-surface-sunken hover:text-foreground"
-                      >
-                        {l.title[locale]}
-                      </Link>
+                    {groups.map((g, i) => (
+                      <div key={g.title ?? i} className={i > 0 ? "mt-1" : undefined}>
+                        {g.title && (
+                          <p className="px-2 pb-0.5 pt-2 text-[11px] font-medium uppercase tracking-wide text-muted-light">
+                            {g.title}
+                          </p>
+                        )}
+                        {g.links.map((l) => (
+                          <Link
+                            key={`${m.key}-${l.href}`}
+                            href={localePath(locale, l.href)}
+                            onClick={() => setOpen(false)}
+                            className="block rounded-sm px-2 py-2 text-[14px] text-muted transition-colors hover:bg-surface-sunken hover:text-foreground"
+                          >
+                            {l.title[locale]}
+                          </Link>
+                        ))}
+                      </div>
                     ))}
                   </div>
                 )}

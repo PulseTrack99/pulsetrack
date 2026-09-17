@@ -9,6 +9,15 @@ import {
   Sparkles,
   ShieldCheck,
   ArrowRight,
+  Play,
+  LineChart,
+  Repeat,
+  GitBranch,
+  Building2,
+  FlaskConical,
+  ToggleRight,
+  Bell,
+  Braces,
 } from "lucide-react";
 import type { Locale } from "@/i18n/dictionaries";
 import { localePath } from "@/i18n/paths";
@@ -19,11 +28,20 @@ import { Reveal, RevealGroup } from "./reveal";
  * Tout le produit d'un coup d'œil, juste sous l'aperçu — comme la
  * rangée d'ancres de Mixpanel.
  *
- * Les entrées viennent du plan du site (src/content/site-map.ts) : une
- * page ajoutée au menu apparaît ici aussi, et rien ne peut pointer vers
- * une page qui n'existe pas.
+ * Les entrées viennent du plan du site (src/content/site-map.ts), dont
+ * celles marquées « featured » : rien ne peut pointer ici vers une page
+ * qui n'existe pas.
  */
 const ICONS: Record<NavIcon, typeof BarChart3> = {
+  replay: Play,
+  insights: LineChart,
+  retention: Repeat,
+  flows: GitBranch,
+  accounts: Building2,
+  experiments: FlaskConical,
+  flags: ToggleRight,
+  alerts: Bell,
+  api: Braces,
   analytics: BarChart3,
   realtime: Radio,
   funnels: Filter,
@@ -47,7 +65,9 @@ export function ProductRow({
   title: string;
   locale: Locale;
 }) {
-  const links = PLATFORM.flatMap((g) => g.links);
+  // Seize entrées sur l'accueil seraient illisibles : la rangée montre
+  // celles marquées « featured » dans le plan du site.
+  const links = PLATFORM.flatMap((g) => g.links).filter((l) => l.featured);
 
   return (
     <section className="border-t border-border bg-surface-sunken/40 py-20">
