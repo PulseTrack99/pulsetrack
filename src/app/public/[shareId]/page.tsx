@@ -20,6 +20,7 @@ export default async function PublicDashboardPage({
   return (
     <PublicDashboard
       shareId={shareId}
+      demo={shareId === "demo"}
       t={dictionaries[locale].publicDashboard}
       intl={locale === "fr" ? "fr-FR" : "en-US"}
     />

@@ -48,6 +48,22 @@ const anchorSources = [
 ];
 const anchors = new Set(anchorSources.flatMap((f) => [...read(f).matchAll(/\bid="([a-z0-9-]+)"/g)].map((m) => m[1])));
 
+/** Une page existe à ce chemin, éventuellement via un segment dynamique
+ *  ([shareId], [slug]…) : /public/demo est servi par src/app/public/[shareId]. */
+function pageExists(path) {
+  let dir = "src/app";
+  for (const segment of path.split("/").filter(Boolean)) {
+    if (existsSync(new URL(`${dir}/${segment}/`, root))) {
+      dir = `${dir}/${segment}`;
+      continue;
+    }
+    const dynamic = readdirSync(new URL(`${dir}/`, root)).find((f) => /^\[[^\]]+\]$/.test(f));
+    if (!dynamic) return false;
+    dir = `${dir}/${dynamic}`;
+  }
+  return existsSync(new URL(`${dir}/page.tsx`, root));
+}
+
 const SOURCES = ["src/content/site-map.ts", "src/content/compare.ts", "src/content/use-cases.ts", "src/i18n/dictionaries.ts"];
 
 let checked = 0;
@@ -71,7 +87,7 @@ for (const file of SOURCES) {
       continue;
     }
     if (path === "/") continue;
-    if (!existsSync(new URL(`src/app${path}/page.tsx`, root))) {
+    if (!pageExists(path)) {
       problems.push(`${file} : aucune page pour ${href}.`);
     }
   }

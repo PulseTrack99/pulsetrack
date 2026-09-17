@@ -8,6 +8,7 @@ import {
   MousePointerClick,
   Clock,
   ExternalLink,
+  Info,
 } from "lucide-react";
 import type { PublicDashboardLabels } from "@/i18n/dictionaries";
 
@@ -123,12 +124,16 @@ export function PublicDashboard({
   shareId,
   t,
   intl,
+  demo = false,
 }: {
   shareId: string;
   t: PublicDashboardLabels;
   /** Résolue par la page serveur depuis la langue du visiteur, pas
    *  celle du propriétaire : le lien s'ouvre depuis n'importe où. */
   intl: string;
+  /** Le tableau de démonstration : ses chiffres sont fabriqués, et la
+   *  page le dit — personne ne doit les prendre pour du trafic réel. */
+  demo?: boolean;
 }) {
   const [stats, setStats] = useState<PublicStats | null>(null);
   const [period, setPeriod] = useState("30d");
@@ -199,6 +204,7 @@ export function PublicDashboard({
             </span>
           </div>
           <div className="flex items-center gap-3">
+            {!demo && (
             <a
               href={`https://${stats.site.domain}`}
               target="_blank"
@@ -208,12 +214,22 @@ export function PublicDashboard({
               {stats.site.domain}
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
+            )}
           </div>
         </div>
       </header>
 
       {/* Main content */}
       <main className="mx-auto max-w-6xl px-6 py-8 space-y-6">
+        {demo && (
+          <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+            <div>
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">{t.demoTitle}</p>
+              <p className="mt-1 text-[13px] leading-relaxed text-amber-800/90 dark:text-amber-200/80">{t.demoBody}</p>
+            </div>
+          </div>
+        )}
         {/* Site name + period selector */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>

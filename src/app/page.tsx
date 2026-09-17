@@ -7,6 +7,8 @@ import { languageAlternates, localePath } from "@/i18n/paths";
 import { SiteNav } from "@/components/marketing/site-nav";
 import { ProductShowcase } from "@/components/marketing/product-showcase";
 import { AiConnect } from "@/components/marketing/ai-connect";
+import { ProblemSolution } from "@/components/marketing/problem-solution";
+import { ProductRow } from "@/components/marketing/product-row";
 import { McpFaq } from "@/components/marketing/mcp-faq";
 import { Assistant } from "@/components/marketing/assistant";
 import { getAssistantFaq } from "@/content/assistant-faq";
@@ -92,8 +94,8 @@ export default async function Home() {
                     →
                   </span>
                 </Link>
-                <Link href="#how" className="btn btn-ghost px-7 py-3.5">
-                  {t.hero.secondary}
+                <Link href="/public/demo" className="btn btn-ghost px-7 py-3.5">
+                  {t.hero.demo}
                 </Link>
               </div>
 
@@ -116,6 +118,15 @@ export default async function Home() {
             </div>
           </div>
         </section>
+
+        <ProductRow eyebrow={t.productRow.eyebrow} title={t.productRow.title} locale={locale} />
+
+        <ProblemSolution
+          eyebrow={t.problem.eyebrow}
+          title={t.problem.title}
+          before={t.problem.before}
+          after={t.problem.after}
+        />
 
         <TrustStrip
           rating={t.trust.rating}

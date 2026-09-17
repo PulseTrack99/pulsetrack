@@ -260,12 +260,14 @@ export function SiteNav({ t, locale }: { t: NavLabels; locale: Locale }) {
             {t.login}
           </Link>
 
-          <Link href="/signup" className="btn btn-primary hidden sm:inline-flex">
-            {t.cta}
-            <span className="chev" aria-hidden>
-              →
-            </span>
-          </Link>
+          <span className="hidden sm:block">
+            <Link href="/signup" className="btn btn-primary">
+              {t.cta}
+              <span className="chev" aria-hidden>
+                →
+              </span>
+            </Link>
+          </span>
 
           <button
             onClick={() => setOpen((v) => !v)}

@@ -17,12 +17,22 @@ export interface Dictionary {
     subtitle: string;
     primary: string;
     secondary: string;
+    demo: string;
     notes: string[];
   };
 
   showcase: ShowcaseLabels;
 
   trust: { rating: string; reviews: string; worksWith: string };
+
+  problem: {
+    eyebrow: string;
+    title: string;
+    before: { title: string; items: string[] };
+    after: { title: string; items: string[] };
+  };
+
+  productRow: { eyebrow: string; title: string };
 
   featureRevenue: {
     eyebrow: string;
@@ -146,6 +156,8 @@ export interface Dictionary {
  */
 export interface PublicDashboardLabels {
   badge: string;
+  demoTitle: string;
+  demoBody: string;
   loading: string;
   notFoundTitle: string;
   notFoundBody: string;
@@ -253,6 +265,7 @@ const en: Dictionary = {
       "See which traffic sources turn into paying customers — not just pageviews. Privacy-first, cookie-free, and installed in under a minute.",
     primary: "Start for free",
     secondary: "See how it works",
+    demo: "See a live demo",
     notes: ["No credit card", "GDPR-native", "3.7 KB script, gzipped"],
   },
 
@@ -329,6 +342,34 @@ const en: Dictionary = {
         "Show revenue per visitor by source",
       ],
     },
+  },
+
+  problem: {
+    eyebrow: "Why another analytics tool",
+    title: "Your numbers have holes, and none of them mention money",
+    before: {
+      title: "With a cookie-based analytics tool",
+      items: [
+        "A consent banner greets every visitor, and the ones who decline never appear in your reports.",
+        "You see sessions and pageviews, never which channel paid for itself.",
+        "Behaviour lives in another tool, billing in a third, and nothing lines up.",
+        "Your visitors' data leaves the European Union.",
+      ],
+    },
+    after: {
+      title: "With PulseTrack",
+      items: [
+        "No cookie, no local storage: nothing is written to the visitor's device.",
+        "Connect Stripe and read revenue per source, in euros, next to the traffic.",
+        "Funnels, heatmaps, session replay and A/B tests in the same place as your analytics.",
+        "Data stored in Ireland, servers in Dublin, inside the European Union.",
+      ],
+    },
+  },
+
+  productRow: {
+    eyebrow: "The platform",
+    title: "Everything you need, in one tool",
   },
 
   trust: {
@@ -619,6 +660,9 @@ const en: Dictionary = {
   auth: enAuth,
   publicDashboard: {
     badge: "Public dashboard",
+    demoTitle: "Demo data",
+    demoBody:
+      "This dashboard shows a fictional site, filled with generated data — not real traffic. Yours looks exactly like this, with your own numbers.",
     loading: "Loading dashboard…",
     notFoundTitle: "Dashboard not found",
     notFoundBody: "This public dashboard doesn't exist, or sharing has been turned off.",
@@ -744,6 +788,7 @@ const fr: Dictionary = {
       "Découvrez quelles sources de trafic deviennent des clients payants — pas juste des pages vues. Sans cookie, respectueux de la vie privée, installé en moins d'une minute.",
     primary: "Commencer gratuitement",
     secondary: "Voir comment ça marche",
+    demo: "Voir une démo",
     notes: ["Sans carte bancaire", "RGPD natif", "Script de 3,7 Ko gzippé"],
   },
 
@@ -820,6 +865,34 @@ const fr: Dictionary = {
         "Voir le revenu par visiteur et par source",
       ],
     },
+  },
+
+  problem: {
+    eyebrow: "Pourquoi un analytics de plus",
+    title: "Vos chiffres ont des trous, et aucun ne parle d'argent",
+    before: {
+      title: "Avec un analytics à cookies",
+      items: [
+        "Une bannière de consentement accueille chaque visiteur, et ceux qui refusent n'apparaissent jamais dans vos rapports.",
+        "Vous voyez des sessions et des pages vues, jamais quel canal s'est payé lui-même.",
+        "Le comportement vit dans un autre outil, la facturation dans un troisième, et rien ne se recoupe.",
+        "Les données de vos visiteurs quittent l'Union européenne.",
+      ],
+    },
+    after: {
+      title: "Avec PulseTrack",
+      items: [
+        "Ni cookie ni stockage local : rien n'est écrit sur l'appareil du visiteur.",
+        "Connectez Stripe et lisez le revenu par source, en euros, à côté du trafic.",
+        "Funnels, heatmaps, replay de sessions et tests A/B au même endroit que vos analytics.",
+        "Données stockées en Irlande, serveurs à Dublin, dans l'Union européenne.",
+      ],
+    },
+  },
+
+  productRow: {
+    eyebrow: "La plateforme",
+    title: "Tout ce qu'il vous faut, dans un seul outil",
   },
 
   trust: {
@@ -1123,6 +1196,9 @@ const fr: Dictionary = {
   auth: frAuth,
   publicDashboard: {
     badge: "Tableau de bord public",
+    demoTitle: "Données de démonstration",
+    demoBody:
+      "Ce tableau de bord montre un site fictif, rempli de données générées — ce n'est pas du trafic réel. Le vôtre ressemble exactement à ça, avec vos chiffres.",
     loading: "Chargement du tableau de bord…",
     notFoundTitle: "Tableau de bord introuvable",
     notFoundBody: "Ce tableau de bord public n'existe pas, ou son partage a été désactivé.",
