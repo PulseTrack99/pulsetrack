@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getLocale } from "@/i18n/get-locale";
 import { dictionaries } from "@/i18n/dictionaries";
+import { languageAlternates, localePath } from "@/i18n/paths";
 import { getAssistantFaq } from "@/content/assistant-faq";
 import { MCP_TOOLS, mcpDocs, type ToolGroup } from "@/content/mcp-docs";
 import { SiteNav } from "@/components/marketing/site-nav";
@@ -22,16 +23,18 @@ const MCP_URL = `${SITE_URL}/api/mcp`;
 const GROUPS: ToolGroup[] = ["overview", "analysis", "boards", "product", "accounts", "write"];
 
 export async function generateMetadata(): Promise<Metadata> {
-  const d = mcpDocs(await getLocale());
+  const locale = await getLocale();
+  const d = mcpDocs(locale);
   return {
     title: d.metaTitle,
     description: d.metaDescription,
-    alternates: { canonical: "/docs/mcp" },
+    alternates: languageAlternates(locale, "/docs/mcp"),
     openGraph: {
       title: `${d.metaTitle} · PulseTrack`,
       description: d.metaDescription,
-      url: "/docs/mcp",
+      url: localePath(locale, "/docs/mcp"),
       type: "article",
+      locale: locale === "fr" ? "fr_FR" : "en_US",
     },
   };
 }
@@ -156,7 +159,7 @@ gemini mcp add --transport http pulsetrack ${MCP_URL}`}</Code>
           <Section id="limits" title={d.limits.title}>
             <Bullets items={d.limits.items} />
             <p className="mt-8">
-              <Link href="/#mcp-faq" className="font-medium text-primary hover:underline">
+              <Link href={localePath(locale, "/#mcp-faq")} className="font-medium text-primary hover:underline">
                 {locale === "fr" ? "Questions fréquentes sur le MCP →" : "MCP frequently asked questions →"}
               </Link>
             </p>
@@ -172,10 +175,12 @@ gemini mcp add --transport http pulsetrack ${MCP_URL}`}</Code>
           primary={t.finalCta.primary}
           secondary={t.finalCta.secondary}
           notes={t.finalCta.notes}
+          locale={locale}
         />
       </main>
 
-      <Footer tagline={t.footer.tagline} columns={t.footer.columns} legal={t.footer.legal} />
+      <Footer tagline={t.footer.tagline} columns={t.footer.columns} legal={t.footer.legal}
+        locale={locale} />
 
       <Assistant t={t.assistant} faq={getAssistantFaq(locale)} locale={locale} />
     </>

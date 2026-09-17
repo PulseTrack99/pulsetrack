@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getLocale } from "@/i18n/get-locale";
 import { dictionaries } from "@/i18n/dictionaries";
+import { languageAlternates, localePath } from "@/i18n/paths";
 
 import { SiteNav } from "@/components/marketing/site-nav";
 import { ProductShowcase } from "@/components/marketing/product-showcase";
@@ -19,12 +21,27 @@ import {
 import {
   TrustStrip,
   Benefits,
-  Testimonial,
   Pricing,
-  Resources,
   FinalCta,
   Footer,
 } from "@/components/marketing/sections";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const meta = dictionaries[locale].meta;
+  const alternates = languageAlternates(locale, "/");
+  return {
+    alternates,
+    openGraph: {
+      type: "website",
+      siteName: "PulseTrack",
+      title: meta.title,
+      description: meta.description,
+      url: alternates.canonical,
+      locale: locale === "fr" ? "fr_FR" : "en_US",
+    },
+  };
+}
 
 export default async function Home() {
   const locale = await getLocale();
@@ -122,6 +139,7 @@ export default async function Home() {
           title={t.mcpFaq.title}
           items={t.mcpFaq.items}
           docsLabel={locale === "fr" ? "Documentation complète du serveur MCP" : "Full MCP server documentation"}
+          docsHref={localePath(locale, "/docs/mcp")}
         />
 
         {/* ── Features, revealed on scroll ── */}
@@ -138,7 +156,7 @@ export default async function Home() {
           body={t.featureRevenue.body}
           bullets={t.featureRevenue.bullets}
           linkLabel={t.featureRevenue.link}
-          href="/features/revenue"
+          href={localePath(locale, "/features/revenue")}
           illustration={<IllustrationRevenue l={t.featureRevenue.art} />}
         />
 
@@ -148,7 +166,7 @@ export default async function Home() {
           body={t.featureHeatmap.body}
           bullets={t.featureHeatmap.bullets}
           linkLabel={t.featureHeatmap.link}
-          href="/features/heatmaps"
+          href={localePath(locale, "/features/heatmaps")}
           illustration={<IllustrationHeatmap l={t.featureHeatmap.art} />}
           flip
           tone="sunken"
@@ -160,7 +178,7 @@ export default async function Home() {
           body={t.featureFunnel.body}
           bullets={t.featureFunnel.bullets}
           linkLabel={t.featureFunnel.link}
-          href="/features/funnels"
+          href={localePath(locale, "/features/funnels")}
           illustration={<IllustrationFunnel l={t.featureFunnel.art} />}
         />
 
@@ -170,7 +188,7 @@ export default async function Home() {
           body={t.featurePrivacy.body}
           bullets={t.featurePrivacy.bullets}
           linkLabel={t.featurePrivacy.link}
-          href="/features/privacy"
+          href={localePath(locale, "/features/privacy")}
           illustration={<IllustrationPrivacy l={t.featurePrivacy.art} />}
           flip
           tone="sunken"
@@ -212,13 +230,6 @@ export default async function Home() {
           items={t.benefits.items}
         />
 
-        <Testimonial
-          quote={t.testimonial.quote}
-          author={t.testimonial.author}
-          role={t.testimonial.role}
-          sampleLabel={t.testimonial.sampleLabel}
-        />
-
         <Pricing
           eyebrow={t.pricing.eyebrow}
           title={t.pricing.title}
@@ -227,8 +238,6 @@ export default async function Home() {
           popular={t.pricing.popular}
           perMonth={t.pricing.perMonth}
         />
-
-        <Resources items={t.resources.items} />
 
         <FinalCta
           title={
@@ -240,6 +249,7 @@ export default async function Home() {
           primary={t.finalCta.primary}
           secondary={t.finalCta.secondary}
           notes={t.finalCta.notes}
+          locale={locale}
         />
       </main>
 
@@ -247,6 +257,7 @@ export default async function Home() {
         tagline={t.footer.tagline}
         columns={t.footer.columns}
         legal={t.footer.legal}
+        locale={locale}
       />
 
       <Assistant t={t.assistant} faq={getAssistantFaq(locale)} locale={locale} />

@@ -1,7 +1,39 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isLocalizedPath, stripLocale } from "@/i18n/paths";
+
+const LOCALE_HEADER = "x-pt-locale";
+
+/**
+ * Pages publiques : la langue vient de l'adresse.
+ *
+ * /fr/... est servi par la même page que /..., avec la langue fixée par
+ * un en-tête que lit src/i18n/get-locale.ts. L'adresse affichée reste
+ * /fr/..., aucune page n'est dupliquée, et Google voit deux URL, une par
+ * langue. Toute autre adresse publique est en anglais.
+ *
+ * Un en-tête de langue envoyé par le navigateur lui-même est écrasé :
+ * seule l'adresse décide.
+ */
+function localizePublicPage(request: NextRequest): NextResponse | null {
+  const { locale, path } = stripLocale(request.nextUrl.pathname);
+  if (!isLocalizedPath(path)) return null;
+
+  const headers = new Headers(request.headers);
+  headers.set(LOCALE_HEADER, locale);
+
+  if (locale === "fr") {
+    const url = request.nextUrl.clone();
+    url.pathname = path;
+    return NextResponse.rewrite(url, { request: { headers } });
+  }
+  return NextResponse.next({ request: { headers } });
+}
 
 export async function middleware(request: NextRequest) {
+  const localized = localizePublicPage(request);
+  if (localized) return localized;
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -55,5 +87,17 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/signup"],
+  matcher: [
+    "/dashboard/:path*",
+    "/login",
+    "/signup",
+    // Pages publiques par langue (src/i18n/paths.ts)
+    "/",
+    "/fr",
+    "/fr/:path*",
+    "/features/:path*",
+    "/docs/:path*",
+    "/compare/:path*",
+    "/use-cases/:path*",
+  ],
 };

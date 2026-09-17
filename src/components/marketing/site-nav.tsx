@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import type { Locale } from "@/i18n/dictionaries";
+import { isLocalizedPath, localePath, stripLocale } from "@/i18n/paths";
 
 export interface NavLabels {
   product: string;
@@ -64,6 +65,13 @@ export function SiteNav({
   function switchLocale() {
     const next = locale === "fr" ? "en" : "fr";
     document.cookie = `locale=${next};path=/;max-age=${60 * 60 * 24 * 365};samesite=lax`;
+    // Page publique : chaque langue a son adresse, on y va. Ailleurs
+    // (connexion, inscription), la langue suit le cookie.
+    const { path } = stripLocale(window.location.pathname);
+    if (isLocalizedPath(path)) {
+      window.location.assign(localePath(next, path) + window.location.hash);
+      return;
+    }
     router.refresh();
   }
 
@@ -76,7 +84,7 @@ export function SiteNav({
       }`}
     >
       <nav className="mx-auto flex h-[68px] max-w-6xl items-center justify-between px-6">
-        <Link href="/" className="shrink-0" aria-label="PulseTrack">
+        <Link href={localePath(locale, "/")} className="shrink-0" aria-label="PulseTrack">
           <Logo />
         </Link>
 
@@ -102,7 +110,7 @@ export function SiteNav({
                     return (
                       <Link
                         key={item.href}
-                        href={item.href}
+                        href={localePath(locale, item.href)}
                         className="flex gap-2.5 rounded-sm p-2.5 transition-colors hover:bg-surface-sunken"
                       >
                         <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-primary-pale">
@@ -125,13 +133,13 @@ export function SiteNav({
           </div>
 
           <Link
-            href="/#pricing"
+            href={localePath(locale, "/#pricing")}
             className="rounded-sm px-3 py-2 text-[14px] text-muted transition-colors hover:text-foreground"
           >
             {t.pricing}
           </Link>
           <Link
-            href="/#how"
+            href={localePath(locale, "/#how")}
             className="rounded-sm px-3 py-2 text-[14px] text-muted transition-colors hover:text-foreground"
           >
             {t.docs}
@@ -181,7 +189,7 @@ export function SiteNav({
             {t.productMenu.map((item) => (
               <Link
                 key={item.href}
-                href={item.href}
+                href={localePath(locale, item.href)}
                 onClick={() => setOpen(false)}
                 className="block rounded-sm px-2 py-2.5 text-[15px] transition-colors hover:bg-surface-sunken"
               >
@@ -189,7 +197,7 @@ export function SiteNav({
               </Link>
             ))}
             <Link
-              href="/#pricing"
+              href={localePath(locale, "/#pricing")}
               onClick={() => setOpen(false)}
               className="block rounded-sm px-2 py-2.5 text-[15px]"
             >

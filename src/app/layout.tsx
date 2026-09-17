@@ -37,10 +37,6 @@ export async function generateMetadata(): Promise<Metadata> {
     applicationName: "PulseTrack",
     authors: [{ name: "PulseTrack" }],
     creator: "PulseTrack",
-    alternates: {
-      canonical: "/",
-      languages: { en: "/", fr: "/" },
-    },
     openGraph: {
       type: "website",
       siteName: "PulseTrack",

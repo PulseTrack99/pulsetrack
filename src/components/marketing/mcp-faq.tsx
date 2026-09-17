@@ -18,10 +18,12 @@ export function McpFaq({
   title,
   items,
   docsLabel,
+  docsHref,
 }: {
   title: string;
   items: { q: string; a: string }[];
   docsLabel: string;
+  docsHref: string;
 }) {
   const faqLd = {
     "@context": "https://schema.org",
@@ -55,7 +57,7 @@ export function McpFaq({
         </RevealGroup>
 
         <p className="mt-8 text-[14.5px]">
-          <a href="/docs/mcp" className="font-medium text-primary hover:underline">
+          <a href={docsHref} className="font-medium text-primary hover:underline">
             {docsLabel} →
           </a>
         </p>

@@ -5,6 +5,7 @@ import { ArrowRight, Check } from "lucide-react";
 
 import { getLocale } from "@/i18n/get-locale";
 import { dictionaries } from "@/i18n/dictionaries";
+import { languageAlternates, localePath } from "@/i18n/paths";
 import { FEATURE_SLUGS, getFeature, type FeatureSlug } from "@/content/features";
 import { getAssistantFaq } from "@/content/assistant-faq";
 
@@ -42,12 +43,13 @@ export async function generateMetadata({
   return {
     title: f.metaTitle,
     description: f.metaDescription,
-    alternates: { canonical: `/features/${slug}` },
+    alternates: languageAlternates(locale, `/features/${slug}`),
     openGraph: {
       title: `${f.metaTitle} · PulseTrack`,
       description: f.metaDescription,
-      url: `/features/${slug}`,
+      url: localePath(locale, `/features/${slug}`),
       type: "article",
+      locale: locale === "fr" ? "fr_FR" : "en_US",
     },
   };
 }
@@ -122,7 +124,7 @@ export default async function FeaturePageRoute({
                       →
                     </span>
                   </Link>
-                  <Link href="/#pricing" className="btn btn-ghost px-7 py-3.5">
+                  <Link href={localePath(locale, "/#pricing")} className="btn btn-ghost px-7 py-3.5">
                     {t.finalCta.secondary}
                   </Link>
                 </div>
@@ -236,7 +238,7 @@ export default async function FeaturePageRoute({
                 return (
                   <Link
                     key={rel}
-                    href={`/features/${rel}`}
+                    href={localePath(locale, `/features/${rel}`)}
                     className="group rounded-lg border border-border p-5 transition-colors hover:border-primary/40 hover:bg-primary-pale/25"
                   >
                     <p className="text-[12px] text-primary">{r.eyebrow}</p>
@@ -261,6 +263,7 @@ export default async function FeaturePageRoute({
           primary={t.finalCta.primary}
           secondary={t.finalCta.secondary}
           notes={t.finalCta.notes}
+          locale={locale}
         />
       </main>
 
@@ -268,6 +271,7 @@ export default async function FeaturePageRoute({
         tagline={t.footer.tagline}
         columns={t.footer.columns}
         legal={t.footer.legal}
+        locale={locale}
       />
 
       <Assistant t={t.assistant} faq={getAssistantFaq(locale)} locale={locale} />

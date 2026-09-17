@@ -13,6 +13,8 @@ import {
 import { Reveal, RevealGroup } from "./reveal";
 import { LogoMark } from "@/components/brand/logo";
 import { INTEGRATIONS } from "@/components/brand/integration-logos";
+import type { Locale } from "@/i18n/dictionaries";
+import { localePath } from "@/i18n/paths";
 
 /* ══════════════════════════════════════════════════════════════
    Trust strip — every claim here is verifiable today
@@ -358,11 +360,13 @@ export function FinalCta({
   primary,
   secondary,
   notes,
+  locale = "en",
 }: {
   title: React.ReactNode;
   primary: string;
   secondary: string;
   notes: string[];
+  locale?: Locale;
 }) {
   return (
     <section className="wash-brand relative overflow-hidden border-t border-border py-24 md:py-32">
@@ -376,7 +380,7 @@ export function FinalCta({
               →
             </span>
           </Link>
-          <Link href="/#pricing" className="btn btn-ghost px-7 py-3.5">
+          <Link href={localePath(locale, "/#pricing")} className="btn btn-ghost px-7 py-3.5">
             {secondary}
           </Link>
         </div>
@@ -402,11 +406,19 @@ export function Footer({
   tagline,
   columns,
   legal,
+  locale = "en",
 }: {
   tagline: string;
   columns: { title: string; links: { label: string; href: string }[] }[];
   legal: string;
+  locale?: Locale;
 }) {
+  // Un lien sans destination (« /# ») ne s'affiche pas : mieux vaut une
+  // colonne de moins qu'un lien qui ramène en haut de page.
+  const visible = columns
+    .map((col) => ({ ...col, links: col.links.filter((l) => l.href !== "/#" && l.href !== "#") }))
+    .filter((col) => col.links.length > 0);
+
   return (
     <footer className="border-t border-border bg-surface">
       <div className="mx-auto max-w-6xl px-6 py-14">
@@ -418,7 +430,7 @@ export function Footer({
             </p>
           </div>
 
-          {columns.map((col) => (
+          {visible.map((col) => (
             <div key={col.title}>
               <p className="text-[12px] font-medium uppercase tracking-wide text-muted-light">
                 {col.title}
@@ -427,7 +439,7 @@ export function Footer({
                 {col.links.map((l) => (
                   <li key={l.label}>
                     <Link
-                      href={l.href}
+                      href={localePath(locale, l.href)}
                       className="text-[13.5px] text-muted transition-colors hover:text-foreground"
                     >
                       {l.label}
